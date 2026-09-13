@@ -1,0 +1,1794 @@
+[
+ {
+  "id": "apprentice-knights",
+  "camel": "apprenticeKnights",
+  "phase": "OPENING",
+  "title": "견습 기사단",
+  "count": 1,
+  "status": "PASS"
+ },
+ {
+  "id": "checker",
+  "camel": "checker",
+  "phase": "OPENING",
+  "title": "체커",
+  "count": 14,
+  "status": "PASS"
+ },
+ {
+  "id": "guard",
+  "camel": "guard",
+  "phase": "OPENING",
+  "title": "근위병",
+  "count": 20,
+  "status": "FIXED"
+ },
+ {
+  "id": "pawn-conversion",
+  "camel": "pawnConversion",
+  "phase": "OPENING",
+  "title": "전환",
+  "count": 2,
+  "status": "PASS(earlier-session)"
+ },
+ {
+  "id": "last-stand",
+  "camel": "lastStand",
+  "phase": "OPENING",
+  "title": "집단 광기",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "elephant-escape",
+  "camel": "elephantEscape",
+  "phase": "OPENING",
+  "title": "코끼리 탈출",
+  "count": 0,
+  "status": "TODO"
+ },
+ {
+  "id": "queen-cavalry",
+  "camel": "queenCavalry",
+  "phase": "OPENING",
+  "title": "퀸의 기병대",
+  "count": 1,
+  "status": "TODO"
+ },
+ {
+  "id": "london-system",
+  "camel": "londonSystem",
+  "phase": "OPENING",
+  "title": "런던 시스템",
+  "count": 1,
+  "status": "TODO"
+ },
+ {
+  "id": "king-of-the-hill",
+  "camel": "kingOfTheHill",
+  "phase": "OPENING",
+  "title": "언덕의 왕",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "initiative",
+  "camel": "initiative",
+  "phase": "OPENING",
+  "title": "선공권",
+  "count": 0,
+  "status": "TODO"
+ },
+ {
+  "id": "martyrdom",
+  "camel": "martyrdom",
+  "phase": "OPENING",
+  "title": "순교",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "calling-card",
+  "camel": "callingCard",
+  "phase": "OPENING",
+  "title": "예고장",
+  "count": 5,
+  "status": "TODO"
+ },
+ {
+  "id": "geneva-convention",
+  "camel": "genevaConvention",
+  "phase": "OPENING",
+  "title": "제네바 협약",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "holdout",
+  "camel": "holdout",
+  "phase": "OPENING",
+  "title": "존버",
+  "count": 3,
+  "status": "TODO"
+ },
+ {
+  "id": "sprint",
+  "camel": "sprint",
+  "phase": "OPENING",
+  "title": "질주",
+  "count": 0,
+  "status": "TODO"
+ },
+ {
+  "id": "loyalist",
+  "camel": "loyalist",
+  "phase": "OPENING",
+  "title": "충신",
+  "count": 5,
+  "status": "TODO"
+ },
+ {
+  "id": "qxe1",
+  "camel": "qxe1",
+  "phase": "OPENING",
+  "title": "Qxe1!!",
+  "count": 3,
+  "status": "TODO"
+ },
+ {
+  "id": "knightmate",
+  "camel": "knightmate",
+  "phase": "OPENING",
+  "title": "나이트메이트",
+  "count": 3,
+  "status": "PASS"
+ },
+ {
+  "id": "democracy",
+  "camel": "democracy",
+  "phase": "OPENING",
+  "title": "민주주의",
+  "count": 5,
+  "status": "TODO"
+ },
+ {
+  "id": "fast-growth",
+  "camel": "fastGrowth",
+  "phase": "OPENING",
+  "title": "성급한 승진",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "otherworld",
+  "camel": "otherworld",
+  "phase": "OPENING",
+  "title": "이세계",
+  "count": 1,
+  "status": "TODO"
+ },
+ {
+  "id": "early-promotion",
+  "camel": "earlyPromotion",
+  "phase": "OPENING",
+  "title": "조기 진급",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "queens-gambit",
+  "camel": "queensGambit",
+  "phase": "OPENING",
+  "title": "퀸즈 갬빗",
+  "count": 7,
+  "status": "TODO"
+ },
+ {
+  "id": "field-promotion",
+  "camel": "fieldPromotion",
+  "phase": "OPENING",
+  "title": "특진",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "fianchetto",
+  "camel": "fianchetto",
+  "phase": "OPENING",
+  "title": "피앙케토",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "dutch",
+  "camel": "dutch",
+  "phase": "OPENING",
+  "title": "네덜란드",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "horde",
+  "camel": "horde",
+  "phase": "OPENING",
+  "title": "호드",
+  "count": 4,
+  "status": "TODO"
+ },
+ {
+  "id": "big-bishop",
+  "camel": "bigBishop",
+  "phase": "OPENING",
+  "title": "BISHOP",
+  "count": 16,
+  "status": "TODO"
+ },
+ {
+  "id": "big-rook",
+  "camel": "bigRook",
+  "phase": "OPENING",
+  "title": "ROOK",
+  "count": 48,
+  "status": "TODO"
+ },
+ {
+  "id": "iron-monarch",
+  "camel": "ironMonarch",
+  "phase": "OPENING",
+  "title": "친정",
+  "count": 1,
+  "status": "TODO"
+ },
+ {
+  "id": "summon-colossus",
+  "camel": "summonColossus",
+  "phase": "OPENING",
+  "title": "메가체스트론",
+  "count": 3,
+  "status": "TODO"
+ },
+ {
+  "id": "merchant-guild",
+  "camel": "merchantGuild",
+  "phase": "OPENING",
+  "title": "상인 조합",
+  "count": 4,
+  "status": "TODO"
+ },
+ {
+  "id": "switcheroo",
+  "camel": "switcheroo",
+  "phase": "MIDDLE",
+  "title": "바꿔치기",
+  "count": 7,
+  "status": "TODO"
+ },
+ {
+  "id": "chameleon-mutation",
+  "camel": "chameleonMutation",
+  "phase": "MIDDLE",
+  "title": "카멜레온 변이",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "royal-shield",
+  "camel": "royalShield",
+  "phase": "MIDDLE",
+  "title": "가호",
+  "count": 3,
+  "status": "FIXED"
+ },
+ {
+  "id": "submerge",
+  "camel": "submerge",
+  "phase": "MIDDLE",
+  "title": "잠복",
+  "count": 7,
+  "status": "TODO"
+ },
+ {
+  "id": "dice",
+  "camel": "dice",
+  "phase": "MIDDLE",
+  "title": "주사위",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "cleanup",
+  "camel": "cleanup",
+  "phase": "MIDDLE",
+  "title": "클린업",
+  "count": 0,
+  "status": "TODO"
+ },
+ {
+  "id": "panic",
+  "camel": "panic",
+  "phase": "MIDDLE",
+  "title": "패닉",
+  "count": 4,
+  "status": "FIXED"
+ },
+ {
+  "id": "gale",
+  "camel": "gale",
+  "phase": "MIDDLE",
+  "title": "강풍",
+  "count": 1,
+  "status": "TODO"
+ },
+ {
+  "id": "black-box",
+  "camel": "blackBox",
+  "phase": "MIDDLE",
+  "title": "검은 상자",
+  "count": 3,
+  "status": "TODO"
+ },
+ {
+  "id": "relay",
+  "camel": "relay",
+  "phase": "MIDDLE",
+  "title": "교대",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "rule-ticket",
+  "camel": "ruleTicket",
+  "phase": "MIDDLE",
+  "title": "규칙 티켓",
+  "count": 3,
+  "status": "TODO"
+ },
+ {
+  "id": "conversion",
+  "camel": "conversion",
+  "phase": "MIDDLE",
+  "title": "기도",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "emergency-evacuation",
+  "camel": "emergencyEvacuation",
+  "phase": "MIDDLE",
+  "title": "긴급 피난",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "taunt",
+  "camel": "taunt",
+  "phase": "MIDDLE",
+  "title": "도발",
+  "count": 2,
+  "status": "PASS"
+ },
+ {
+  "id": "ice-sheet",
+  "camel": "iceSheet",
+  "phase": "MIDDLE",
+  "title": "빙판",
+  "count": 5,
+  "status": "TODO"
+ },
+ {
+  "id": "horse-riding",
+  "camel": "horseRiding",
+  "phase": "MIDDLE",
+  "title": "승마",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "alekhine-machine-gun",
+  "camel": "alekhineMachineGun",
+  "phase": "MIDDLE",
+  "title": "알레킨의 머신건",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "quantum-mechanics",
+  "camel": "quantumMechanics",
+  "phase": "MIDDLE",
+  "title": "양자 역학",
+  "count": 1,
+  "status": "TODO"
+ },
+ {
+  "id": "reposition",
+  "camel": "reposition",
+  "phase": "MIDDLE",
+  "title": "재배치",
+  "count": 3,
+  "status": "FIXED"
+ },
+ {
+  "id": "retreat",
+  "camel": "retreat",
+  "phase": "MIDDLE",
+  "title": "퇴각",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "pawn-storm",
+  "camel": "pawnStorm",
+  "phase": "MIDDLE",
+  "title": "폰 스톰",
+  "count": 3,
+  "status": "TODO"
+ },
+ {
+  "id": "scarecrow",
+  "camel": "scarecrow",
+  "phase": "MIDDLE",
+  "title": "허수아비",
+  "count": 4,
+  "status": "TODO"
+ },
+ {
+  "id": "evasion",
+  "camel": "evasion",
+  "phase": "MIDDLE",
+  "title": "회피",
+  "count": 4,
+  "status": "TODO"
+ },
+ {
+  "id": "fanatical-ritual",
+  "camel": "fanaticalRitual",
+  "phase": "MIDDLE",
+  "title": "광신적 의식",
+  "count": 3,
+  "status": "PASS"
+ },
+ {
+  "id": "file-surge",
+  "camel": "fileSurge",
+  "phase": "MIDDLE",
+  "title": "급수",
+  "count": 3,
+  "status": "TODO"
+ },
+ {
+  "id": "encouragement",
+  "camel": "encouragement",
+  "phase": "MIDDLE",
+  "title": "독려",
+  "count": 4,
+  "status": "TODO"
+ },
+ {
+  "id": "poisoned-pawn",
+  "camel": "poisonedPawn",
+  "phase": "MIDDLE",
+  "title": "독이 든 폰",
+  "count": 6,
+  "status": "TODO"
+ },
+ {
+  "id": "breakthrough-order",
+  "camel": "breakthroughOrder",
+  "phase": "MIDDLE",
+  "title": "돌파",
+  "count": 4,
+  "status": "TODO"
+ },
+ {
+  "id": "backward-knight",
+  "camel": "backwardKnight",
+  "phase": "MIDDLE",
+  "title": "뒤로 가는 나이트",
+  "count": 1,
+  "status": "TODO"
+ },
+ {
+  "id": "witch-trial",
+  "camel": "witchTrial",
+  "phase": "MIDDLE",
+  "title": "마녀재판",
+  "count": 11,
+  "status": "FIXED"
+ },
+ {
+  "id": "freeze",
+  "camel": "freeze",
+  "phase": "MIDDLE",
+  "title": "빙결",
+  "count": 6,
+  "status": "FIXED"
+ },
+ {
+  "id": "vortex",
+  "camel": "vortex",
+  "phase": "MIDDLE",
+  "title": "소용돌이",
+  "count": 4,
+  "status": "FIXED"
+ },
+ {
+  "id": "suspicious-potion",
+  "camel": "suspiciousPotion",
+  "phase": "MIDDLE",
+  "title": "수상한 물약",
+  "count": 3,
+  "status": "TODO"
+ },
+ {
+  "id": "promotion-rush",
+  "camel": "promotionRush",
+  "phase": "MIDDLE",
+  "title": "승진 체험",
+  "count": 5,
+  "status": "TODO"
+ },
+ {
+  "id": "en-passant-bang",
+  "camel": "enPassantBang",
+  "phase": "MIDDLE",
+  "title": "앙파상",
+  "count": 5,
+  "status": "TODO"
+ },
+ {
+  "id": "royal-command",
+  "camel": "royalCommand",
+  "phase": "MIDDLE",
+  "title": "왕명",
+  "count": 2,
+  "status": "FIXED"
+ },
+ {
+  "id": "majesty",
+  "camel": "majesty",
+  "phase": "MIDDLE",
+  "title": "위엄",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "snipe",
+  "camel": "snipe",
+  "phase": "MIDDLE",
+  "title": "저격",
+  "count": 1,
+  "status": "TODO"
+ },
+ {
+  "id": "severance",
+  "camel": "severance",
+  "phase": "MIDDLE",
+  "title": "절단",
+  "count": 7,
+  "status": "FIXED"
+ },
+ {
+  "id": "chimera",
+  "camel": "chimera",
+  "phase": "MIDDLE",
+  "title": "키메라",
+  "count": 6,
+  "status": "TODO"
+ },
+ {
+  "id": "exhaustion",
+  "camel": "exhaustion",
+  "phase": "MIDDLE",
+  "title": "탈진",
+  "count": 3,
+  "status": "TODO"
+ },
+ {
+  "id": "white-box",
+  "camel": "whiteBox",
+  "phase": "MIDDLE",
+  "title": "하얀 상자",
+  "count": 4,
+  "status": "TODO"
+ },
+ {
+  "id": "twins",
+  "camel": "twins",
+  "phase": "MIDDLE",
+  "title": "환상의 콤비",
+  "count": 3,
+  "status": "TODO"
+ },
+ {
+  "id": "resolve",
+  "camel": "resolve",
+  "phase": "MIDDLE",
+  "title": "결의",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "inertia",
+  "camel": "inertia",
+  "phase": "MIDDLE",
+  "title": "관성",
+  "count": 8,
+  "status": "FIXED"
+ },
+ {
+  "id": "mad-horse",
+  "camel": "madHorse",
+  "phase": "MIDDLE",
+  "title": "광마",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "basic-training",
+  "camel": "basicTraining",
+  "phase": "MIDDLE",
+  "title": "기초 교습",
+  "count": 7,
+  "status": "TODO"
+ },
+ {
+  "id": "random-roulette",
+  "camel": "randomRoulette",
+  "phase": "MIDDLE",
+  "title": "랜덤룰렛",
+  "count": 4,
+  "status": "TODO"
+ },
+ {
+  "id": "rook-lift",
+  "camel": "rookLift",
+  "phase": "MIDDLE",
+  "title": "룩 리프트",
+  "count": 3,
+  "status": "TODO"
+ },
+ {
+  "id": "feudal-contract",
+  "camel": "feudalContract",
+  "phase": "MIDDLE",
+  "title": "봉건 계약",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "frontline-response",
+  "camel": "frontlineResponse",
+  "phase": "MIDDLE",
+  "title": "불가침",
+  "count": 2,
+  "status": "FIXED"
+ },
+ {
+  "id": "nullification",
+  "camel": "nullification",
+  "phase": "MIDDLE",
+  "title": "상쇄",
+  "count": 2,
+  "status": "PASS"
+ },
+ {
+  "id": "schrodinger-pawns",
+  "camel": "schrodingerPawns",
+  "phase": "MIDDLE",
+  "title": "슈뢰딩거의 폰",
+  "count": 0,
+  "status": "TODO"
+ },
+ {
+  "id": "mistake-card",
+  "camel": "mistakeCard",
+  "phase": "MIDDLE",
+  "title": "실수",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "suicide-bomber",
+  "camel": "suicideBomber",
+  "phase": "MIDDLE",
+  "title": "자폭병",
+  "count": 6,
+  "status": "TODO"
+ },
+ {
+  "id": "queen-afterimage",
+  "camel": "queenAfterimage",
+  "phase": "MIDDLE",
+  "title": "잔상",
+  "count": 3,
+  "status": "TODO"
+ },
+ {
+  "id": "infiltration",
+  "camel": "infiltration",
+  "phase": "MIDDLE",
+  "title": "잠입",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "outpost",
+  "camel": "outpost",
+  "phase": "MIDDLE",
+  "title": "전초기지",
+  "count": 2,
+  "status": "FIXED"
+ },
+ {
+  "id": "religious-victory",
+  "camel": "religiousVictory",
+  "phase": "MIDDLE",
+  "title": "종교 승리",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "castling",
+  "camel": "castling",
+  "phase": "MIDDLE",
+  "title": "캐슬링",
+  "count": 1,
+  "status": "TODO"
+ },
+ {
+  "id": "corner-kick",
+  "camel": "cornerKick",
+  "phase": "MIDDLE",
+  "title": "코너킥",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "insight",
+  "camel": "insight",
+  "phase": "MIDDLE",
+  "title": "통찰",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "trojan-horse",
+  "camel": "trojanHorse",
+  "phase": "MIDDLE",
+  "title": "트로이 목마",
+  "count": 6,
+  "status": "TODO"
+ },
+ {
+  "id": "premove",
+  "camel": "premove",
+  "phase": "MIDDLE",
+  "title": "프리 무브",
+  "count": 1,
+  "status": "TODO"
+ },
+ {
+  "id": "armistice",
+  "camel": "armistice",
+  "phase": "MIDDLE",
+  "title": "휴전",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "sacrifice",
+  "camel": "sacrifice",
+  "phase": "MIDDLE",
+  "title": "희생",
+  "count": 3,
+  "status": "FIXED"
+ },
+ {
+  "id": "leap",
+  "camel": "leap",
+  "phase": "MIDDLE",
+  "title": "도약",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "disarm",
+  "camel": "disarm",
+  "phase": "MIDDLE",
+  "title": "무장해제",
+  "count": 7,
+  "status": "FIXED"
+ },
+ {
+  "id": "injury",
+  "camel": "injury",
+  "phase": "MIDDLE",
+  "title": "부상",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "socialism",
+  "camel": "socialism",
+  "phase": "MIDDLE",
+  "title": "사회주의",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "vanguard",
+  "camel": "vanguard",
+  "phase": "MIDDLE",
+  "title": "선봉",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "stealth",
+  "camel": "stealth",
+  "phase": "MIDDLE",
+  "title": "은신",
+  "count": 3,
+  "status": "TODO"
+ },
+ {
+  "id": "imperial-studies",
+  "camel": "imperialStudies",
+  "phase": "MIDDLE",
+  "title": "제왕학",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "killer-king",
+  "camel": "killerKing",
+  "phase": "MIDDLE",
+  "title": "킬러 킹",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "parry",
+  "camel": "parry",
+  "phase": "MIDDLE",
+  "title": "패링",
+  "count": 5,
+  "status": "TODO"
+ },
+ {
+  "id": "ghost",
+  "camel": "ghost",
+  "phase": "MIDDLE",
+  "title": "고스트",
+  "count": 4,
+  "status": "TODO"
+ },
+ {
+  "id": "miracle",
+  "camel": "miracle",
+  "phase": "MIDDLE",
+  "title": "기적",
+  "count": 0,
+  "status": "TODO"
+ },
+ {
+  "id": "radical-charge",
+  "camel": "radicalCharge",
+  "phase": "MIDDLE",
+  "title": "난폭한 돌진",
+  "count": 1,
+  "status": "TODO"
+ },
+ {
+  "id": "overwhelm",
+  "camel": "overwhelm",
+  "phase": "MIDDLE",
+  "title": "압도",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "overtake",
+  "camel": "overtake",
+  "phase": "MIDDLE",
+  "title": "추월",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "mongolian-gambit",
+  "camel": "mongolianGambit",
+  "phase": "MIDDLE",
+  "title": "몽골리안 갬빗",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "trolley",
+  "camel": "trolley",
+  "phase": "MIDDLE",
+  "title": "트롤리",
+  "count": 5,
+  "status": "TODO"
+ },
+ {
+  "id": "windmill",
+  "camel": "windmill",
+  "phase": "PIECE",
+  "title": "풍차",
+  "count": 12,
+  "status": "TODO"
+ },
+ {
+  "id": "jester",
+  "camel": "jester",
+  "phase": "PIECE",
+  "title": "광대",
+  "count": 23,
+  "status": "FIXED"
+ },
+ {
+  "id": "ordination",
+  "camel": "ordination",
+  "phase": "PIECE",
+  "title": "서품",
+  "count": 3,
+  "status": "TODO"
+ },
+ {
+  "id": "constitutional-monarchy",
+  "camel": "constitutionalMonarchy",
+  "phase": "PIECE",
+  "title": "입헌군주제",
+  "count": 3,
+  "status": "FIXED"
+ },
+ {
+  "id": "log",
+  "camel": "log",
+  "phase": "PIECE",
+  "title": "통나무",
+  "count": 8,
+  "status": "TODO"
+ },
+ {
+  "id": "siege-ram",
+  "camel": "siegeRam",
+  "phase": "PIECE",
+  "title": "공성추",
+  "count": 13,
+  "status": "TODO"
+ },
+ {
+  "id": "knightmaster",
+  "camel": "knightmaster",
+  "phase": "PIECE",
+  "title": "기사단장",
+  "count": 9,
+  "status": "TODO"
+ },
+ {
+  "id": "standard-bearer",
+  "camel": "standardBearer",
+  "phase": "PIECE",
+  "title": "기수",
+  "count": 20,
+  "status": "TODO"
+ },
+ {
+  "id": "missionary",
+  "camel": "missionary",
+  "phase": "PIECE",
+  "title": "선교사",
+  "count": 12,
+  "status": "TODO"
+ },
+ {
+  "id": "berserker",
+  "camel": "berserker",
+  "phase": "PIECE",
+  "title": "버서커",
+  "count": 11,
+  "status": "TODO"
+ },
+ {
+  "id": "siren",
+  "camel": "siren",
+  "phase": "PIECE",
+  "title": "세이렌",
+  "count": 11,
+  "status": "TODO"
+ },
+ {
+  "id": "assassin",
+  "camel": "assassin",
+  "phase": "PIECE",
+  "title": "암살자",
+  "count": 10,
+  "status": "TODO"
+ },
+ {
+  "id": "reformation",
+  "camel": "reformation",
+  "phase": "PIECE",
+  "title": "종교 개혁",
+  "count": 2,
+  "status": "PASS"
+ },
+ {
+  "id": "hedgehog",
+  "camel": "hedgehog",
+  "phase": "PIECE",
+  "title": "고슴도치",
+  "count": 9,
+  "status": "TODO"
+ },
+ {
+  "id": "grasshopper",
+  "camel": "grasshopper",
+  "phase": "PIECE",
+  "title": "그래스호퍼",
+  "count": 8,
+  "status": "TODO"
+ },
+ {
+  "id": "eastern-policy",
+  "camel": "easternPolicy",
+  "phase": "PIECE",
+  "title": "동방견문록",
+  "count": 3,
+  "status": "TODO"
+ },
+ {
+  "id": "dragon",
+  "camel": "dragon",
+  "phase": "PIECE",
+  "title": "드래곤",
+  "count": 12,
+  "status": "TODO"
+ },
+ {
+  "id": "magic-girl",
+  "camel": "magicGirl",
+  "phase": "PIECE",
+  "title": "마법소녀",
+  "count": 11,
+  "status": "TODO"
+ },
+ {
+  "id": "reaper",
+  "camel": "reaper",
+  "phase": "PIECE",
+  "title": "사신",
+  "count": 13,
+  "status": "TODO"
+ },
+ {
+  "id": "slime",
+  "camel": "slime",
+  "phase": "PIECE",
+  "title": "슬라임",
+  "count": 11,
+  "status": "TODO"
+ },
+ {
+  "id": "eagle",
+  "camel": "eagle",
+  "phase": "PIECE",
+  "title": "알리바바",
+  "count": 10,
+  "status": "TODO"
+ },
+ {
+  "id": "herald",
+  "camel": "herald",
+  "phase": "PIECE",
+  "title": "전령",
+  "count": 16,
+  "status": "TODO"
+ },
+ {
+  "id": "princess",
+  "camel": "princess",
+  "phase": "PIECE",
+  "title": "프린세스",
+  "count": 3,
+  "status": "TODO"
+ },
+ {
+  "id": "idol",
+  "camel": "idol",
+  "phase": "PIECE",
+  "title": "아이돌",
+  "count": 19,
+  "status": "FIXED"
+ },
+ {
+  "id": "undead",
+  "camel": "undead",
+  "phase": "PIECE",
+  "title": "언데드",
+  "count": 13,
+  "status": "TODO"
+ },
+ {
+  "id": "campfire",
+  "camel": "campfire",
+  "phase": "PIECE",
+  "title": "캠프파이어",
+  "count": 5,
+  "status": "TODO"
+ },
+ {
+  "id": "trickster",
+  "camel": "trickster",
+  "phase": "PIECE",
+  "title": "트릭스터",
+  "count": 45,
+  "status": "TODO"
+ },
+ {
+  "id": "local-conscription",
+  "camel": "localConscription",
+  "phase": "PIECE",
+  "title": "현지군 징병",
+  "count": 5,
+  "status": "TODO"
+ },
+ {
+  "id": "hook",
+  "camel": "hook",
+  "phase": "PIECE",
+  "title": "구행",
+  "count": 22,
+  "status": "TODO"
+ },
+ {
+  "id": "amazon",
+  "camel": "amazon",
+  "phase": "PIECE",
+  "title": "아마존",
+  "count": 26,
+  "status": "TODO"
+ },
+ {
+  "id": "wizard",
+  "camel": "wizard",
+  "phase": "PIECE",
+  "title": "마법사",
+  "count": 23,
+  "status": "TODO"
+ },
+ {
+  "id": "cleanup-sacrifice",
+  "camel": "cleanupSacrifice",
+  "phase": "END",
+  "title": "강제 교환",
+  "count": 4,
+  "status": "FIXED"
+ },
+ {
+  "id": "hallucination",
+  "camel": "hallucination",
+  "phase": "END",
+  "title": "환각",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "icbm",
+  "camel": "icbm",
+  "phase": "END",
+  "title": "ICBM",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "death-squad",
+  "camel": "deathSquad",
+  "phase": "END",
+  "title": "결사대",
+  "count": 4,
+  "status": "TODO"
+ },
+ {
+  "id": "stake",
+  "camel": "stake",
+  "phase": "END",
+  "title": "말뚝",
+  "count": 5,
+  "status": "TODO"
+ },
+ {
+  "id": "barricade",
+  "camel": "barricade",
+  "phase": "END",
+  "title": "엄폐물 설치",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "exile",
+  "camel": "exile",
+  "phase": "END",
+  "title": "유배",
+  "count": 4,
+  "status": "FIXED"
+ },
+ {
+  "id": "underground-bunker",
+  "camel": "undergroundBunker",
+  "phase": "END",
+  "title": "지하벙커",
+  "count": 3,
+  "status": "TODO"
+ },
+ {
+  "id": "reverse-pawns",
+  "camel": "reversePawns",
+  "phase": "END",
+  "title": "폰 방향 반전",
+  "count": 1,
+  "status": "TODO"
+ },
+ {
+  "id": "vip",
+  "camel": "vip",
+  "phase": "END",
+  "title": "귀빈",
+  "count": 13,
+  "status": "PASS"
+ },
+ {
+  "id": "homecoming",
+  "camel": "homecoming",
+  "phase": "END",
+  "title": "귀환",
+  "count": 3,
+  "status": "TODO"
+ },
+ {
+  "id": "lobster",
+  "camel": "lobster",
+  "phase": "END",
+  "title": "랍스터",
+  "count": 7,
+  "status": "TODO"
+ },
+ {
+  "id": "judgment",
+  "camel": "judgment",
+  "phase": "END",
+  "title": "레드카드",
+  "count": 3,
+  "status": "TODO"
+ },
+ {
+  "id": "racing-king",
+  "camel": "racingKing",
+  "phase": "END",
+  "title": "레이싱 킹",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "chain",
+  "camel": "chain",
+  "phase": "END",
+  "title": "사슬",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "spy",
+  "camel": "spy",
+  "phase": "END",
+  "title": "스파이",
+  "count": 3,
+  "status": "TODO"
+ },
+ {
+  "id": "underpromotion",
+  "camel": "underpromotion",
+  "phase": "END",
+  "title": "언더프로모션",
+  "count": 3,
+  "status": "TODO"
+ },
+ {
+  "id": "final-weapon",
+  "camel": "finalWeapon",
+  "phase": "END",
+  "title": "최종병기",
+  "count": 3,
+  "status": "TODO"
+ },
+ {
+  "id": "substitution",
+  "camel": "substitution",
+  "phase": "END",
+  "title": "치환",
+  "count": 4,
+  "status": "TODO"
+ },
+ {
+  "id": "palace",
+  "camel": "palace",
+  "phase": "END",
+  "title": "궁성",
+  "count": 1,
+  "status": "TODO"
+ },
+ {
+  "id": "coronation",
+  "camel": "coronation",
+  "phase": "END",
+  "title": "대관식",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "bina-mate",
+  "camel": "binaMate",
+  "phase": "END",
+  "title": "더블 체크",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "desperado",
+  "camel": "desperado",
+  "phase": "END",
+  "title": "데스페라도",
+  "count": 4,
+  "status": "FIXED"
+ },
+ {
+  "id": "last-resistance",
+  "camel": "lastResistance",
+  "phase": "END",
+  "title": "마지막 저항",
+  "count": 6,
+  "status": "TODO"
+ },
+ {
+  "id": "empty-lunchbox",
+  "camel": "emptyLunchbox",
+  "phase": "END",
+  "title": "빈 찬합",
+  "count": 5,
+  "status": "TODO"
+ },
+ {
+  "id": "necromancy",
+  "camel": "necromancy",
+  "phase": "END",
+  "title": "빙의",
+  "count": 0,
+  "status": "TODO"
+ },
+ {
+  "id": "othello",
+  "camel": "othello",
+  "phase": "END",
+  "title": "오델로",
+  "count": 3,
+  "status": "TODO"
+ },
+ {
+  "id": "pegasus",
+  "camel": "pegasus",
+  "phase": "END",
+  "title": "유니콘",
+  "count": 8,
+  "status": "TODO"
+ },
+ {
+  "id": "frenzy",
+  "camel": "frenzy",
+  "phase": "END",
+  "title": "광란",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "replay",
+  "camel": "replay",
+  "phase": "END",
+  "title": "리플레이",
+  "count": 0,
+  "status": "TODO"
+ },
+ {
+  "id": "charge",
+  "camel": "charge",
+  "phase": "END",
+  "title": "마지막 질주",
+  "count": 5,
+  "status": "TODO"
+ },
+ {
+  "id": "moving",
+  "camel": "moving",
+  "phase": "END",
+  "title": "무빙",
+  "count": 3,
+  "status": "TODO"
+ },
+ {
+  "id": "reversal",
+  "camel": "reversal",
+  "phase": "END",
+  "title": "반전",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "traitor",
+  "camel": "traitor",
+  "phase": "END",
+  "title": "변절자",
+  "count": 3,
+  "status": "FIXED"
+ },
+ {
+  "id": "bribe",
+  "camel": "bribe",
+  "phase": "END",
+  "title": "삼일천하",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "baby-bear",
+  "camel": "babyBear",
+  "phase": "END",
+  "title": "아기곰",
+  "count": 13,
+  "status": "TODO"
+ },
+ {
+  "id": "gomoku",
+  "camel": "gomoku",
+  "phase": "END",
+  "title": "오목",
+  "count": 1,
+  "status": "TODO"
+ },
+ {
+  "id": "hypocrisy",
+  "camel": "hypocrisy",
+  "phase": "END",
+  "title": "위선",
+  "count": 3,
+  "status": "TODO"
+ },
+ {
+  "id": "fleeting-dream",
+  "camel": "fleetingDream",
+  "phase": "END",
+  "title": "일장춘몽",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "conscription",
+  "camel": "conscription",
+  "phase": "END",
+  "title": "징집",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "recurrence",
+  "camel": "recurrence",
+  "phase": "END",
+  "title": "회귀",
+  "count": 2,
+  "status": "PASS"
+ },
+ {
+  "id": "collapse",
+  "camel": "collapse",
+  "phase": "END",
+  "title": "붕괴",
+  "count": 3,
+  "status": "TODO"
+ },
+ {
+  "id": "vanish",
+  "camel": "vanish",
+  "phase": "END",
+  "title": "소멸",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "joker",
+  "camel": "joker",
+  "phase": "END",
+  "title": "조커",
+  "count": 4,
+  "status": "TODO"
+ },
+ {
+  "id": "prophecy",
+  "camel": "prophecy",
+  "phase": "END",
+  "title": "종전",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "ultimatum",
+  "camel": "ultimatum",
+  "phase": "END",
+  "title": "최후 통첩",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "zugzwang",
+  "camel": "zugzwang",
+  "phase": "END",
+  "title": "추크츠방",
+  "count": 3,
+  "status": "TODO"
+ },
+ {
+  "id": "portal-gun",
+  "camel": "portalGun",
+  "phase": "END",
+  "title": "포탈 건",
+  "count": 3,
+  "status": "TODO"
+ },
+ {
+  "id": "black-magic",
+  "camel": "blackMagic",
+  "phase": "END",
+  "title": "흑마법",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "clone",
+  "camel": "clone",
+  "phase": "END",
+  "title": "복제",
+  "count": 0,
+  "status": "TODO"
+ },
+ {
+  "id": "blue-jeans",
+  "camel": "blueJeans",
+  "phase": "END",
+  "title": "청바지",
+  "count": 3,
+  "status": "TODO"
+ },
+ {
+  "id": "canceling",
+  "camel": "canceling",
+  "phase": "END",
+  "title": "캔슬링",
+  "count": 3,
+  "status": "TODO"
+ },
+ {
+  "id": "acceleration",
+  "camel": "acceleration",
+  "phase": "RULE",
+  "title": "가속",
+  "count": 0,
+  "status": "PASS"
+ },
+ {
+  "id": "winter-kingdom",
+  "camel": "winterKingdom",
+  "phase": "RULE",
+  "title": "겨울 왕국",
+  "count": 3,
+  "status": "FIXED"
+ },
+ {
+  "id": "revelation",
+  "camel": "revelation",
+  "phase": "RULE",
+  "title": "계시",
+  "count": 3,
+  "status": "TODO"
+ },
+ {
+  "id": "highway",
+  "camel": "highway",
+  "phase": "RULE",
+  "title": "고속도로",
+  "count": 4,
+  "status": "TODO"
+ },
+ {
+  "id": "high-ground",
+  "camel": "highGround",
+  "phase": "RULE",
+  "title": "고지전",
+  "count": 3,
+  "status": "TODO"
+ },
+ {
+  "id": "monster",
+  "camel": "monster",
+  "phase": "RULE",
+  "title": "괴물",
+  "count": 32,
+  "status": "FIXED"
+ },
+ {
+  "id": "capture-the-flag",
+  "camel": "captureTheFlag",
+  "phase": "RULE",
+  "title": "깃발 뽑기",
+  "count": 0,
+  "status": "TODO"
+ },
+ {
+  "id": "monochrome-chess",
+  "camel": "monochromeChess",
+  "phase": "RULE",
+  "title": "단색 체스",
+  "count": 3,
+  "status": "TODO"
+ },
+ {
+  "id": "diagonal-chess",
+  "camel": "diagonalChess",
+  "phase": "RULE",
+  "title": "대각선 체스",
+  "count": 0,
+  "status": "PASS"
+ },
+ {
+  "id": "cool-guy",
+  "camel": "coolGuy",
+  "phase": "RULE",
+  "title": "매너",
+  "count": 0,
+  "status": "TODO"
+ },
+ {
+  "id": "platform",
+  "camel": "platform",
+  "phase": "RULE",
+  "title": "발판",
+  "count": 1,
+  "status": "TODO"
+ },
+ {
+  "id": "periodic-collapse",
+  "camel": "periodicCollapse",
+  "phase": "RULE",
+  "title": "붕괴",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "black-hole",
+  "camel": "blackHole",
+  "phase": "RULE",
+  "title": "블랙홀",
+  "count": 65,
+  "status": "TODO"
+ },
+ {
+  "id": "macho-chess",
+  "camel": "machoChess",
+  "phase": "RULE",
+  "title": "상남자 모드",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "mistake",
+  "camel": "mistake",
+  "phase": "RULE",
+  "title": "실수",
+  "count": 3,
+  "status": "TODO"
+ },
+ {
+  "id": "crown",
+  "camel": "crown",
+  "phase": "RULE",
+  "title": "왕관",
+  "count": 11,
+  "status": "TODO"
+ },
+ {
+  "id": "camouflage-color",
+  "camel": "camouflageColor",
+  "phase": "RULE",
+  "title": "위장색",
+  "count": 0,
+  "status": "TODO"
+ },
+ {
+  "id": "recycling",
+  "camel": "recycling",
+  "phase": "RULE",
+  "title": "재활용",
+  "count": 7,
+  "status": "TODO"
+ },
+ {
+  "id": "chess-960",
+  "camel": "chess960",
+  "phase": "RULE",
+  "title": "960 체스",
+  "count": 0,
+  "status": "PASS(out-of-scope)"
+ },
+ {
+  "id": "chess-344200",
+  "camel": "chess344200",
+  "phase": "RULE",
+  "title": "344200 체스",
+  "count": 0,
+  "status": "PASS(out-of-scope)"
+ },
+ {
+  "id": "transcendence",
+  "camel": "transcendence",
+  "phase": "RULE",
+  "title": "초월",
+  "count": 3,
+  "status": "TODO"
+ },
+ {
+  "id": "football",
+  "camel": "football",
+  "phase": "RULE",
+  "title": "축구공",
+  "count": 108,
+  "status": "TODO"
+ },
+ {
+  "id": "conveyor",
+  "camel": "conveyor",
+  "phase": "RULE",
+  "title": "컨베이어",
+  "count": 1,
+  "status": "TODO"
+ },
+ {
+  "id": "portal",
+  "camel": "portal",
+  "phase": "RULE",
+  "title": "포탈",
+  "count": 4,
+  "status": "TODO"
+ },
+ {
+  "id": "saturation",
+  "camel": "saturation",
+  "phase": "RULE",
+  "title": "포화",
+  "count": 3,
+  "status": "TODO"
+ },
+ {
+  "id": "rule-bombs",
+  "camel": "ruleBombs",
+  "phase": "RULE",
+  "title": "폭탄",
+  "count": 2,
+  "status": "TODO"
+ },
+ {
+  "id": "chess-n-pow-30",
+  "camel": "chessNPow30",
+  "phase": "RULE",
+  "title": "혼돈의 체스",
+  "count": 0,
+  "status": "PASS(out-of-scope)"
+ }
+]

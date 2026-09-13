@@ -6,4 +6,3 @@ nnue/snapshots/
 *.zip
 scratch_*.json
 scratch_*.jsonl
-site-oracle/site-engine.mjs

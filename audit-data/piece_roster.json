@@ -1,0 +1,20 @@
+{
+  "source": "PIECE_NOTATION_CODES object, site-bundle.js line ~6375",
+  "standard_pieces_excluded": ["king", "queen", "rook", "bishop", "knight", "pawn"],
+  "special_piece_types": [
+    "alfil","camel","dragon","fanatic","grasshopper","herald","jester","log","logRolling",
+    "merchant","missionary","protestant","scarecrow","timeTraveler","pegasus","vampireLord",
+    "windmill","windmillBishop","windmillRook","colossus","amazon","eagle","assassin",
+    "bigRook","bigBishop","bat","cardinal","coffin","checker","checkerKing","cannon","ferz",
+    "guard","hook","knightmaster","man","primeMinister","recruiter","reaper","royalKnight",
+    "standardBearer","shotgunKing","squire","wizard","darkWizard","idol","lobster","babyBear",
+    "bear","vip","crown","football","siegeRam","magicGirl","berserker","slime","siren",
+    "trickster","undead","campfire","princess","hedgehog","monster"
+  ],
+  "known_aliases_not_distinct_movement": {
+    "windmillBishop": "windmill (bishop mode)",
+    "windmillRook": "windmill (rook mode)",
+    "logRolling": "log",
+    "checkerKing": "checker (promoted)"
+  }
+}
