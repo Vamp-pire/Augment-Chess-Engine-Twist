@@ -1,0 +1,5 @@
+workers: 7 run budget (ms): 10800000 -> until 2026-09-13T08:25:32.098Z
+[progress @ 30.0min] games: 134 errors: 1 positions: 9278 outcomes: {"white":23,"black":16,"draw":83,"unfinished":12}
+[progress @ 60.0min] games: 243 errors: 2 positions: 18281 outcomes: {"white":29,"black":40,"draw":157,"unfinished":17}
+[progress @ 90.0min] games: 384 errors: 2 positions: 27855 outcomes: {"white":48,"black":71,"draw":239,"unfinished":26}
+[progress @ 120.0min] games: 510 errors: 2 positions: 36752 outcomes: {"white":69,"black":96,"draw":305,"unfinished":40}

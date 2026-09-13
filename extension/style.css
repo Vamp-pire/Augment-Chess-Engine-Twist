@@ -1,0 +1,386 @@
+.notation-entry.notation-move,
+.notation-entry.notation-gain {
+  position: relative;
+  overflow: visible;
+}
+
+.aug-engine-move-icon {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 12px;
+  height: 12px;
+  pointer-events: none;
+  z-index: 2;
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.9));
+}
+
+.aug-engine-ai-toggle {
+  /* Changed from a single <label> to a <div> wrapping the checkbox row plus
+     a live-settings block (2026-09-13) -- column layout stacks them, the
+     row itself keeps the original flex-row look via its own class below. */
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 12px;
+  background: #1f2330;
+  color: #f2f2f2;
+  border: 2px solid #e8c15a;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.aug-engine-ai-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.aug-engine-ai-toggle-row input {
+  cursor: pointer;
+}
+
+/* A <details> element (2026-09-13, was a plain always-visible <div>) --
+   collapsed by default so the toggle box doesn't cover as much of the
+   board; the browser's native <details> behavior hides everything but
+   <summary> when closed, no extra JS needed. The flex/column layout below
+   only applies to the row/hint children once it's open. */
+.aug-engine-live-settings {
+  font-weight: 400;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  padding-top: 8px;
+}
+
+.aug-engine-live-settings summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: #cfcfcf;
+  user-select: none;
+}
+
+.aug-engine-live-settings[open] summary {
+  margin-bottom: 6px;
+}
+
+.aug-engine-live-settings .aug-engine-settings-row,
+.aug-engine-live-settings .aug-engine-hint {
+  margin-top: 4px;
+}
+
+.aug-engine-live-settings .aug-engine-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.aug-engine-live-settings input[type="number"] {
+  width: 64px;
+  background: #2b2f3a;
+  color: #f2f2f2;
+  border: 1px solid #454b5a;
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 12px;
+}
+
+.aug-engine-live-settings select {
+  background: #2b2f3a;
+  color: #f2f2f2;
+  border: 1px solid #454b5a;
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 12px;
+}
+
+.aug-engine-live-settings .aug-engine-hint {
+  font-size: 11px;
+  color: #9aa0ab;
+  margin: 0 0 2px;
+  line-height: 1.4;
+}
+
+/* Mid-game fallback anchor (.match-players, added 2026-09-12): that element
+   sits flush against the board with no space below it for an
+   absolutely-positioned box to occupy without overlapping the board, so this
+   variant floats as a small fixed corner badge instead -- width:auto
+   overrides the base rule's width:100% (which would otherwise stretch to
+   the full viewport once top/left aren't rect-anchored anymore). */
+.aug-engine-ai-toggle-corner {
+  width: auto;
+  bottom: 12px;
+  left: 12px;
+  top: auto;
+  right: auto;
+  z-index: 999998;
+}
+
+.aug-engine-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999999;
+}
+
+.aug-engine-panel {
+  background: #1f2330;
+  color: #f2f2f2;
+  border-radius: 12px;
+  padding: 28px 32px;
+  max-width: 360px;
+  text-align: center;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+  font-family: inherit;
+}
+
+.aug-engine-panel h2 {
+  margin: 0 0 12px;
+  font-size: 20px;
+}
+
+.aug-engine-panel p {
+  margin: 0 0 20px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #cfcfcf;
+}
+
+.aug-engine-close {
+  background: #e8c15a;
+  color: #1f2330;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 20px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.aug-engine-review-box {
+  /* Positioned by content.js's repositionReviewButton (absolute, anchored
+     to .board-frame's own rect) -- this just lays out its own children
+     (게임리뷰/기보리뷰 buttons + the NNUE toggle) as stacked full-width rows,
+     2026-09-09 (previously a single button whose label changed with game
+     state instead of two always-visible rows). */
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 999998;
+}
+
+.aug-engine-live-button {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  position: relative;
+  background: #1f2330;
+  color: #f2f2f2;
+  border: 2px solid #e8c15a;
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+.aug-engine-live-button:hover {
+  background: #2b2f3a;
+}
+
+.aug-engine-live-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.aug-engine-live-button:disabled:hover {
+  background: #1f2330;
+}
+
+.aug-engine-review-nnue-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 12px;
+  background: #1f2330;
+  color: #f2f2f2;
+  border: 2px solid #e8c15a;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.aug-engine-review-nnue-toggle input {
+  cursor: pointer;
+}
+
+.aug-engine-review-panel {
+  max-width: 440px;
+  text-align: left;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.aug-engine-review-panel h2 {
+  text-align: center;
+}
+
+.aug-engine-loading {
+  text-align: center;
+}
+
+.aug-engine-accuracy {
+  display: flex;
+  justify-content: space-around;
+  background: #2b2f3a;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  font-size: 14px;
+}
+
+.aug-engine-hint {
+  font-size: 12px;
+  color: #9aa0ab;
+  text-align: center;
+  margin: 0 0 10px;
+}
+
+.aug-engine-review-list {
+  overflow-y: auto;
+  max-height: 320px;
+  margin-bottom: 16px;
+  padding-right: 4px;
+}
+
+.aug-engine-review-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 4px;
+  font-size: 13px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.aug-engine-review-move {
+  min-width: 90px;
+  font-variant-numeric: tabular-nums;
+}
+
+.aug-engine-review-tag {
+  color: #cfcfcf;
+  margin-left: auto;
+}
+
+.aug-engine-review-panel .aug-engine-close {
+  display: block;
+  margin: 0 auto;
+}
+
+.aug-engine-warning {
+  font-size: 12px;
+  color: #e8c15a;
+  text-align: center;
+  margin: 0 0 10px;
+}
+
+.aug-engine-live-button.aug-engine-drag-over {
+  background: #e8c15a;
+  color: #1f2330;
+  transform: scale(1.05);
+}
+
+.aug-engine-mode-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.aug-engine-mode-fast,
+.aug-engine-mode-deep {
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.aug-engine-mode-fast {
+  background: #e8c15a;
+  color: #1f2330;
+}
+
+.aug-engine-mode-deep {
+  background: #2b2f3a;
+  color: #f2f2f2;
+  border: 1px solid #454b5a;
+}
+
+.aug-engine-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  color: #cfcfcf;
+  margin-bottom: 4px;
+}
+
+.aug-engine-instance-select,
+.aug-engine-concurrency-select {
+  background: #2b2f3a;
+  color: #f2f2f2;
+  border: 1px solid #454b5a;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 13px;
+}
+
+.aug-engine-instance-hint {
+  font-size: 11px;
+  margin-bottom: 14px !important;
+}
+
+.aug-engine-settings-checkbox {
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.aug-engine-settings-checkbox input {
+  accent-color: #e8c15a;
+}
+
+.aug-engine-summary {
+  font-size: 12px;
+  color: #cfcfcf;
+  text-align: center;
+  margin: 0 0 10px;
+}
+
+.aug-engine-accuracy-good {
+  color: #6fcf72;
+}
+
+.aug-engine-accuracy-mid {
+  color: #e8c15a;
+}
+
+.aug-engine-accuracy-bad {
+  color: #e0685f;
+}

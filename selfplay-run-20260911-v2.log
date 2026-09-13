@@ -1,0 +1,8 @@
+workers: 7 run budget (ms): 3600000 -> until 2026-09-11T09:40:29.767Z
+[progress @ 30.0min] games: 228 errors: 1 positions: 11057 outcomes: {"white":65,"black":64,"draw":88,"unfinished":11}
+[progress @ 90.7min] games: 247 errors: 1 positions: 12216 outcomes: {"white":70,"black":68,"draw":95,"unfinished":14}
+elapsed ms: 5494388
+games: 253 errors: 1
+games/sec: 0.046
+positions written: 12515 ->  D:\증강체스엔진\selfplay-data.jsonl
+outcome distribution: { white: 72, black: 69, draw: 98, unfinished: 14 }

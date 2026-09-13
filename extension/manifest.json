@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "증강체스 엔진",
+  "version": "0.1.0",
+  "description": "증강체스 대국 화면에 자체 탐색 엔진 기반 분석(최선 수 추천, 직전 수 평가) 기능을 추가합니다.",
+  "permissions": ["offscreen"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://augmentchess.org/*"],
+      "js": ["ext-bridge.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://augmentchess.org/*"],
+      "js": ["ai-override.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://augmentchess.org/*"],
+      "js": ["engine.js", "nnue.js", "stockfishClient.js", "hybrid.js", "analysis.js", "content.js"],
+      "css": ["style.css"],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["icons/*.svg", "searchWorker.js", "engine.js", "stockfish/stockfish-18-lite-single.js", "stockfish/stockfish-18-lite-single.wasm", "model/nnue-weights.json"],
+      "matches": ["https://augmentchess.org/*"]
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+  }
+}

@@ -1,0 +1,19 @@
+workers: 7 run budget (ms): 24300000 -> until 2026-09-11T20:30:10.182Z
+[progress @ 30.0min] games: 77 errors: 0 positions: 5348 outcomes: {"white":12,"black":17,"draw":40,"unfinished":8}
+[progress @ 60.0min] games: 174 errors: 0 positions: 11518 outcomes: {"white":29,"black":40,"draw":90,"unfinished":15}
+[progress @ 90.0min] games: 247 errors: 0 positions: 17092 outcomes: {"white":40,"black":49,"draw":131,"unfinished":27}
+[progress @ 120.0min] games: 332 errors: 0 positions: 22984 outcomes: {"white":55,"black":65,"draw":180,"unfinished":32}
+[progress @ 150.0min] games: 416 errors: 0 positions: 28846 outcomes: {"white":69,"black":83,"draw":225,"unfinished":39}
+[progress @ 180.0min] games: 511 errors: 0 positions: 35244 outcomes: {"white":89,"black":100,"draw":275,"unfinished":47}
+[progress @ 210.0min] games: 587 errors: 0 positions: 41446 outcomes: {"white":103,"black":114,"draw":318,"unfinished":52}
+[progress @ 240.0min] games: 673 errors: 0 positions: 47903 outcomes: {"white":119,"black":131,"draw":366,"unfinished":57}
+[progress @ 270.0min] games: 757 errors: 1 positions: 53815 outcomes: {"white":132,"black":149,"draw":412,"unfinished":64}
+[progress @ 300.0min] games: 835 errors: 1 positions: 59878 outcomes: {"white":144,"black":168,"draw":456,"unfinished":67}
+[progress @ 330.0min] games: 926 errors: 1 positions: 66239 outcomes: {"white":162,"black":189,"draw":504,"unfinished":71}
+[progress @ 360.0min] games: 1015 errors: 1 positions: 71870 outcomes: {"white":180,"black":209,"draw":553,"unfinished":73}
+[progress @ 390.0min] games: 1095 errors: 1 positions: 78103 outcomes: {"white":195,"black":223,"draw":601,"unfinished":76}
+elapsed ms: 24705752
+games: 1148 errors: 1
+games/sec: 0.046
+positions written: 82305 ->  D:\증강체스엔진\selfplay-data.jsonl
+outcome distribution: { white: 210, black: 236, draw: 624, unfinished: 78 }

@@ -1,0 +1,20 @@
+NNUE_VARIANT: old (lr=0.001, dropout=0, epochs=15, patience=6)
+tf backend: wasm
+snapshotted training data to: D:\증강체스엔진\nnue\snapshots\selfplay-data.2026-09-11T22-43-56-593Z.jsonl
+skipped exploration-tainted positions: 7274
+skipped unfinished-game positions: 3330
+down-weighting 1201 of 1210 games containing a big eval swing (>= 10000 )
+loaded cached encoded features (89962 rows) -- skipping re-encode
+skipped terminal positions: 692
+reconstructed games: 883
+positions loaded: 89962
+train/val split: game 794 of 883 -> position index 80569 of 89962
+training examples after pliesFromEnd-weighted oversampling: 81716 (from 80569 unique)
+epoch 0 loss 0.9753 val_loss 1.0780
+epoch 5 loss 0.9699 val_loss 1.0828
+stopped early at best epoch 1 (val_loss 1.0688)
+weights saved to nnue/model/weights.variant-old.json
+prediction for the game-1 starting position (white to move): -1
+sign-agreement accuracy on decisive validation positions: 69.2% (2139/3089)
+  fewer pieces on board (<=12, endgame-ish): 100.0% (49/49)
+  more pieces on board (>12, opening/midgame-ish): 68.8% (2090/3040)

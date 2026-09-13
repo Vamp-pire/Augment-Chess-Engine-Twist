@@ -1,0 +1,34 @@
+workers: 7 run budget (ms): 900000 -> until 2026-09-13T01:53:14.535Z
+[worker] SELFPLAY_NNUE_EVAL active, weights: D:\증강체스엔진\extension\model\nnue-weights.json
+[worker] SELFPLAY_NNUE_EVAL active, weights: D:\증강체스엔진\extension\model\nnue-weights.json
+[worker] SELFPLAY_NNUE_EVAL active, weights: D:\증강체스엔진\extension\model\nnue-weights.json
+[worker] SELFPLAY_NNUE_EVAL active, weights: D:\증강체스엔진\extension\model\nnue-weights.json
+[worker] SELFPLAY_NNUE_EVAL active, weights: D:\증강체스엔진\extension\model\nnue-weights.json
+[worker] SELFPLAY_NNUE_EVAL active, weights: D:\증강체스엔진\extension\model\nnue-weights.json
+[worker] SELFPLAY_NNUE_EVAL active, weights: D:\증강체스엔진\extension\model\nnue-weights.json
+[worker] SELFPLAY_NNUE_EVAL active, weights: D:\증강체스엔진\extension\model\nnue-weights.json
+[worker] SELFPLAY_NNUE_EVAL active, weights: D:\증강체스엔진\extension\model\nnue-weights.json
+[worker] SELFPLAY_NNUE_EVAL active, weights: D:\증강체스엔진\extension\model\nnue-weights.json
+[worker] SELFPLAY_NNUE_EVAL active, weights: D:\증강체스엔진\extension\model\nnue-weights.json
+[worker] SELFPLAY_NNUE_EVAL active, weights: D:\증강체스엔진\extension\model\nnue-weights.json
+[worker] SELFPLAY_NNUE_EVAL active, weights: D:\증강체스엔진\extension\model\nnue-weights.json
+[worker] SELFPLAY_NNUE_EVAL active, weights: D:\증강체스엔진\extension\model\nnue-weights.json
+[worker] SELFPLAY_NNUE_EVAL active, weights: D:\증강체스엔진\extension\model\nnue-weights.json
+[worker] SELFPLAY_NNUE_EVAL active, weights: D:\증강체스엔진\extension\model\nnue-weights.json
+[worker] SELFPLAY_NNUE_EVAL active, weights: D:\증강체스엔진\extension\model\nnue-weights.json
+[worker] SELFPLAY_NNUE_EVAL active, weights: D:\증강체스엔진\extension\model\nnue-weights.json
+[worker] SELFPLAY_NNUE_EVAL active, weights: D:\증강체스엔진\extension\model\nnue-weights.json
+[worker] SELFPLAY_NNUE_EVAL active, weights: D:\증강체스엔진\extension\model\nnue-weights.json
+[worker] SELFPLAY_NNUE_EVAL active, weights: D:\증강체스엔진\extension\model\nnue-weights.json
+[worker] SELFPLAY_NNUE_EVAL active, weights: D:\증강체스엔진\extension\model\nnue-weights.json
+[worker] SELFPLAY_NNUE_EVAL active, weights: D:\증강체스엔진\extension\model\nnue-weights.json
+[worker] SELFPLAY_NNUE_EVAL active, weights: D:\증강체스엔진\extension\model\nnue-weights.json
+[worker] SELFPLAY_NNUE_EVAL active, weights: D:\증강체스엔진\extension\model\nnue-weights.json
+[worker] SELFPLAY_NNUE_EVAL active, weights: D:\증강체스엔진\extension\model\nnue-weights.json
+[worker] SELFPLAY_NNUE_EVAL active, weights: D:\증강체스엔진\extension\model\nnue-weights.json
+[worker] SELFPLAY_NNUE_EVAL active, weights: D:\증강체스엔진\extension\model\nnue-weights.json
+elapsed ms: 1499554
+games: 28 errors: 0
+games/sec: 0.019
+positions written: 2199 ->  D:\증강체스엔진\selfplay-data.nnue-deepbootstrap-test-20260913.jsonl
+outcome distribution: { white: 7, black: 6, draw: 12, unfinished: 3 }
