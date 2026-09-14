@@ -7888,6 +7888,13 @@
     const enemy = opponent(color);
     if (activeWorkerForcedExtraMove(boardState, color)) return false;
     if (effect === "replayMove") return canWorkerReplayLastMove(boardState, color);
+    // Grafted from engine.optimized.js (our-only addition): "collapse"
+    // (one-shot, distinct from the existing RULE card periodicCollapse) is
+    // genuinely absent from aiWorker-raw.js entirely -- confirmed by
+    // grepping the whole real file, found nowhere but generic scoring
+    // bucket lists. Untargeted, always resolvable; apply/tick logic
+    // grafted into applyCardActionUnchecked and resolveWorkerOneShotCollapse.
+    if (effect === "collapse") return true;
     if (effect === "frontlineResponse") return !boardState.frontlineResponse?.[color];
     if (effect === "relay") return !boardState.relay?.[color];
     if (effect === "fieldPromotion") return !boardState.fieldPromotion?.[color] && workerCountPiecesOf(boardState, color, "pawn") > 0;
@@ -8739,6 +8746,18 @@
       boardState.winner = "";
     }
     return true;
+  }
+  // Grafted from engine.optimized.js (our-only addition, paired with the
+  // "collapse" targeting/apply branches grafted above): the one-shot
+  // "collapse" card's pending flag, set by applyCardActionUnchecked's
+  // "collapse" branch, resolves here on the very next finishWorkerMove call
+  // after the card is used (cards don't end the turn, so this naturally
+  // lands "다음 턴에"). Reuses workerCollapseOneRing directly, same as the
+  // existing periodicCollapse RULE card below.
+  function resolveWorkerOneShotCollapse(boardState, color) {
+    if (!(Number(boardState.pendingOneShotCollapse) > 0)) return;
+    boardState.pendingOneShotCollapse = 0;
+    workerCollapseOneRing(boardState, color);
   }
   function resolveWorkerPeriodicCollapseAfterTurn(boardState, movingColor) {
     const periodic = boardState.periodicCollapse?.enabled ? boardState.periodicCollapse : null;
@@ -10114,6 +10133,8 @@
     if (!legacyCompletedTurnEffectsStates.has(boardState)) resolveWorkerChargeRushFailures(boardState, color);
     clearWorkerBloodMoonTurnEffects(boardState, color);
     if (color === "black") boardState.fullMove = (Number(boardState.fullMove) || 1) + 1;
+    applyWorkerWinterFreezeCycle(boardState);
+    resolveWorkerOneShotCollapse(boardState, color);
     resolveWorkerPeriodicCollapseAfterTurn(boardState, color);
     if (boardState.mode === "gameover") return;
     resolveWorkerDoubleCheckThreats(boardState, color);
@@ -12290,6 +12311,19 @@
       target.type = "amazon";
       target.bribed = { remaining: 3 };
       score += (color === aiColor ? 1 : -1) * 300;
+    } else if (card.effect === "collapse") {
+      // Grafted from engine.optimized.js (our-only addition, genuinely
+      // absent from aiWorker-raw.js -- see the workerCanResolveUntargetedCard
+      // "collapse" branch above). "다음 턴에 양 끝쪽 파일과 랭크가
+      // 붕괴합니다." One-shot version of the existing RULE card
+      // periodicCollapse -- reuses its own one-ring shrink helper
+      // (workerCollapseOneRing, already in this file) and
+      // collapseDepth/collapsed fields directly. Untargeted (no `target`
+      // used). Fires on the very next finishWorkerMove call after the card
+      // is used via resolveWorkerOneShotCollapse, grafted into
+      // finishWorkerMove's tick point below.
+      boardState.pendingOneShotCollapse = (Number(boardState.pendingOneShotCollapse) || 0) + 1;
+      score += (color === aiColor ? 1 : -1) * 260;
     } else if (card.effect === "captureTheFlag") {
       boardState.captureTheFlag = { flags: { white: { row: boardRowCount(boardState) - 1, col: workerStableIndex("flag-white:" + (boardState.moveCount || 0), boardColCount(boardState)) }, black: { row: 0, col: workerStableIndex("flag-black:" + (boardState.moveCount || 0), boardColCount(boardState)) } }, occupations: { white: null, black: null } };
     } else if (card.effect === "miracle") {
@@ -15898,6 +15932,56 @@
       lastCycle: Number(value?.lastCycle) || 0,
       frozenIds: Array.isArray(value?.frozenIds) ? value.frozenIds.filter(Boolean).map(String).slice(0, 12) : []
     };
+  }
+  // Grafted from engine.optimized.js (real bug fix, not a behavior change):
+  // aiWorker-raw.js's own normalizeWinterKingdom above already tracks
+  // `lastCycle` and `frozenIds`, but nothing anywhere in the real file ever
+  // WRITES to them -- confirmed by grepping the whole file for "lastCycle"
+  // outside this normalizer -- so the "winterKingdom" RULE card's core
+  // periodic freeze mechanic was entirely inert in the real engine. Bundle
+  // picks 3 random eligible pieces per color (shuffle().slice(0,3)); this
+  // engine avoids true Math.random() in state-mutation paths elsewhere (see
+  // royalShield's deterministic "strongest friendly" substitute for its own
+  // random-target card), so board-iteration order is used as the
+  // deterministic stand-in here too. Wired into finishWorkerMove's tick
+  // point above (unconditional call, mirroring engine.optimized.js exactly
+  // -- the function itself early-returns when winterKingdom isn't enabled).
+  function applyWorkerWinterFreezeCycle(boardState, force = false) {
+    const winter = normalizeWinterKingdom(boardState.winterKingdom);
+    boardState.winterKingdom = winter;
+    if (!winter.enabled || boardState.mode === "gameover") return false;
+    function clearWorkerFrozenWinterPieces() {
+      const ids = new Set(winter.frozenIds || []);
+      forEachPiece(boardState, (piece) => {
+        if (piece?.id && ids.has(piece.id) && !piece.frozenByCard) delete piece.frozen;
+      });
+    }
+    if (winter.disabledByLastWarmth) {
+      clearWorkerFrozenWinterPieces();
+      winter.frozenIds = [];
+      return false;
+    }
+    const eligibleByColor = Object.fromEntries(COLORS.map((color) => [color, workerWinterEligiblePieces(boardState, color)]));
+    if (COLORS.some((color) => isLastWarmthActive(eligibleByColor[color].length))) {
+      clearWorkerFrozenWinterPieces();
+      winter.frozenIds = [];
+      winter.disabledByLastWarmth = true;
+      return false;
+    }
+    const cycle = Math.min(Number(boardState.turnsTaken?.white) || 0, Number(boardState.turnsTaken?.black) || 0);
+    if (cycle <= 0 || cycle % 3 !== 0) return false;
+    if (!force && winter.lastCycle === cycle) return false;
+    clearWorkerFrozenWinterPieces();
+    const frozenIds = [];
+    COLORS.forEach((color) => {
+      eligibleByColor[color].slice(0, 3).forEach(({ piece }) => {
+        piece.frozen = true;
+        frozenIds.push(piece.id);
+      });
+    });
+    winter.lastCycle = cycle;
+    winter.frozenIds = frozenIds;
+    return frozenIds.length > 0;
   }
   function normalizeUltimatum(value) {
     if (!value || typeof value !== "object") return null;
