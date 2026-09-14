@@ -14379,34 +14379,68 @@
     });
     return changed;
   }
-  function evaluateState(boardState, aiColor) {
+  // Grafted from engine.optimized.js (our-only addition, behavior-preserving
+  // refactor): evaluateState's weighted-sum formula below split out into
+  // named sub-scores via evaluateStateComponents, so external tooling
+  // (NNUE tuning, debugging) can inspect each term individually. Every
+  // sub-score computation and every weight is copied verbatim from
+  // aiWorker-raw.js's own evaluateState above -- this changes nothing about
+  // what evaluateState returns, only how the computation is organized.
+  function evaluateStateComponents(boardState, aiColor) {
     const terminal = scoreTerminalOutcome({
       mode: boardState?.mode,
       winner: boardState?.winner,
       perspectiveColor: aiColor
     });
-    if (terminal !== null) return terminal;
+    if (terminal !== null) return { terminal };
     const enemy = opponent(aiColor);
-    if (!sideHasSurvivalPiece(boardState, aiColor)) return -1e5;
-    if (!sideHasSurvivalPiece(boardState, enemy)) return 1e5;
+    if (!sideHasSurvivalPiece(boardState, aiColor)) return { terminal: -1e5 };
+    if (!sideHasSurvivalPiece(boardState, enemy)) return { terminal: 1e5 };
     const material = materialBalance(boardState, aiColor);
     const exchange = scoreExchangeSimplification({
       materialLead: material,
       remainingPieces: workerTradablePieceCount(boardState),
       unitValue: PIECE_VALUES.pawn
     }) * PIECE_VALUES.pawn;
-    const position = positionalScore(boardState, aiColor) - positionalScore(boardState, enemy) * 0.88;
-    const kingSafety = kingSafetyScore(boardState, aiColor) - kingSafetyScore(boardState, enemy) * 0.72;
-    const pressure = royalPressureScore(boardState, aiColor) - royalPressureScore(boardState, enemy) * 0.65;
-    const special = specialThreatScore(boardState, aiColor) - specialThreatScore(boardState, enemy) * 0.82;
-    const bloodMoon = bloodMoonStrategicScore(boardState, aiColor) - bloodMoonStrategicScore(boardState, enemy) * 0.82;
-    const cards = cardThreatScore(boardState, aiColor) - cardThreatScore(boardState, enemy) * 0.92;
-    const campaign = campaignStrategicScore(boardState, aiColor) - campaignStrategicScore(boardState, enemy) * 0.9;
-    const ultimatum = ultimatumStrategicScore(boardState, aiColor);
-    const persistentObjectives = workerPersistentObjectiveScore(boardState, aiColor) - workerPersistentObjectiveScore(boardState, enemy);
-    const bonus = (boardState.aiSearchBonus?.[aiColor] || 0) - (boardState.aiSearchBonus?.[enemy] || 0);
-    const tacticalSafety = tacticalSafetyScore(boardState, aiColor);
-    return material * 1.35 + exchange + position + kingSafety + pressure + special + bloodMoon + cards + campaign + ultimatum + persistentObjectives + bonus + tacticalSafety;
+    return {
+      terminal: null,
+      material,
+      exchange,
+      positionSelf: positionalScore(boardState, aiColor),
+      positionEnemy: positionalScore(boardState, enemy),
+      kingSafetySelf: kingSafetyScore(boardState, aiColor),
+      kingSafetyEnemy: kingSafetyScore(boardState, enemy),
+      pressureSelf: royalPressureScore(boardState, aiColor),
+      pressureEnemy: royalPressureScore(boardState, enemy),
+      specialSelf: specialThreatScore(boardState, aiColor),
+      specialEnemy: specialThreatScore(boardState, enemy),
+      bloodMoonSelf: bloodMoonStrategicScore(boardState, aiColor),
+      bloodMoonEnemy: bloodMoonStrategicScore(boardState, enemy),
+      cardsSelf: cardThreatScore(boardState, aiColor),
+      cardsEnemy: cardThreatScore(boardState, enemy),
+      campaignSelf: campaignStrategicScore(boardState, aiColor),
+      campaignEnemy: campaignStrategicScore(boardState, enemy),
+      ultimatum: ultimatumStrategicScore(boardState, aiColor),
+      persistentObjectivesSelf: workerPersistentObjectiveScore(boardState, aiColor),
+      persistentObjectivesEnemy: workerPersistentObjectiveScore(boardState, enemy),
+      bonus: (boardState.aiSearchBonus?.[aiColor] || 0) - (boardState.aiSearchBonus?.[enemy] || 0),
+      tacticalSafety: tacticalSafetyScore(boardState, aiColor)
+    };
+  }
+  function evaluateState(boardState, aiColor) {
+    const c = evaluateStateComponents(boardState, aiColor);
+    if (c.terminal !== null) return c.terminal;
+    return c.material * 1.35 + c.exchange
+      + (c.positionSelf - c.positionEnemy * 0.88)
+      + (c.kingSafetySelf - c.kingSafetyEnemy * 0.72)
+      + (c.pressureSelf - c.pressureEnemy * 0.65)
+      + (c.specialSelf - c.specialEnemy * 0.82)
+      + (c.bloodMoonSelf - c.bloodMoonEnemy * 0.82)
+      + (c.cardsSelf - c.cardsEnemy * 0.92)
+      + (c.campaignSelf - c.campaignEnemy * 0.9)
+      + c.ultimatum
+      + (c.persistentObjectivesSelf - c.persistentObjectivesEnemy)
+      + c.bonus + c.tacticalSafety;
   }
   function tacticalSafetyScore(boardState, aiColor) {
     const enemy = opponent(aiColor);
