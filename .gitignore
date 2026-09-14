@@ -7,6 +7,6 @@ nnue/snapshots/
 scratch_*.json
 scratch_*.jsonl
 *.pid
-selfplay-run-merged-cloud-depth3.log
+selfplay-run-merged-cloud-depth3-part2.log
 selfplay-deep-cloud-run.log
 .claude/scheduled_tasks.lock
