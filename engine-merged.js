@@ -228,6 +228,16 @@
   function septemberCounterLimit(type) {
     return type === "hedgehog" ? 3 : type === "bear" ? 2 : 0;
   }
+  // pieceHasCounterAbility (our_only_functions.txt) NOT grafted: checked
+  // every one of its 5 call sites in engine.optimized.js (generateMovesForPiece,
+  // resolveWorkerBearRetaliation, applyMoveAction's retaliationSurvivorIds,
+  // recordWorkerNewCardCaptureReactions's deferBearReaction,
+  // recordWorkerDirectCaptures) against the real file -- every single one
+  // already has the exact equivalent inline (`Boolean(septemberCounterLimit(pieceAbilityType(item)))`,
+  // behaviorally identical to `septemberCounterLimit(pieceAbilityType(item)) > 0`
+  // since the limit is never negative), just not factored into a named
+  // helper. Grafting the helper with no reachable call site would be dead
+  // code, so this is NOT-NEEDED, not grafted.
   function septemberHomeRow(color, rowCount = 8) {
     return color === "white" ? rowCount - 1 : color === "black" ? 0 : null;
   }
@@ -14048,6 +14058,26 @@
   }
   function workerIsLargePiece(piece) {
     return Boolean(piece && ["colossus", "bigRook", "bigBishop"].includes(piece.type));
+  }
+  // Grafted from engine.optimized.js (real bug fix, not a behavior change):
+  // the "submerge" card's targeting (this file's own effect === "submerge"
+  // branch above) and its apply-time re-validation both call
+  // hasAdjacentEnemyPiece(board, row, col, color), but this function is
+  // referenced without ever being defined anywhere in aiWorker-raw.js
+  // either (confirmed: grepped the whole file) -- a genuine latent
+  // ReferenceError crash in the real site itself any time "submerge" is
+  // played, not something our engine invented differently. Implemented
+  // directly on the raw board array, matching how both real call sites
+  // already invoke it.
+  function hasAdjacentEnemyPiece(board, row, col, color) {
+    for (let dr = -1; dr <= 1; dr += 1) {
+      for (let dc = -1; dc <= 1; dc += 1) {
+        if (!dr && !dc) continue;
+        const piece = board[row + dr]?.[col + dc];
+        if (piece && piece.color && piece.color !== color) return true;
+      }
+    }
+    return false;
   }
   function clearPieceCells(boardState, piece) {
     if (!piece) return;
