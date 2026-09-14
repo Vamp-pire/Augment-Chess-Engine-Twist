@@ -1052,8 +1052,8 @@
     "phase": "PIECE",
     "title": "동방견문록",
     "count": 3,
-    "status": "TODO(not-implemented)",
-    "note": "only a price-table entry, no setup code"
+    "status": "PASS",
+    "note": "CORRECTION: earlier marked not-implemented by reusing the 2026-09-13 investigation note without re-checking; engine.optimized.js DOES dispatch this (transforms an own bishop/knight into cannon, matching real easternPolicy()/isOwnMinorPiece()). Verified by direct code read 2026-09-14."
   },
   {
     "id": "dragon",

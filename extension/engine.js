@@ -1917,7 +1917,7 @@
   const SUSPICIOUS_POTION_EFFECTS = Object.freeze([
     { id: "sacrificeProtection", label: "보호(희생)", scope: "nonKing" },
     { id: "lastResistance", label: "보호(마지막 저항)", scope: "king" },
-    { id: "coronationProtection", label: "보호(대관식)", scope: "queen" },
+    { id: "coronationProtection", label: "보호(대관식)" },
     { id: "shield", label: "가호" },
     { id: "evasion", label: "회피" },
     { id: "parry", label: "패링" },
@@ -1942,7 +1942,10 @@
     { id: "queensGambitProtection", label: "영구 보호(퀸즈 갬빗)", scope: "pawn" },
     { id: "trojanHorse", label: "트로이 목마", scope: "knight" },
     { id: "severance", label: "절단", scope: "ranged" },
-    { id: "inertia", label: "관성", scope: "ranged" }
+    { id: "inertia", label: "관성", scope: "ranged" },
+    { id: "outpostProtection", label: "보호(전초기지)" },
+    { id: "nullification", label: "상쇄" },
+    { id: "recurrence", label: "회귀", exclude: ["king"] }
   ]);
   function suspiciousPotionEffectsForPiece(piece, options = {}) {
     const isKing = Boolean(options.isKing);
@@ -12012,6 +12015,14 @@
       } else if (effect.id === "trojanHorse") target.trojanHorse = true;
       else if (effect.id === "severance") target.severed = { by: hostileColor, remaining: 2 };
       else if (effect.id === "inertia") target.inertia = true;
+      else if (effect.id === "outpostProtection") {
+        const previousOutpostProtected = target.outpostGuard ? Boolean(target.outpostGuard.previousProtected) : Boolean(target.protected);
+        target.outpostGuard = { remaining: 1, previousProtected: previousOutpostProtected };
+        target.protected = true;
+      } else if (effect.id === "nullification") target.nullification = true;
+      else if (effect.id === "recurrence") {
+        if (!isWorkerRoyalIdentityPiece(boardState, target)) target.recurrence = true;
+      }
       const negativeEffects = /* @__PURE__ */ new Set(["freeze", "witchTrial", "callingCard", "emptyLunchbox", "poisonStun", "disarm", "mannerNoCapture", "saturationNoCapture", "severance", "inertia"]);
       const favorable = target.color === color ? !negativeEffects.has(effect.id) : negativeEffects.has(effect.id);
       score += (color === aiColor ? 1 : -1) * (favorable ? 360 : -240);

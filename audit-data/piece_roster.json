@@ -27,7 +27,6 @@
       "man": "spawned only via setupJanggiSide() (campaign janggi setup, manRow pawn-equivalent) and CHAMELEON_AUCTION_TYPES. No normal card.",
       "cardinal": "only appears in CHAMELEON_AUCTION_TYPES. No applyCardEffect case, no base$N('cardinal',...) catalog entry.",
       "royalKnight": "only appears in CHAMELEON_AUCTION_TYPES as a 'royalReplacement' shop purchase (campaign auction). No normal card spawns it (only referenced elsewhere in generic royal-identity/king-type exclusion lists, which is defensive code, not a spawn path).",
-      "cannon": "spawned only inside setupJanggiSide() (campaign janggi setup). No normal card or other spawn site.",
       "coffin": "only used as part of the Blood Moon / vampireLord mechanic (BLOOD_MOON_EFFECT_CARDS.coffin, resurrection-at-coffin logic ~line 84477/84631) which requires a vampireLord piece (itself campaign-only, see below) as a precondition; matches the already-known bloodCard campaign/vampireLord-precondition exclusion from the 2026-09-13 self-play card-pool investigation. Elsewhere it only appears in generic terrain/obstacle exclusion lists (defensive code, not a spawn path).",
       "timeTraveler": "spawned only inside createCampaignBoard() (~line 49915, a specific campaign stage setup). No normal card.",
       "vampireLord": "spawned only inside createCampaignBoard() (~line 49919). No normal card; ROYAL_PIECE_TYPES/royal-identity references elsewhere are defensive exclusion code, not spawn paths.",
@@ -39,7 +38,8 @@
       "pegasus": "has a real PIECE-category card (id 'pegasus', title '유니콘', applyCardEffect case 'pegasus' at ~82496) even though it also appears in CHAMELEON_AUCTION_TYPES as an 'unicorn' auction lot — the normal card path means it is in-scope for the audit.",
       "squire": "spawned by the real 'apprentice-knights'(견습 기사단) OPENING card via apprenticeKnights() (~line 85241), even though it shares pawnMoves() dispatch with standardBearer.",
       "darkWizard": "spawned by the real 'black-magic'(흑마법) END card via blackMagic() (~line 81726), even though it's also grouped with campaign-only royal types (royalKnight, vampireLord, timeTraveler) in defensive royal-identity checks.",
-      "bear": "not directly card-spawned, but is the in-game evolution/promotion of babyBear (a real normal-play END card 'baby-bear'/아기곰) after bearRetaliationsRemaining reaches 0 — in scope for the audit as a normal-play piece."
+      "bear": "not directly card-spawned, but is the in-game evolution/promotion of babyBear (a real normal-play END card 'baby-bear'/아기곰) after bearRetaliationsRemaining reaches 0 — in scope for the audit as a normal-play piece.",
+      "cannon": "CORRECTION (2026-09-14, found during the card audit, not the original piece pass): initially misclassified as campaign-only because the search only looked for `case \"cannon\":`-style dispatch, which misses cards that assign the type without a same-named case. The real 'eastern-policy'(동방견문록) PIECE card's easternPolicy() function does `item.type = \"cannon\"` (transforms an own bishop/knight into a cannon) — a genuine normal-play spawn path. cannon is NOT campaign-only; setupJanggiSide() is simply a second, campaign-only spawn path for the same type. This is a reminder that the type-assignment search must also be done for every roster entry, not just the case-label search, before trusting a campaign-only verdict."
     }
   }
 }
