@@ -8,3 +8,4 @@ scratch_*.json
 scratch_*.jsonl
 *.pid
 selfplay-deep-cloud-run.log
+.claude/scheduled_tasks.lock
