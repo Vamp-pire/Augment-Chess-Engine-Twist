@@ -3166,7 +3166,7 @@
       if (context.timedOut) return false;
       if (action?.type !== "card") {
         bestNonCardScore = Math.max(bestNonCardScore, score);
-      } else if (!isRootCardUseBeneficial(score, bestNonCardScore, boardState, aiColor)) {
+      } else if (!isRootCardUseBeneficial(score, bestNonCardScore, boardState, aiColor, findCard(boardState, action), next, action)) {
         return true;
       }
       scoredCandidates.push({
@@ -3705,9 +3705,79 @@
     const previous = Math.max(0, Number(previousDepthMs) || 0);
     return previous <= 0 || remaining >= previous * MONSTER_NEXT_DEPTH_GROWTH + MONSTER_NEXT_DEPTH_GRACE_MS;
   }
-  function isRootCardUseBeneficial(score, bestNonCardScore, boardState, aiColor) {
-    if (Number.isFinite(bestNonCardScore)) return score > bestNonCardScore + CARD_USE_MIN_GAIN;
-    return score > evaluateState(boardState, aiColor) + CARD_USE_MIN_GAIN;
+  // Grafted from engine.optimized.js (our-only addition): rootCardComboFollowupBonus
+  // (best next-turn card threat available right after this card's use, since
+  // cards never end the turn -- see childDepthAfterAction) plus a small
+  // library of specific named combo detectors (CARD_COMBO_DETECTORS /
+  // namedCardComboBonus), feed a bounded contextual discount into
+  // isRootCardUseBeneficial below instead of the real file's bare
+  // score-vs-baseline gate.
+  const CARD_COMBO_FOLLOWUP_WEIGHT = 0.35;
+  function rootCardComboFollowupBonus(afterState, aiColor) {
+    if (!afterState || afterState.mode === "gameover" || afterState.turn !== aiColor) return 0;
+    let best = 0;
+    deck(afterState, aiColor).forEach((card) => {
+      const value = singleCardThreatValue(afterState, card, aiColor);
+      if (value > best) best = value;
+    });
+    return best;
+  }
+  const CARD_COMBO_DETECTORS = [
+    {
+      name: "portalGun-king-escape-block",
+      effects: /* @__PURE__ */ new Set(["portalGun"]),
+      weight: 0.5,
+      detect(boardState, action, afterState, color) {
+        const enemy = opponent(color);
+        const king = findWorkerKingRole(boardState, enemy);
+        if (!king || !afterState || afterState.turn !== color) return 0;
+        const escapeSquares = generateActions(boardState, enemy).filter(
+          (a) => a.type === "move" && a.from?.row === king.row && a.from?.col === king.col
+        );
+        if (escapeSquares.length !== 2) return 0;
+        const candidates = generateActions(afterState, color).filter((a) => a.type === "move").slice(0, 12);
+        for (const candidate of candidates) {
+          const next = cloneState(afterState);
+          const applied = applyAction(next, cloneAction(candidate), color);
+          if (applied.ok && isSquareAttacked(next, king.row, king.col, color)) return 480;
+        }
+        return 0;
+      }
+    },
+    {
+      name: "vip-witchTrial-lockout",
+      effects: /* @__PURE__ */ new Set(["vip", "witchTrial"]),
+      weight: 1,
+      detect(boardState, action, afterState, color) {
+        const square = action?.target;
+        if (!square || !Number.isInteger(square.row) || !Number.isInteger(square.col) || !afterState) return 0;
+        const piece = get(afterState, square.row, square.col);
+        if (!piece || piece.color !== opponent(color)) return 0;
+        if (!piece.witchTrial || !isWorkerDecisiveCaptureTarget(afterState, piece)) return 0;
+        const canEverCapture = generateActions(afterState, piece.color).some(
+          (a) => a.type === "move" && a.from?.row === square.row && a.from?.col === square.col && get(afterState, a.move?.row, a.move?.col)
+        );
+        return canEverCapture ? 0 : 900;
+      }
+    }
+  ];
+  function namedCardComboBonus(boardState, action, afterState, color) {
+    const effect = findCard(boardState, action)?.effect || "";
+    let total = 0;
+    for (const detector of CARD_COMBO_DETECTORS) {
+      if (!detector.effects.has(effect)) continue;
+      total += (detector.detect(boardState, action, afterState, color) || 0) * (detector.weight ?? 1);
+    }
+    return total;
+  }
+  const CARD_CONTEXT_MAX_DISCOUNT = 150;
+  function isRootCardUseBeneficial(score, bestNonCardScore, boardState, aiColor, card, afterState, action) {
+    const baseline = Number.isFinite(bestNonCardScore) ? bestNonCardScore : evaluateState(boardState, aiColor);
+    const contextual = card ? singleCardThreatValue(boardState, card, aiColor) : 0;
+    const comboBonus = rootCardComboFollowupBonus(afterState, aiColor) * CARD_COMBO_FOLLOWUP_WEIGHT;
+    const namedBonus = action ? namedCardComboBonus(boardState, action, afterState, aiColor) : 0;
+    const discount = Math.max(-CARD_CONTEXT_MAX_DISCOUNT, Math.min(CARD_CONTEXT_MAX_DISCOUNT, (contextual + comboBonus + namedBonus) * 0.3));
+    return score > baseline + CARD_USE_MIN_GAIN - discount;
   }
   function pickOpeningFirstMoveAction(boardState, color, actions) {
     if (!isOpeningFirstMoveTurn(boardState, color)) return null;
