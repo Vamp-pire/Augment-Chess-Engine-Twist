@@ -3300,12 +3300,40 @@
     const target = get(boardState, action.move?.row, action.move?.col);
     return canWorkerCaptureTarget(color, target, moving, boardState);
   }
+  // Grafted from engine.optimized.js (our-only addition): mirrors
+  // rootCandidateIgnoresMajorHangingPiece but for the enemy's hand -- a
+  // candidate that lets the opponent's best usable card jump sharply in
+  // threat value gets flagged even when that reply isn't outright decisive.
+  const ENEMY_CARD_THREAT_INCREASE_THRESHOLD = 220;
+  const ENEMY_CARD_THREAT_MIN_ABSOLUTE = 240;
+  function workerBestEnemyCardThreat(boardState, color) {
+    let best = 0;
+    deck(boardState, color).forEach((card) => {
+      const value = singleCardThreatValue(boardState, card, color);
+      if (value > best) best = value;
+    });
+    return best;
+  }
+  function rootCandidateIgnoresEnemyCardThreat(boardState, candidate, aiColor) {
+    if (!boardState || !candidate?.afterState || !COLORS.includes(aiColor)) return false;
+    if (candidate.captureSwing?.decisive) return false;
+    const enemy = opponent(aiColor);
+    if (candidate.afterState.turn !== enemy) return false;
+    const beforeThreat = workerBestEnemyCardThreat(boardState, enemy);
+    const afterThreat = workerBestEnemyCardThreat(candidate.afterState, enemy);
+    const increase = afterThreat - beforeThreat;
+    if (increase < ENEMY_CARD_THREAT_INCREASE_THRESHOLD || afterThreat < ENEMY_CARD_THREAT_MIN_ABSOLUTE) return false;
+    const gained = Math.max(candidate.captureSwing?.value || 0, rootCandidateImmediateCaptureValue(boardState, candidate, aiColor));
+    if (gained >= increase) return false;
+    return true;
+  }
   function rootCandidateSoftSafetyIssue(boardState, candidate, aiColor, context) {
     if (candidate?._rootSoftSafetyIssue !== void 0) return candidate._rootSoftSafetyIssue;
     let issue = "";
     if (rootCandidateMovesPieceIntoBadCapture(boardState, candidate, aiColor)) issue = "bad-capture-square";
     else if (rootCandidateAdvancesIntoEnemyProtectedSquare(boardState, candidate, aiColor)) issue = "enemy-protected-advance";
     else if (rootCandidateIgnoresMajorHangingPiece(boardState, candidate, aiColor)) issue = "ignored-hanging-piece";
+    else if (rootCandidateIgnoresEnemyCardThreat(boardState, candidate, aiColor)) issue = "ignored-card-threat";
     else if (!rootSafetyDeadlineTight(context) && rootCandidateCreatesFleeTrap(boardState, candidate, aiColor, context)) issue = "flee-trap";
     candidate._rootSoftSafetyIssue = issue;
     return issue;
@@ -14315,6 +14343,25 @@
         }
       }
     });
+    return score;
+  }
+  // Grafted from engine.optimized.js (our-only addition): the same per-card
+  // threat-value logic cardThreatScore below sums over a whole hand,
+  // factored out into a single-card function so other grafted callers
+  // (workerBestEnemyCardThreat, rootCardComboFollowupBonus,
+  // isTacticallyRelevantCardAction) can reuse it without duplicating the
+  // scoring rules. cardThreatScore itself is untouched real-file logic.
+  function singleCardThreatValue(boardState, card, color) {
+    if (!card || card.emptySlot || card.used || card.recovering || isWorkerCardPendingNextTurn(card)) return 0;
+    if (isWorkerTurnExclusiveCardBlocked(boardState, card, color)) return 0;
+    const value = cardValue(card);
+    const targets = generateCardTargets(boardState, card, color);
+    if (!targets.length) return -Math.min(260, value * 0.22);
+    let score = value * 0.34;
+    if (card.effect === "bloodCard") score += bloodEffectScore(boardState, card.bloodEffectId || "summon", color) * 0.4;
+    if (["summonColossus", "bigRook", "shotgunKing", "wizard", "merchantGuild", "collapse", "ultimatum", "holdout", "chimera", "finalWeapon", "localConscription", "recycling", "fanaticalRitual", "undergroundBunker", "whiteBox", "blackBox", "trolley", "blueJeans", "randomRoulette"].includes(card.effect)) score += 260;
+    if (["disarm", "witchTrial", "severance", "inertia", "traitor", "vortex", "socialism", "dice", "panic", "deathSquad", "desperado"].includes(card.effect)) score += Math.min(320, targets.length * 55);
+    if (["royalShield", "encouragement", "queensGambit", "lastResistance", "coronation", "alekhineMachineGun", "fileSurge", "rookLift", "underpromotion", "canceling", "stake", "enPassantBang", "pawnStorm", "queenAfterimage"].includes(card.effect)) score += 160;
     return score;
   }
   function cardThreatScore(boardState, color) {
