@@ -21,7 +21,12 @@ const SPECIAL_TYPES = [
   "cannon", "grasshopper", "hook", "herald", "camel", "alfil", "ferz", "eagle",
   "berserker", "magicGirl", "windmill", "trickster", "merchant",
   "knightmaster", "standardBearer", "idol", "siren", "reaper", "recruiter",
-  "guard", "colossus", "bigRook"
+  "guard", "colossus", "bigRook",
+  // Added 2026-09-14 (engine-merged.js graft session): hedgehog/princess/
+  // campfire joined SELFPLAY_SPECIAL_TYPES. coffin/babyBear are still
+  // deliberately excluded (see the 2026-09-06 note above -- no real
+  // movement of their own, only a self-play house rule).
+  "hedgehog", "princess", "campfire"
 ];
 const ALL_TYPES = [...STANDARD_TYPES, ...SPECIAL_TYPES];
 
@@ -49,7 +54,15 @@ const PLANE_COUNT = ALL_TYPES.length; // 33
 // features alone reaches 69.1% (vs the raw-board NNUE's 55.8%), which is
 // the direct evidence this feature set carries a lot more signal than the
 // tiny network was managing to pull out of the one-hot board on its own.
-const engine = require("../engine.optimized.js");
+// Switched from engine.optimized.js 2026-09-14: that file is our hand-ported
+// reimplementation and was found (via a card-by-card audit against the real
+// site) to have real behavioral bugs in exactly the kind of card/piece logic
+// evaluateStateComponents below reads (cardsSelf/cardsEnemy/specialSelf
+// etc.). engine-merged.js is the authentic-site-rules + our-own-enhancements
+// engine that replaced it for self-play data generation -- using it here too
+// keeps encoding consistent with how the training data was actually
+// generated. See audit-data/graft-progress.md for the full story.
+const engine = require("../engine-merged.js");
 
 const FEATURE_NAMES = [
   "material", "exchange",
@@ -71,16 +84,50 @@ const EXTRA_FEATURE_COUNT = FEATURE_NAMES.length; // 21
 // to tell "royalShield in hand" from "freeze in hand", only the combined
 // level. One-hot presence (own hand / enemy hand) of each self-play
 // card-pool effect gives it that per-card signal to actually learn from.
-// Scoped to SELFPLAY_CARD_POOL, not the full ~190-card catalog: self-play
+// Scoped to SELFPLAY_CARD_POOL, not the full 224-card catalog: self-play
 // (the only data source right now) never draws outside this pool, so a slot
 // for any other card would just always be zero and never get trained --
 // expand this list only after SELFPLAY_CARD_POOL itself grows. MUST match
-// selfplay-worker.js's SELFPLAY_CARD_POOL exactly.
+// selfplay-worker-merged.js's SELFPLAY_CARD_POOL exactly.
+// Expanded 2026-09-14 from 18 -> 173 cards (the pool grew across several
+// sessions of card-audit work; this encoding had fallen behind and was
+// silently blind to every card added since the 2026-09-12 18-card list --
+// INPUT_SIZE changes here, so any existing trained weights file's shape no
+// longer matches and must be retrained from scratch, not warm-loaded as-is).
 const CARD_POOL_TYPES = [
-  "witchTrial", "vip", "disarm", "freeze", "poisonStun", "royalShield",
-  "portalGun", "desperado", "encouragement", "severance", "inertia",
-  "substitution", "switcheroo", "promotionRush", "charge", "bishopSnipe",
-  "enPassantBang", "freeCastling"
+  "alekhineMachineGun", "amazon", "apprenticeKnights", "armistice", "babyBear",
+  "basicTraining", "bigRook", "binaMate", "bishopSnipe", "blackBox",
+  "blackMagic", "blueJeans", "breakthroughOrder", "callingCard", "canceling",
+  "chain", "chameleonMutation", "charge", "checker", "chimera",
+  "cleanupPieces", "cleanupSacrifice", "clonePassive", "conversion",
+  "cornerKick", "coronation", "deathSquad", "democracy", "desperado", "dice",
+  "disarm", "dutch", "eagle", "emergencyEvacuation", "emptyLunchbox",
+  "enPassantBang", "encouragement", "evasion", "exhaustion", "exile",
+  "fanaticalRitual", "feudalContract", "fianchetto", "fieldPromotion",
+  "fileSurge", "finalWeapon", "fleetingDream", "freeCastling", "freeMove",
+  "freeze", "frenzy", "frontlineResponse", "gale", "genevaConvention",
+  "ghost", "gomoku", "guard", "hallucination", "holdout", "homecoming",
+  "hook", "horde", "horseRiding", "hypocrisy", "icbm", "iceSheet", "idol",
+  "imperialStudies", "inertia", "injury", "insight", "ironMonarch", "joker",
+  "judgment", "kingOfTheHill", "knightmate", "lastResistance", "lobster",
+  "localConscription", "loyalist", "madHorse", "martyrdom", "merchantGuild",
+  "missionary", "mistakeCard", "mongolianGambit", "moving", "ordination",
+  "othello", "otherworld", "overwhelm", "palace", "panic", "parry",
+  "pawnConversion", "pawnStorm", "poisonedPawn", "portalGun", "promotionRush",
+  "prophecy", "quantumMechanics", "queenAfterimage", "queenCavalry",
+  "queensGambit", "racingKing", "randomRoulette", "reaper", "reformation",
+  "relay", "religiousVictory", "replayMove", "reposition", "retreat",
+  "reversePawns", "rookLift", "royalCommand", "royalShield", "ruleTicket",
+  "sacrifice", "severance", "shotgunKing", "socialism", "spy", "stake",
+  "submerge", "substitution", "suicideBomber", "summonColossus",
+  "suspiciousPotion", "switcheroo", "taunt", "timeClumsyAttack", "timeIsMine",
+  "timePhaseShift", "traitor", "trickster", "trojanHorse", "trolley",
+  "twins", "ultimatum", "undergroundBunker", "underpromotion", "vanish",
+  "vip", "vortex", "whiteBox", "windmill", "witchTrial", "wizard", "zugzwang",
+  "qxe1", "nullification", "recurrence", "outpost", "killerKing", "majesty",
+  "overtake", "leap", "vanguard", "infiltration", "reversal", "lastStand",
+  "fastGrowth", "earlyPromotion", "bribe", "conscription", "barricade",
+  "collapse"
 ];
 const CARD_POOL_INDEX = {};
 CARD_POOL_TYPES.forEach((effect, i) => { CARD_POOL_INDEX[effect] = i; });

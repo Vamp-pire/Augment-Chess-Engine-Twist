@@ -17083,6 +17083,6 @@
     }
     return { ok: true, after: augmentBaseParityProjection(clientState, termination) };
   }
-  globalThis.__engineMerged = { searchBestAction, generateActions, applyAction, evaluateState, cloneState, setWorkerBoardDimensions };
+  globalThis.__engineMerged = { searchBestAction, generateActions, applyAction, evaluateState, evaluateStateComponents, cloneState, setWorkerBoardDimensions };
   if (typeof module !== "undefined") module.exports = globalThis.__engineMerged;
 })();
