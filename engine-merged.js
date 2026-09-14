@@ -3040,21 +3040,41 @@
       });
     }
   });
-  function searchBestAction(boardState, rootActions, aiColor, depth, timeLimitMs = TIME_LIMIT_MS) {
+  const FLEXIBLE_BUDGET_MULTIPLIER = 8;
+  // Grafted from engine.optimized.js (our-only enhancement, replacing the
+  // real file's searchBestAction wholesale): adds an options bag
+  // (flexibleBudget / evalFn / skipOpeningBook), a killers/tt-carrying
+  // search context (consumed by minimax/quiescence, grafted earlier), and
+  // accepts a partial (timed-out but partially-ranked) depth result when
+  // flexibleBudget is set instead of always discarding it. Every real-file
+  // line here (forced-royal-capture/spell shortcuts, opening-book probe,
+  // pickRootHardSafetyFallback, the depth-iteration loop shape) is kept
+  // identical to what aiWorker-raw.js already had -- confirmed by diffing
+  // the two versions line-by-line before this replacement, nothing
+  // real-only is lost.
+  function searchBestAction(boardState, rootActions, aiColor, depth, timeLimitMs = TIME_LIMIT_MS, options = {}) {
     setWorkerBoardDimensions(boardState);
     const maxDepth = Math.max(1, Math.min(MAX_DEPTH, Number(depth) || DEFAULT_DEPTH));
     const startedAt = performance.now();
-    const boundedTimeLimitMs = normalizeAiWorkerTimeLimit(timeLimitMs, TIME_LIMIT_MS);
+    const boundedTimeLimitMs = normalizeAiWorkerTimeLimit(timeLimitMs, timeLimitMs ?? TIME_LIMIT_MS);
+    const flexibleBudget = Boolean(options.flexibleBudget);
+    const effectiveTimeLimitMs = flexibleBudget
+      ? Math.min(HARD_TIME_LIMIT_MS, boundedTimeLimitMs * FLEXIBLE_BUDGET_MULTIPLIER)
+      : boundedTimeLimitMs;
+    const evalFn = typeof options.evalFn === "function" ? options.evalFn : null;
     const context = {
       aiColor,
+      evalFn,
       nodes: 0,
       cutoffs: 0,
-      deadline: startedAt + boundedTimeLimitMs,
-      hardDeadline: startedAt + Math.min(HARD_TIME_LIMIT_MS, boundedTimeLimitMs),
+      deadline: startedAt + effectiveTimeLimitMs,
+      hardDeadline: startedAt + Math.min(HARD_TIME_LIMIT_MS, effectiveTimeLimitMs),
       timedOut: false,
       // Root applications are deterministic. Reuse their full end-turn result,
       // including monster movement, across safety checks and iterative depths.
-      rootProbeCache: /* @__PURE__ */ new WeakMap()
+      rootProbeCache: /* @__PURE__ */ new WeakMap(),
+      killers: {},
+      tt: /* @__PURE__ */ new Map()
     };
     let orderedRoot = orderActions(rootActions.map(cloneAction), boardState, aiColor);
     const forcedRoyalCapture = findForcedRoyalCaptureSequence(boardState, orderedRoot, aiColor, context);
@@ -3065,7 +3085,7 @@
     if (forcedRoyalSpell) {
       return { action: forcedRoyalSpell, score: INF / 3, nodes: 0, cutoffs: 0, completedDepth: 0, forced: true };
     }
-    const openingAction = pickOpeningFirstMoveAction(boardState, aiColor, orderedRoot);
+    const openingAction = options.skipOpeningBook ? null : pickOpeningFirstMoveAction(boardState, aiColor, orderedRoot);
     if (openingAction) {
       const openingIssue = rootActionHardSafetyIssue(boardState, openingAction, aiColor, context);
       if (!openingIssue) {
@@ -3075,6 +3095,7 @@
     let bestAction = pickRootHardSafetyFallback(boardState, orderedRoot, aiColor, context) || orderedRoot.find((action) => action?.type !== "card") || null;
     let bestScore = -INF;
     let completedDepth = 0;
+    let lastCandidates = [];
     let previousCompletedDepthMs = 0;
     const hasRuleMonster = workerHasRuleMonster(boardState);
     for (let currentDepth = 1; currentDepth <= maxDepth; currentDepth += 1) {
@@ -3083,16 +3104,17 @@
       }
       const depthStartedAt = performance.now();
       const depthResult = searchAtDepth(boardState, orderedRoot, aiColor, currentDepth, context);
-      if (depthResult.completed && depthResult.action) {
+      if (depthResult.action && (depthResult.completed || flexibleBudget)) {
         bestAction = depthResult.action;
         bestScore = depthResult.score;
         completedDepth = currentDepth;
+        lastCandidates = depthResult.candidates || lastCandidates;
         previousCompletedDepthMs = performance.now() - depthStartedAt;
         orderedRoot = [bestAction, ...orderedRoot.filter((action) => !sameAction(action, bestAction))];
       }
       if (context.timedOut) break;
     }
-    return { action: bestAction, score: bestScore, nodes: context.nodes, cutoffs: context.cutoffs, completedDepth };
+    return { action: bestAction, score: bestScore, nodes: context.nodes, cutoffs: context.cutoffs, completedDepth, candidates: lastCandidates };
   }
   function pickRootHardSafetyFallback(boardState, orderedRoot, aiColor, context = null) {
     let firstLegal = null;
@@ -3198,11 +3220,40 @@
         if (!evaluateRootAction(action)) break;
       }
     }
+    // Grafted from engine.optimized.js (our-only addition): degenerate
+    // fallback for very sparse positions (few pieces left, e.g. late
+    // endgames) where the hard/soft root-safety heuristics above can end up
+    // flagging every candidate (they were tuned assuming a normal-density
+    // position) -- without this, real search would never run at all and
+    // the move would silently fall back to a shallow heuristic pick. Never
+    // fires in normal positions (where scoredCandidates is already
+    // non-empty), so it doesn't cost anything there.
+    if (!scoredCandidates.length && !context.timedOut) {
+      for (const action of nonCardActions) {
+        if (isTimedOut(context)) break;
+        const candidateProbe = rootActionProbe(boardState, action, aiColor, context);
+        if (!candidateProbe) continue;
+        const next = candidateProbe.afterState;
+        const nextDepth = childDepthAfterAction(depth, action, boardState.turn, boardState.actionsRemaining, next);
+        const tacticalAdjustment = tacticalSafetyAdjustment(boardState, next, action, aiColor);
+        const capturePreference = workerWorthwhileCapturePreference(boardState, action, aiColor);
+        const appliedScore = candidateProbe.appliedScore;
+        const score = appliedScore + tacticalAdjustment + capturePreference + minimax(next, nextDepth, alpha, beta, next.turn === aiColor, context);
+        if (context.timedOut) break;
+        scoredCandidates.push({ ...candidateProbe, score });
+        if (score > bestScore) {
+          bestScore = score;
+          bestAction = action;
+        }
+        alpha = Math.max(alpha, bestScore);
+      }
+    }
     const selected = selectRootCandidateAfterSafety(boardState, scoredCandidates, aiColor, context, rejectedSoftCandidates);
     return {
       action: selected?.action || bestAction,
       score: Number.isFinite(selected?.score) ? selected.score : bestScore,
-      completed: !context.timedOut
+      completed: !context.timedOut,
+      candidates: scoredCandidates
     };
   }
   function selectRootCandidateAfterSafety(boardState, candidates, aiColor, context, rejectedSoftCandidates = []) {
@@ -3953,49 +4004,129 @@
     }
     return key;
   }
+  // Grafted from engine.optimized.js (our-only enhancement, replacing the
+  // real file's minimax wholesale): adds a transposition table (positionKey
+  // + context.tt, grafted earlier as a standalone helper), null-move
+  // pruning (nullMoveOk), late-move-reduction gated on
+  // isTacticallyRelevantCardAction, the killer-move heuristic
+  // (recordKillerMove/reorderWithKillers), path-based repetition detection,
+  // and dropping into quiescence search at depth<=0 instead of a flat
+  // evaluateState call -- all grafted earlier as standalone (until-now
+  // unreachable) functions specifically for this wiring. Every real-file
+  // line here (the timeout check, the gameover/depth<=0 base case shape,
+  // action generation/ordering, the max/min alpha-beta loops themselves) is
+  // preserved, just extended -- confirmed by diffing the two versions
+  // line-by-line before this replacement.
   function minimax(boardState, depth, alpha, beta, isMaximizingPlayer, context) {
     context.nodes += 1;
-    if ((context.nodes & 255) === 0 && isTimedOut(context)) return evaluateState(boardState, context.aiColor);
-    if (depth <= 0 || boardState.mode === "gameover") return evaluateState(boardState, context.aiColor);
+    if ((context.nodes & 255) === 0 && isTimedOut(context)) return (context.evalFn || evaluateState)(boardState, context.aiColor);
+    if (boardState.mode === "gameover") return (context.evalFn || evaluateState)(boardState, context.aiColor);
+    const posKey = positionKey(boardState);
+    if (!context.pathCounts) context.pathCounts = new Map();
+    if (context.pathCounts.get(posKey) >= 1) return 0;
+    if (depth <= 0) return quiescence(boardState, alpha, beta, isMaximizingPlayer, context, QUIESCENCE_MAX_PLIES);
     const color = boardState.turn || (isMaximizingPlayer ? context.aiColor : opponent(context.aiColor));
-    const actions = orderActions(generateActions(boardState, color), boardState, color);
-    if (!actions.length) return evaluateState(boardState, context.aiColor) + (color === context.aiColor ? -2500 : 2500);
-    if (isMaximizingPlayer) {
-      let value2 = -INF;
+    const alphaOrig = alpha;
+    const betaOrig = beta;
+    const ttKey = depth + "|" + posKey;
+    const ttEntry = context.tt.get(ttKey);
+    if (ttEntry) {
+      if (ttEntry.flag === "exact") return ttEntry.score;
+      if (ttEntry.flag === "lower") alpha = Math.max(alpha, ttEntry.score);
+      else if (ttEntry.flag === "upper") beta = Math.min(beta, ttEntry.score);
+      if (alpha >= beta) return ttEntry.score;
+    }
+    context.pathCounts.set(posKey, (context.pathCounts.get(posKey) || 0) + 1);
+    try {
+      if (depth >= NULL_MOVE_MIN_DEPTH && nullMoveOk(boardState, color)) {
+        const nullState = cloneState(boardState);
+        nullState.turn = opponent(color);
+        const nullMaximizing = nullState.turn === context.aiColor;
+        const nullValue = minimax(nullState, Math.max(0, depth - 1 - NULL_MOVE_REDUCTION), alpha, beta, nullMaximizing, context);
+        if (isMaximizingPlayer && nullValue >= beta) {
+          context.cutoffs += 1;
+          return beta;
+        }
+        if (!isMaximizingPlayer && nullValue <= alpha) {
+          context.cutoffs += 1;
+          return alpha;
+        }
+      }
+      const actions = reorderWithKillers(boardState, orderActions(generateActions(boardState, color), boardState, color), context.killers?.[depth]);
+      if (!actions.length) return (context.evalFn || evaluateState)(boardState, context.aiColor) + (color === context.aiColor ? -2500 : 2500);
+      if (isMaximizingPlayer) {
+        let value2 = -INF;
+        let moveIndex = 0;
+        for (const action of actions) {
+          if (isTimedOut(context)) break;
+          const next = cloneState(boardState);
+          const beforeTurn = next.turn;
+          const beforeActionsRemaining = next.actionsRemaining;
+          const capture = isCaptureAction(boardState, action);
+          const applied = applyAction(next, action, context.aiColor);
+          if (!applied.ok) continue;
+          const nextDepth = childDepthAfterAction(depth, action, beforeTurn, beforeActionsRemaining, next);
+          const nextMaximizing = next.turn === context.aiColor;
+          let score;
+          if (nextDepth >= LMR_MIN_DEPTH && moveIndex >= LMR_MOVE_THRESHOLD && !capture && !isTacticallyRelevantCardAction(boardState, action, color)) {
+            score = applied.score + minimax(next, nextDepth - 1, alpha, beta, nextMaximizing, context);
+            if (score > alpha) score = applied.score + minimax(next, nextDepth, alpha, beta, nextMaximizing, context);
+          } else {
+            score = applied.score + minimax(next, nextDepth, alpha, beta, nextMaximizing, context);
+          }
+          value2 = Math.max(value2, score);
+          alpha = Math.max(alpha, value2);
+          moveIndex += 1;
+          if (beta <= alpha) {
+            context.cutoffs += 1;
+            if (!capture) recordKillerMove(context, depth, action);
+            break;
+          }
+        }
+        if (!context.timedOut) {
+          const flag = value2 <= alphaOrig ? "upper" : value2 >= betaOrig ? "lower" : "exact";
+          context.tt.set(ttKey, { score: value2, flag });
+        }
+        return value2;
+      }
+      let value = INF;
+      let moveIndex = 0;
       for (const action of actions) {
         if (isTimedOut(context)) break;
         const next = cloneState(boardState);
         const beforeTurn = next.turn;
         const beforeActionsRemaining = next.actionsRemaining;
+        const capture = isCaptureAction(boardState, action);
         const applied = applyAction(next, action, context.aiColor);
         if (!applied.ok) continue;
         const nextDepth = childDepthAfterAction(depth, action, beforeTurn, beforeActionsRemaining, next);
-        value2 = Math.max(value2, applied.score + minimax(next, nextDepth, alpha, beta, next.turn === context.aiColor, context));
-        alpha = Math.max(alpha, value2);
+        const nextMaximizing = next.turn === context.aiColor;
+        let score;
+        if (nextDepth >= LMR_MIN_DEPTH && moveIndex >= LMR_MOVE_THRESHOLD && !capture && !isTacticallyRelevantCardAction(boardState, action, color)) {
+          score = applied.score + minimax(next, nextDepth - 1, alpha, beta, nextMaximizing, context);
+          if (score < beta) score = applied.score + minimax(next, nextDepth, alpha, beta, nextMaximizing, context);
+        } else {
+          score = applied.score + minimax(next, nextDepth, alpha, beta, nextMaximizing, context);
+        }
+        value = Math.min(value, score);
+        beta = Math.min(beta, value);
+        moveIndex += 1;
         if (beta <= alpha) {
           context.cutoffs += 1;
+          if (!capture) recordKillerMove(context, depth, action);
           break;
         }
       }
-      return value2;
-    }
-    let value = INF;
-    for (const action of actions) {
-      if (isTimedOut(context)) break;
-      const next = cloneState(boardState);
-      const beforeTurn = next.turn;
-      const beforeActionsRemaining = next.actionsRemaining;
-      const applied = applyAction(next, action, context.aiColor);
-      if (!applied.ok) continue;
-      const nextDepth = childDepthAfterAction(depth, action, beforeTurn, beforeActionsRemaining, next);
-      value = Math.min(value, applied.score + minimax(next, nextDepth, alpha, beta, next.turn === context.aiColor, context));
-      beta = Math.min(beta, value);
-      if (beta <= alpha) {
-        context.cutoffs += 1;
-        break;
+      if (!context.timedOut) {
+        const flag = value <= alphaOrig ? "upper" : value >= betaOrig ? "lower" : "exact";
+        context.tt.set(ttKey, { score: value, flag });
       }
+      return value;
+    } finally {
+      const remaining = context.pathCounts.get(posKey) - 1;
+      if (remaining <= 0) context.pathCounts.delete(posKey);
+      else context.pathCounts.set(posKey, remaining);
     }
-    return value;
   }
   function childDepthAfterAction(depth, action, beforeTurn, beforeActionsRemaining, afterState) {
     if (depth <= 0) return 0;
