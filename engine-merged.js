@@ -3824,6 +3824,125 @@
     });
     return attacked;
   }
+  // Grafted from engine.optimized.js (our-only additions): search-layer
+  // helpers not yet wired into minimax/searchBestAction below -- kept as
+  // standalone (currently-unreachable) functions here, then connected when
+  // minimax and searchBestAction are replaced wholesale with our enhanced
+  // versions (see the graft-progress log for why that step comes last: it
+  // needs every one of these already in place first).
+  const NULL_MOVE_MIN_DEPTH = 3;
+  const NULL_MOVE_REDUCTION = 2;
+  const LMR_MIN_DEPTH = 3;
+  const LMR_MOVE_THRESHOLD = 4;
+  function nullMoveOk(boardState, color) {
+    const king = criticalPieces(boardState, color)[0];
+    if (king && isSquareAttacked(boardState, king.row, king.col, opponent(color))) return false;
+    let nonPawnCount = 0;
+    forEachPiece(boardState, (piece) => {
+      if (piece.color === color && piece.type !== "pawn" && piece.type !== "wall") nonPawnCount += 1;
+    });
+    return nonPawnCount >= 3;
+  }
+  function isCaptureAction(boardState, action) {
+    if (!action || action.type !== "move") return false;
+    const dest = action.move || {};
+    return Boolean(get(boardState, dest.row, dest.col));
+  }
+  const CARD_TACTICAL_RELEVANCE_THRESHOLD = 200;
+  function isTacticallyRelevantCardAction(boardState, action, color) {
+    if (!action || action.type !== "card") return false;
+    return singleCardThreatValue(boardState, findCard(boardState, action), color) >= CARD_TACTICAL_RELEVANCE_THRESHOLD;
+  }
+  const QUIESCENCE_MAX_PLIES = 6;
+  function quiescence(boardState, alpha, beta, isMaximizingPlayer, context, qDepth) {
+    context.nodes += 1;
+    if ((context.nodes & 255) === 0 && isTimedOut(context)) return (context.evalFn || evaluateState)(boardState, context.aiColor);
+    const standPat = (context.evalFn || evaluateState)(boardState, context.aiColor);
+    if (boardState.mode === "gameover" || qDepth <= 0) return standPat;
+    const color = boardState.turn || (isMaximizingPlayer ? context.aiColor : opponent(context.aiColor));
+    if (isMaximizingPlayer) {
+      if (standPat >= beta) return standPat;
+      alpha = Math.max(alpha, standPat);
+    } else {
+      if (standPat <= alpha) return standPat;
+      beta = Math.min(beta, standPat);
+    }
+    const captureActions = orderActions(generateActions(boardState, color), boardState, color).filter((action) => isCaptureAction(boardState, action) || (qDepth === QUIESCENCE_MAX_PLIES && isTacticallyRelevantCardAction(boardState, action, color)));
+    if (!captureActions.length) return standPat;
+    if (isMaximizingPlayer) {
+      let value2 = standPat;
+      for (const action of captureActions) {
+        if (isTimedOut(context)) break;
+        const next = cloneState(boardState);
+        const applied = applyAction(next, action, context.aiColor);
+        if (!applied.ok) continue;
+        const score = applied.score + quiescence(next, alpha, beta, next.turn === context.aiColor, context, qDepth - 1);
+        value2 = Math.max(value2, score);
+        alpha = Math.max(alpha, value2);
+        if (beta <= alpha) {
+          context.cutoffs += 1;
+          break;
+        }
+      }
+      return value2;
+    }
+    let value = standPat;
+    for (const action of captureActions) {
+      if (isTimedOut(context)) break;
+      const next = cloneState(boardState);
+      const applied = applyAction(next, action, context.aiColor);
+      if (!applied.ok) continue;
+      const score = applied.score + quiescence(next, alpha, beta, next.turn === context.aiColor, context, qDepth - 1);
+      value = Math.min(value, score);
+      beta = Math.min(beta, value);
+      if (beta <= alpha) {
+        context.cutoffs += 1;
+        break;
+      }
+    }
+    return value;
+  }
+  function recordKillerMove(context, depth, action) {
+    if (!context.killers) context.killers = {};
+    const list = context.killers[depth] || (context.killers[depth] = []);
+    if (list.some((k) => sameAction(k, action))) return;
+    list.unshift(action);
+    if (list.length > 2) list.length = 2;
+  }
+  function reorderWithKillers(boardState, actions, killers) {
+    if (!killers || !killers.length) return actions;
+    const captures = [];
+    const killerMoves = [];
+    const rest = [];
+    const usedKillerIdx = new Set();
+    actions.forEach((action) => {
+      if (isCaptureAction(boardState, action)) {
+        captures.push(action);
+        return;
+      }
+      const ki = killers.findIndex((k, idx) => !usedKillerIdx.has(idx) && sameAction(k, action));
+      if (ki !== -1) {
+        usedKillerIdx.add(ki);
+        killerMoves.push(action);
+        return;
+      }
+      rest.push(action);
+    });
+    return [...captures, ...killerMoves, ...rest];
+  }
+  function positionKey(boardState) {
+    let key = boardState.turn === "white" ? "w" : "b";
+    const rows = boardRowCount(boardState);
+    const cols = boardColCount(boardState);
+    for (let r = 0; r < rows; r++) {
+      const row = boardState.board[r] || [];
+      for (let c = 0; c < cols; c++) {
+        const p = row[c];
+        key += p ? (p.color === "white" ? "W" : p.color === "black" ? "B" : "N") + p.type : ".";
+      }
+    }
+    return key;
+  }
   function minimax(boardState, depth, alpha, beta, isMaximizingPlayer, context) {
     context.nodes += 1;
     if ((context.nodes & 255) === 0 && isTimedOut(context)) return evaluateState(boardState, context.aiColor);
