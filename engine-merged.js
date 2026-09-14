@@ -2610,7 +2610,13 @@
   }
   const INF = 1e9;
   const COLORS = ["white", "black"];
-  const MAX_DEPTH = 4;
+  // Real site value is 4 (its own live-play search ceiling). Raised to 12
+  // (matching engine.optimized.js's own deliberate choice) since this cap
+  // is part of OUR search-quality layer, not site "rules" -- confirmed
+  // 2026-09-14 that this is a hard Math.min(MAX_DEPTH, depth) cap, so
+  // callers requesting a deeper search (e.g. self-play depth=6 experiments)
+  // were being silently capped at 4 before this fix.
+  const MAX_DEPTH = 12;
   const DEFAULT_DEPTH = MAX_DEPTH;
   const TIME_LIMIT_MS = AI_DEFAULT_SEARCH_TIME_MS;
   const HARD_TIME_LIMIT_MS = 16750;
