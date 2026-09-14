@@ -7,3 +7,4 @@ nnue/snapshots/
 scratch_*.json
 scratch_*.jsonl
 selfplay-deep-cloud-run.pid
+.claude/scheduled_tasks.lock
