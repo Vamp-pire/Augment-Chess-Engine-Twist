@@ -6519,12 +6519,30 @@
       else if (canWorkerCaptureTarget(color, target, pawn, boardState)) moves.push({ row: one, col: nextCol });
     });
   }
-  function hasSameRankStandardBearer(boardState, row, color) {
-    let found = false;
-    forEachPiece(boardState, (piece, pieceRow) => {
-      if (!found && pieceRow === row && piece?.color === color && pieceHasAbility(piece, "standardBearer")) found = true;
+  // Grafted from engine.optimized.js (our-only addition): caches the
+  // per-color rank->standardBearer-pieces mapping once per boardState
+  // (safe: every place that changes a position clones a new state object
+  // first, so a given boardState's aura-relevant pieces never change after
+  // this cache is built). Pure perf swap, same as forEachPieceCached above
+  // -- profiling found forEachPiece a major cost partly from repeated scans
+  // like the one hasSameRankStandardBearer used to run inline here.
+  const STANDARD_BEARER_RANK_CACHE = /* @__PURE__ */ new WeakMap();
+  function standardBearerRanksByColor(boardState) {
+    let cached = STANDARD_BEARER_RANK_CACHE.get(boardState);
+    if (cached) return cached;
+    cached = { white: /* @__PURE__ */ new Map(), black: /* @__PURE__ */ new Map() };
+    forEachPiece(boardState, (piece, row) => {
+      if (!piece || !COLORS.includes(piece.color) || !pieceHasAbility(piece, "standardBearer")) return;
+      const byRank = cached[piece.color];
+      const list = byRank.get(row);
+      if (list) list.push(piece);
+      else byRank.set(row, [piece]);
     });
-    return found;
+    STANDARD_BEARER_RANK_CACHE.set(boardState, cached);
+    return cached;
+  }
+  function hasSameRankStandardBearer(boardState, row, color) {
+    return Boolean(standardBearerRanksByColor(boardState)[color]?.get(row)?.length);
   }
   function workerPortalRule(boardState) {
     return normalizePortalRule(boardState?.portalRule, boardRowCount(boardState), boardColCount(boardState));
@@ -11982,11 +12000,8 @@
     return { ok: true, score: action.color === aiColor ? score : -score };
   }
   function hasWorkerCaptureReadySameRankStandardBearer(boardState, row, color) {
-    let found = false;
-    forEachPiece(boardState, (piece, pieceRow) => {
-      if (!found && pieceRow === row && piece?.color === color && pieceHasAbility(piece, "standardBearer") && !isWorkerFreshNoCaptureActive(boardState, piece)) found = true;
-    });
-    return found;
+    const list = standardBearerRanksByColor(boardState)[color]?.get(row);
+    return Boolean(list && list.some((piece) => !isWorkerFreshNoCaptureActive(boardState, piece)));
   }
   function workerQueuedKnightExtraMoveReasons(piece) {
     if (!Array.isArray(piece?.queuedKnightExtraMoveReasons)) return [];
