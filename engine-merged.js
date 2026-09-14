@@ -6097,9 +6097,15 @@
   function friendlyPieces(boardState, color) {
     return piecesMatching(boardState, (piece) => piece.color === color);
   }
+  // Migrated to forEachPieceCached (grafted from engine.optimized.js): this
+  // is the single shared chokepoint for a large number of call sites
+  // (findWorkerKingRole, enemyPieces/friendlyPieces, etc.), so caching here
+  // benefits all of them without auditing each caller individually. Purely
+  // a perf swap -- forEachPieceCached iterates the exact same
+  // (piece, row, col) triples as forEachPiece, just from a cached list.
   function piecesMatching(boardState, predicate) {
     const pieces = [];
-    forEachPiece(boardState, (piece, row, col) => {
+    forEachPieceCached(boardState, (piece, row, col) => {
       if (predicate(piece, row, col)) pieces.push({ piece, row, col });
     });
     return pieces;
@@ -8284,7 +8290,7 @@
   function moveWorkerRuleMonsters(boardState, movingColor = "black") {
     const monsters = [];
     const seen = /* @__PURE__ */ new Set();
-    forEachPiece(boardState, (item, row, col) => {
+    forEachPieceCached(boardState, (item, row, col) => {
       if (item?.type !== "monster" || seen.has(item.id)) return;
       seen.add(item.id);
       monsters.push({ item, row, col });
@@ -8882,13 +8888,13 @@
     return Number.isFinite(restTurn) && restTurn === (Number(boardState.turnsTaken?.[color]) || 0);
   }
   function clearWorkerIdolEncoreRepeatBlocks(boardState, color) {
-    forEachPiece(boardState, (piece) => {
+    forEachPieceCached(boardState, (piece) => {
       if (piece?.color === color) delete piece.idolEncoreRestTurn;
     });
   }
   function markWorkerIdolEncoreRepeatBlock(boardState, pieceId, color) {
     let moved = null;
-    forEachPiece(boardState, (piece) => {
+    forEachPieceCached(boardState, (piece) => {
       if (!moved && piece?.id === pieceId && piece.color === color) moved = piece;
     });
     if (!moved) return false;
@@ -9633,7 +9639,7 @@
     return moved;
   }
   function tickWorkerPoisonStunnedPieces(boardState, color) {
-    forEachPiece(boardState, (piece) => {
+    forEachPieceCached(boardState, (piece) => {
       if (!shouldTickPoisonStun(piece, color)) return;
       piece.poisonStunTurns = Math.max(0, Number(piece.poisonStunTurns) - 1);
       if (!piece.poisonStunTurns) {
@@ -16286,6 +16292,28 @@
       }
     }
   }
+  // Grafted from engine.optimized.js (our-only additions): a shared
+  // per-boardState piece-list cache, since forEachPiece was found to be a
+  // major CPU cost from many different special-piece mechanics each doing
+  // their own uncached full-board scan. Safe because a boardState is never
+  // mutated in place mid-search except through set() below, which now
+  // unconditionally invalidates the cache entry on every square mutation.
+  const ALL_PIECES_LIST_CACHE = /* @__PURE__ */ new WeakMap();
+  function allPiecesList(boardState) {
+    let cached = ALL_PIECES_LIST_CACHE.get(boardState);
+    if (!cached) {
+      cached = [];
+      forEachPiece(boardState, (piece, row, col) => cached.push({ piece, row, col }));
+      ALL_PIECES_LIST_CACHE.set(boardState, cached);
+    }
+    return cached;
+  }
+  function forEachPieceCached(boardState, callback) {
+    const list = allPiecesList(boardState);
+    for (let i = 0; i < list.length; i += 1) {
+      callback(list[i].piece, list[i].row, list[i].col);
+    }
+  }
   function get(boardState, row, col) {
     if (!inBounds(row, col, boardState)) return null;
     return boardState.board[row]?.[col] || null;
@@ -16293,6 +16321,7 @@
   function set(boardState, row, col, value) {
     if (!inBounds(row, col, boardState)) return;
     boardState.board[row][col] = value;
+    if (ALL_PIECES_LIST_CACHE.has(boardState)) ALL_PIECES_LIST_CACHE.delete(boardState);
   }
   function workerCreatePiece(color, type, boardState, row, col) {
     type = monochromePieceType(type, boardState?.monochromeChess);
