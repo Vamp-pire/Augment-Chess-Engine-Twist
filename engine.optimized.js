@@ -12030,7 +12030,7 @@
       target.loyalist = true;
       score += (color === aiColor ? 1 : -1) * (260 + pieceValue(target) * 0.2);
     } else if (card.effect === "parry") {
-      if (!target || target.color !== color || target.parry || ["wall", "football", "blackHole", "monster"].includes(target.type)) return { ok: false, score: 0 };
+      if (!target || target.color !== color || target.parry || ["wall", "football", "blackHole", "monster", "scarecrow"].includes(target.type)) return { ok: false, score: 0 };
       target.parry = { chance: PARRY_CHANCE };
       score += (color === aiColor ? 1 : -1) * (280 + pieceValue(target) * 0.35);
     } else if (card.effect === "blackMagic") {
@@ -12050,6 +12050,7 @@
       }
       royal.piece.type = "darkWizard";
       royal.piece.moved = true;
+      markWorkerFreshNoCapture(boardState, royal.piece);
       delete royal.piece.darkMagicCircle;
       delete royal.piece.crownBearer;
       delete royal.piece.crownRoyal;
@@ -12385,7 +12386,7 @@
     } else if (card.effect === "lastResistance") {
       const king = findWorkerKingRole(boardState, color);
       if (!king) return { ok: false, score: 0 };
-      const previousProtected = Boolean(king.piece.protected);
+      const previousProtected = king.piece.lastResistance ? Boolean(king.piece.lastResistance.previousProtected) : Boolean(king.piece.protected);
       king.piece.protected = true;
       king.piece.lastResistance = { remaining: 3, previousProtected };
       score += (color === aiColor ? 1 : -1) * 420;
@@ -12440,15 +12441,15 @@
       });
       score += (color === aiColor ? 1 : -1) * (220 + moves.length * 90);
     } else if (card.effect === "icbm") {
-      const sourceQueen = piecesMatching(boardState, (piece) => isWorkerQueenIdentity(piece, color))[0];
+      const sourceQueenPiece = target && isWorkerQueenIdentity(target, color) ? target : null;
       const targetQueen = piecesMatching(boardState, (piece) => isWorkerQueenIdentity(piece, opponent(color)))[0];
-      if (!sourceQueen || !targetQueen) return { ok: false, score: 0 };
+      if (!sourceQueenPiece || !targetQueen) return { ok: false, score: 0 };
       if (!Array.isArray(boardState.pendingIcbm)) boardState.pendingIcbm = [];
       boardState.pendingIcbm.push({
         id: `worker-icbm-${card.instanceId || card.id || boardState.moveCount || 0}`,
         color,
         triggerTurn: (Number(boardState.turnsTaken?.[color]) || 0) + 1,
-        sourceQueenId: sourceQueen.piece.id,
+        sourceQueenId: sourceQueenPiece.id,
         targetQueenId: targetQueen.piece.id
       });
       score += (color === aiColor ? 1 : -1) * 420;
