@@ -7012,6 +7012,10 @@
     if (card.effect === "recurrence") return piecesMatching(boardState, (piece) => workerRecurrenceTarget(boardState, piece, color)).map(({ row, col }) => ({ row, col }));
     if (card.effect === "nullification") return piecesMatching(boardState, (piece) => workerNullificationTarget(piece, color)).map(({ row, col }) => ({ row, col }));
     if (card.effect === "outpost") return piecesMatching(boardState, (piece, row, col) => workerOutpostTarget(boardState, piece, row, col, color)).map(({ row, col }) => ({ row, col }));
+    // Grafted from engine.optimized.js (our-only addition): "bribe" targets
+    // any of this color's own knights (apply-time logic grafted into
+    // applyCardActionUnchecked's "bribe" branch below).
+    if (card.effect === "bribe") return piecesMatching(boardState, (piece) => piece.color === color && piece.type === "knight").map(({ row, col }) => ({ row, col })).slice(0, 20);
     if (SEPTEMBER_PASSIVE_EFFECTS.includes(card.effect) && card.effect !== "bigBishop") return boardState[card.effect]?.[color] ? [] : [null];
     const effect = card.effect || "";
     const enemy = opponent(color);
@@ -10066,6 +10070,7 @@
     if (boardState.taunt?.[color] > 0) boardState.taunt[color] -= 1;
     tickWorkerStakedPieces(boardState, color);
     tickWorkerIceSheetPieces(boardState, color);
+    tickWorkerBribedPieces(boardState, color);
     clearWorkerRepositionMarks(boardState, color);
     if (legacyCompletedTurnEffectsStates.has(boardState)) clearWorkerChargeRush(boardState, color);
     clearWorkerSameTurnMoveEffects(boardState, color);
@@ -10516,6 +10521,19 @@
       if (!piece?.iceSheet || piece.color !== color) return;
       piece.iceSheet.remaining = Math.max(0, (Number(piece.iceSheet.remaining) || 0) - 1);
       if (piece.iceSheet.remaining <= 0) delete piece.iceSheet;
+    });
+  }
+  // Grafted from engine.optimized.js (our-only addition, paired with the
+  // "bribe" targeting/apply branches grafted above): "bribe" temporarily
+  // transforms an allied knight into an amazon for 3 of its own color's
+  // turns, then reverts to knight. Mirrors tickWorkerIceSheetPieces exactly.
+  function tickWorkerBribedPieces(boardState, color) {
+    forEachPiece(boardState, (piece) => {
+      if (!piece?.bribed || piece.color !== color) return;
+      piece.bribed.remaining = Math.max(0, (Number(piece.bribed.remaining) || 0) - 1);
+      if (piece.bribed.remaining > 0) return;
+      piece.type = "knight";
+      delete piece.bribed;
     });
   }
   function workerHoldoutReadyTurn(piece) {
@@ -12258,6 +12276,20 @@
     if (card.effect === "outpost") {
       target.outpostProtected = true;
       score += (color === aiColor ? 1 : -1) * 200;
+    } else if (card.effect === "bribe") {
+      // Grafted from engine.optimized.js (our-only addition, genuinely
+      // absent from aiWorker-raw.js -- confirmed by grepping the whole
+      // real file for "bribe"/"Bribe", found nowhere but the star-cost
+      // table). "나이트 하나를 3턴 동안 아마존으로 변경합니다. 시간이
+      // 지나면 다시 나이트가 됩니다." Ticked in finishWorkerMove via
+      // tickWorkerBribedPieces, mirroring the existing iceSheet/witchTrial
+      // tick-down pattern. This branch's own eligibility (target must be
+      // color's own knight) is already enforced by the "bribe" targeting
+      // branch grafted alongside this into generateWorkerCardTargetsV2.
+      if (!target || target.color !== color || target.type !== "knight") return { ok: false, score: 0 };
+      target.type = "amazon";
+      target.bribed = { remaining: 3 };
+      score += (color === aiColor ? 1 : -1) * 300;
     } else if (card.effect === "captureTheFlag") {
       boardState.captureTheFlag = { flags: { white: { row: boardRowCount(boardState) - 1, col: workerStableIndex("flag-white:" + (boardState.moveCount || 0), boardColCount(boardState)) }, black: { row: 0, col: workerStableIndex("flag-black:" + (boardState.moveCount || 0), boardColCount(boardState)) } }, occupations: { white: null, black: null } };
     } else if (card.effect === "miracle") {
