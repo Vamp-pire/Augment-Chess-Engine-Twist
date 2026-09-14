@@ -1,0 +1,8 @@
+workers: 7 run budget (ms): 3600000 -> until 2026-09-14T10:03:45.133Z
+[progress @ 15.0min] games: 26 errors: 0 positions: 1637 outcomes: {"white":4,"black":8,"draw":14,"unfinished":0}
+[progress @ 66.8min] games: 54 errors: 0 positions: 3489 outcomes: {"white":10,"black":9,"draw":35,"unfinished":0}
+elapsed ms: 4095241
+games: 61 errors: 0
+games/sec: 0.015
+positions written: 4019 ->  D:\증강체스엔진\.claude\worktrees\agent-abab91bee18f7df74\selfplay-data.merged-engine-2026-09-14-run2.jsonl
+outcome distribution: { white: 11, black: 9, draw: 41, unfinished: 0 }
