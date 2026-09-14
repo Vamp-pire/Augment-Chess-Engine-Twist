@@ -3224,9 +3224,29 @@
     if (rootCandidateDecisivelyWins(boardState, candidate, aiColor)) issue = "";
     else if (!rootCandidateHasSameTurnMoveEffectIntent(boardState, candidate, aiColor)) issue = "unused-card-effect";
     else if (rootCandidateAllowsImmediateDecisiveReply(candidate.afterState, aiColor)) issue = "decisive-reply";
+    else if (rootCandidateHangsFreeMaterial(candidate, aiColor)) issue = "hangs-material";
     else if (rootCandidateViolatesEarlyKingHome(boardState, candidate, aiColor)) issue = "early-king-advance";
     candidate._rootHardSafetyIssue = issue;
     return issue;
+  }
+  // Grafted from engine.optimized.js (our-only addition, not in the real
+  // site engine): cheap "does this move just give away material for
+  // nothing" hard filter, applied to every root candidate regardless of
+  // whether the deeper search has time to confirm it.
+  function rootCandidateHangsFreeMaterial(candidate, aiColor) {
+    const action = candidate?.action;
+    const afterState = candidate?.afterState;
+    if (!action || action.type !== "move" || !afterState) return false;
+    const dest = action.move || {};
+    const movedPiece = get(afterState, dest.row, dest.col);
+    if (!movedPiece || movedPiece.color !== aiColor || isWorkerDecisiveCaptureTarget(afterState, movedPiece)) return false;
+    const threat = workerBestCaptureThreat(afterState, movedPiece, dest.row, dest.col);
+    if (!threat) return false;
+    const movedValue = workerStrategicPieceValue(afterState, movedPiece);
+    const attackerValue = pieceValue(threat.piece);
+    const gained = candidate.captureSwing?.value || 0;
+    if (candidate.captureSwing?.decisive) return false;
+    return attackerValue <= movedValue - 40 && movedValue - gained > 220;
   }
   function rootCandidateHasSameTurnMoveEffectIntent(boardState, candidate, color) {
     const effect = sameTurnMoveEffectCardEffect(boardState, candidate?.action);
