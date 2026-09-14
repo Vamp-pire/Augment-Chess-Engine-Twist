@@ -14771,6 +14771,27 @@
     });
     return nonPawnMaterial < 2600 || majorPieces <= 2 || (Number(boardState.moveCount) || 0) >= 32;
   }
+  // Grafted from engine.optimized.js (our-only addition): kingZoneThreatApprox
+  // replaces kingSafetyScore/royalPressureScore's per-neighbor-square
+  // isSquareAttacked calls (each an O(pieces) scan, so 8 exact queries per
+  // critical piece) with a single O(pieces) pass over the enemy pieces,
+  // scoring by distance-to-king instead of exact reachability. A deliberate
+  // search-speed/eval-strength tradeoff (isSquareAttacked was measured as
+  // evaluateState's dominant cost), not a bug fix -- the single exact "is
+  // the king actually in check" isSquareAttacked call at the critical
+  // square itself is kept as-is in both functions below.
+  function kingZoneThreatApprox(boardState, kingRow, kingCol, byColor) {
+    let score = 0;
+    forEachPiece(boardState, (piece, row, col) => {
+      if (piece.color !== byColor || piece.type === "wall") return;
+      if (isFrozenPiece(piece) || isWorkerStakedPiece(piece)) return;
+      const dist = Math.max(Math.abs(row - kingRow), Math.abs(col - kingCol));
+      if (dist === 0 || dist > 3) return;
+      const reach = pieceValue(piece) >= 300 ? 3 : 1;
+      if (dist <= reach) score += Math.max(24, 96 - dist * 24);
+    });
+    return score;
+  }
   function kingSafetyScore(boardState, color) {
     const enemy = opponent(color);
     const critical = criticalPieces(boardState, color);
@@ -14787,8 +14808,8 @@
         }
         const neighbor = get(boardState, r, c);
         if (neighbor?.color === color) score += 35;
-        if (isSquareAttacked(boardState, r, c, enemy)) score -= 72;
       });
+      score -= kingZoneThreatApprox(boardState, row, col, enemy);
     });
     return score;
   }
@@ -14799,11 +14820,7 @@
     if (!targets.length) targets.push(...campaignSurvivalPieces(boardState, enemy));
     targets.forEach(({ row, col }) => {
       if (isSquareAttacked(boardState, row, col, color)) score += 1800;
-      queenDirections().forEach(([dr, dc]) => {
-        const r = row + dr;
-        const c = col + dc;
-        if (inBounds(r, c) && isSquareAttacked(boardState, r, c, color)) score += 42;
-      });
+      score += kingZoneThreatApprox(boardState, row, col, color);
     });
     return score;
   }
