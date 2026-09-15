@@ -1,0 +1,28 @@
+workers: 3 run budget (ms): 22520000 -> until 2026-09-15T05:30:04.582Z
+[progress @ 15.0min] games: 19 errors: 0 positions: 1169 outcomes: {"white":9,"black":4,"draw":6,"unfinished":0}
+[progress @ 30.0min] games: 38 errors: 0 positions: 2408 outcomes: {"white":12,"black":6,"draw":18,"unfinished":2}
+[progress @ 45.0min] games: 58 errors: 0 positions: 3678 outcomes: {"white":16,"black":10,"draw":30,"unfinished":2}
+[progress @ 60.0min] games: 73 errors: 0 positions: 4801 outcomes: {"white":19,"black":13,"draw":39,"unfinished":2}
+[progress @ 75.0min] games: 88 errors: 0 positions: 6023 outcomes: {"white":25,"black":16,"draw":45,"unfinished":2}
+[progress @ 90.0min] games: 102 errors: 0 positions: 7134 outcomes: {"white":30,"black":17,"draw":50,"unfinished":5}
+[progress @ 105.0min] games: 119 errors: 0 positions: 8401 outcomes: {"white":30,"black":22,"draw":61,"unfinished":6}
+[progress @ 120.0min] games: 136 errors: 0 positions: 9562 outcomes: {"white":32,"black":25,"draw":72,"unfinished":7}
+[progress @ 135.0min] games: 154 errors: 0 positions: 10915 outcomes: {"white":33,"black":29,"draw":84,"unfinished":8}
+[progress @ 150.0min] games: 171 errors: 0 positions: 12264 outcomes: {"white":39,"black":29,"draw":95,"unfinished":8}
+
+=== RUN INTERRUPTED: cloud container restarted again @ 2026-09-15T01:48Z ===
+Process (PID 909) was killed by a second unplanned container restart, not
+by reaching its planned deadline (2026-09-15T05:30:04Z). Last write to the
+output file: 2026-09-15T01:47:29Z.
+
+Final stats for this segment, reconstructed from
+selfplay-data.merged-engine-deep-cloud-part2.jsonl (172 complete games,
+split on pliesFromEnd===0 markers, all 12362 lines verified valid JSON):
+  elapsed: ~2h32m49s (of a planned ~6h15m)
+  games: 172  errors: 0  positions: 12362
+  games/sec: 0.0188  positions/hour: ~4854
+  game length (plies): min 2, max 300, avg 71.9
+  outcome distribution: {"white":39,"black":29,"draw":96,"unfinished":8}
+
+Continuing with a fresh process (part3) for the remaining budget to the
+original 2026-09-15T05:30:00Z target.
