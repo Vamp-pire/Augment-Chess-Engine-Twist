@@ -1,0 +1,19 @@
+workers: 3 run budget (ms): 22506000 -> until 2026-09-15T05:30:07.285Z
+[progress @ 15.0min] games: 34 errors: 0 positions: 1891 outcomes: {"white":8,"black":13,"draw":12,"unfinished":1}
+[progress @ 30.0min] games: 62 errors: 0 positions: 4012 outcomes: {"white":14,"black":22,"draw":23,"unfinished":3}
+[progress @ 45.0min] games: 94 errors: 0 positions: 6081 outcomes: {"white":20,"black":28,"draw":38,"unfinished":8}
+[progress @ 60.0min] games: 130 errors: 0 positions: 8597 outcomes: {"white":31,"black":33,"draw":56,"unfinished":10}
+[progress @ 75.0min] games: 157 errors: 0 positions: 10797 outcomes: {"white":36,"black":38,"draw":72,"unfinished":11}
+[progress @ 90.0min] games: 187 errors: 0 positions: 13129 outcomes: {"white":43,"black":41,"draw":89,"unfinished":14}
+[progress @ 105.0min] games: 221 errors: 0 positions: 15351 outcomes: {"white":51,"black":50,"draw":104,"unfinished":16}
+[progress @ 120.0min] games: 249 errors: 0 positions: 17147 outcomes: {"white":58,"black":55,"draw":118,"unfinished":18}
+[progress @ 135.0min] games: 284 errors: 0 positions: 19282 outcomes: {"white":68,"black":63,"draw":133,"unfinished":20}
+[progress @ 150.0min] games: 314 errors: 0 positions: 21513 outcomes: {"white":71,"black":68,"draw":152,"unfinished":23}
+--- PROCESS KILLED BY SECOND CLOUD CONTAINER RESTART @ ~153min (2026-09-15T01:45Z), before its own 22506000ms (~6.25h) budget completed ---
+--- reconstructed final stats directly from the output jsonl (file verified not truncated): ---
+games: 315 errors: 0
+positions written: 21542 -> selfplay-data.merged-engine-cloud-depth3-part2.jsonl (39771766 bytes, ~37.9MiB)
+outcome distribution: {"white":72,"black":68,"draw":152,"unfinished":23}
+avg positions/game: 68.39
+elapsed: ~153 min (~2h33m) of the ~375.1min (~6.25h) budget before being killed
+-- resumed as a fresh "part3" process (new container, new PID) targeting the ORIGINAL deadline 2026-09-15T05:30:00Z with the remaining ~3.73h budget, output to selfplay-data.merged-engine-cloud-depth3-part3.jsonl; see selfplay-run-merged-cloud-depth3-part3.log

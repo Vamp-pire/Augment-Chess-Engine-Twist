@@ -1,0 +1,55 @@
+workers: 3 run budget (ms): 64527000 -> until 2026-09-15T05:30:04.725Z
+[progress @ 15.0min] games: 27 errors: 0 positions: 1721 outcomes: {"white":6,"black":6,"draw":14,"unfinished":1}
+[progress @ 30.0min] games: 53 errors: 0 positions: 3433 outcomes: {"white":17,"black":11,"draw":24,"unfinished":1}
+[progress @ 45.0min] games: 89 errors: 0 positions: 5590 outcomes: {"white":25,"black":17,"draw":39,"unfinished":8}
+[progress @ 60.0min] games: 119 errors: 0 positions: 7556 outcomes: {"white":31,"black":23,"draw":55,"unfinished":10}
+[progress @ 75.0min] games: 151 errors: 0 positions: 9459 outcomes: {"white":37,"black":33,"draw":69,"unfinished":12}
+[progress @ 90.0min] games: 183 errors: 0 positions: 11361 outcomes: {"white":44,"black":39,"draw":86,"unfinished":14}
+[progress @ 105.0min] games: 212 errors: 0 positions: 13291 outcomes: {"white":58,"black":42,"draw":98,"unfinished":14}
+[progress @ 120.0min] games: 237 errors: 0 positions: 15089 outcomes: {"white":66,"black":45,"draw":111,"unfinished":15}
+[progress @ 135.0min] games: 269 errors: 0 positions: 17039 outcomes: {"white":72,"black":51,"draw":130,"unfinished":16}
+[progress @ 150.0min] games: 299 errors: 0 positions: 18847 outcomes: {"white":76,"black":55,"draw":150,"unfinished":18}
+[progress @ 165.0min] games: 320 errors: 0 positions: 20572 outcomes: {"white":77,"black":63,"draw":161,"unfinished":19}
+[progress @ 180.0min] games: 351 errors: 0 positions: 22383 outcomes: {"white":86,"black":68,"draw":177,"unfinished":20}
+[progress @ 195.0min] games: 377 errors: 0 positions: 24370 outcomes: {"white":91,"black":74,"draw":191,"unfinished":21}
+[progress @ 210.0min] games: 408 errors: 0 positions: 26359 outcomes: {"white":95,"black":80,"draw":209,"unfinished":24}
+[progress @ 225.0min] games: 435 errors: 0 positions: 28285 outcomes: {"white":98,"black":85,"draw":226,"unfinished":26}
+[progress @ 240.0min] games: 465 errors: 0 positions: 30433 outcomes: {"white":106,"black":93,"draw":240,"unfinished":26}
+[progress @ 255.0min] games: 487 errors: 0 positions: 32509 outcomes: {"white":111,"black":99,"draw":250,"unfinished":27}
+[progress @ 270.0min] games: 505 errors: 0 positions: 34344 outcomes: {"white":114,"black":101,"draw":262,"unfinished":28}
+[progress @ 285.0min] games: 537 errors: 0 positions: 36093 outcomes: {"white":123,"black":108,"draw":278,"unfinished":28}
+[progress @ 300.0min] games: 559 errors: 0 positions: 37901 outcomes: {"white":126,"black":112,"draw":290,"unfinished":31}
+[progress @ 315.0min] games: 581 errors: 0 positions: 39891 outcomes: {"white":128,"black":114,"draw":308,"unfinished":31}
+[progress @ 330.0min] games: 617 errors: 0 positions: 41847 outcomes: {"white":138,"black":119,"draw":329,"unfinished":31}
+[progress @ 345.0min] games: 650 errors: 0 positions: 43651 outcomes: {"white":147,"black":131,"draw":340,"unfinished":32}
+[progress @ 360.0min] games: 678 errors: 0 positions: 45602 outcomes: {"white":150,"black":136,"draw":358,"unfinished":34}
+[progress @ 375.0min] games: 706 errors: 0 positions: 47568 outcomes: {"white":154,"black":144,"draw":373,"unfinished":35}
+[progress @ 390.0min] games: 740 errors: 0 positions: 49636 outcomes: {"white":159,"black":155,"draw":386,"unfinished":40}
+[progress @ 405.0min] games: 765 errors: 0 positions: 51685 outcomes: {"white":161,"black":166,"draw":398,"unfinished":40}
+[progress @ 420.0min] games: 794 errors: 0 positions: 53628 outcomes: {"white":168,"black":170,"draw":415,"unfinished":41}
+[progress @ 435.0min] games: 823 errors: 0 positions: 55980 outcomes: {"white":172,"black":174,"draw":435,"unfinished":42}
+[progress @ 450.0min] games: 849 errors: 0 positions: 57897 outcomes: {"white":177,"black":180,"draw":448,"unfinished":44}
+[progress @ 465.0min] games: 871 errors: 0 positions: 59933 outcomes: {"white":180,"black":183,"draw":463,"unfinished":45}
+[progress @ 480.0min] games: 895 errors: 0 positions: 61715 outcomes: {"white":184,"black":185,"draw":481,"unfinished":45}
+[progress @ 495.0min] games: 926 errors: 0 positions: 63641 outcomes: {"white":189,"black":192,"draw":499,"unfinished":46}
+[progress @ 510.0min] games: 957 errors: 0 positions: 65666 outcomes: {"white":196,"black":199,"draw":516,"unfinished":46}
+[progress @ 525.0min] games: 991 errors: 0 positions: 67833 outcomes: {"white":202,"black":206,"draw":534,"unfinished":49}
+[progress @ 540.0min] games: 1024 errors: 0 positions: 69788 outcomes: {"white":208,"black":213,"draw":553,"unfinished":50}
+[progress @ 555.0min] games: 1054 errors: 0 positions: 71861 outcomes: {"white":212,"black":222,"draw":569,"unfinished":51}
+[progress @ 570.0min] games: 1086 errors: 0 positions: 73826 outcomes: {"white":220,"black":231,"draw":583,"unfinished":52}
+[progress @ 585.0min] games: 1115 errors: 0 positions: 75679 outcomes: {"white":225,"black":237,"draw":598,"unfinished":55}
+[progress @ 600.0min] games: 1140 errors: 0 positions: 77503 outcomes: {"white":231,"black":242,"draw":611,"unfinished":56}
+[progress @ 615.0min] games: 1166 errors: 0 positions: 79542 outcomes: {"white":235,"black":247,"draw":626,"unfinished":58}
+[progress @ 630.0min] games: 1194 errors: 0 positions: 81519 outcomes: {"white":237,"black":250,"draw":647,"unfinished":60}
+[progress @ 645.0min] games: 1224 errors: 0 positions: 83692 outcomes: {"white":239,"black":254,"draw":667,"unfinished":64}
+[progress @ 660.0min] games: 1249 errors: 0 positions: 85645 outcomes: {"white":242,"black":262,"draw":679,"unfinished":66}
+[progress @ 675.0min] games: 1277 errors: 0 positions: 87583 outcomes: {"white":244,"black":266,"draw":699,"unfinished":68}
+[progress @ 690.0min] games: 1308 errors: 0 positions: 89566 outcomes: {"white":248,"black":269,"draw":720,"unfinished":71}
+--- PROCESS KILLED BY CLOUD CONTAINER RESTART @ ~698min (2026-09-14T23:13Z), before its own 64527000ms (~17.9h) budget completed ---
+--- final summary line was never printed by the script itself; reconstructed directly from the output jsonl (fs stream had flushed through the last completed game, file verified not truncated): ---
+games: 1330 errors: 0 (0 through every logged checkpoint; process was killed by infra, not a script error/crash)
+positions written: 90658 -> selfplay-data.merged-engine-cloud-depth3.jsonl (168075761 bytes, ~160MiB -- too large to push to git, see report)
+outcome distribution: {"white":255,"black":274,"draw":729,"unfinished":72}
+avg positions/game: 68.16
+elapsed: ~698 min (~11h38m) of the ~1075.45min (~17.9h) budget before being killed
+-- resumed as a fresh "part2" process (new container, new PID) targeting the ORIGINAL deadline 2026-09-15T05:30:00Z with the remaining ~6.25h budget, output to selfplay-data.merged-engine-cloud-depth3-part2.jsonl; see selfplay-run-merged-cloud-depth3-part2.log
