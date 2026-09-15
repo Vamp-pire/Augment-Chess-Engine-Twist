@@ -26,7 +26,12 @@ const SPECIAL_TYPES = [
   // campfire joined SELFPLAY_SPECIAL_TYPES. coffin/babyBear are still
   // deliberately excluded (see the 2026-09-06 note above -- no real
   // movement of their own, only a self-play house rule).
-  "hedgehog", "princess", "campfire"
+  "hedgehog", "princess", "campfire",
+  // Added 2026-09-15 (16-new-card patch graft): paladin/octopus/clockwork/
+  // parrot joined SELFPLAY_SPECIAL_TYPES as the 4 PIECE-phase cards from
+  // that batch (all single-square, all self-contained -- see
+  // selfplay-worker-merged.js's SELFPLAY_SPECIAL_TYPES comment for why).
+  "paladin", "octopus", "clockwork", "parrot"
 ];
 const ALL_TYPES = [...STANDARD_TYPES, ...SPECIAL_TYPES];
 
@@ -127,7 +132,12 @@ const CARD_POOL_TYPES = [
   "qxe1", "nullification", "recurrence", "outpost", "killerKing", "majesty",
   "overtake", "leap", "vanguard", "infiltration", "reversal", "lastStand",
   "fastGrowth", "earlyPromotion", "bribe", "conscription", "barricade",
-  "collapse"
+  "collapse",
+  // 2026-09-15 patch batch: all 16 new cards, matching
+  // selfplay-worker-merged.js's SELFPLAY_CARD_POOL addition exactly.
+  "highlander", "thief", "disassembly", "falseStart", "proficiency",
+  "locustSwarm", "longEnPassant", "extinction", "symmetry", "brutus",
+  "clockwork", "mutation", "parrot", "paladin", "octopus", "metal"
 ];
 const CARD_POOL_INDEX = {};
 CARD_POOL_TYPES.forEach((effect, i) => { CARD_POOL_INDEX[effect] = i; });

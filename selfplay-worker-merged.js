@@ -109,7 +109,26 @@ const SELFPLAY_SPECIAL_TYPES = [
   // princess/campfire need no extra init (their behavior -- queen-count
   // check, adjacency aura -- is computed live from the board every time).
   // hedgehog needs its counter-attack budget seeded (see makeSpecialPiece).
-  "hedgehog", "princess", "campfire"
+  "hedgehog", "princess", "campfire",
+  // 2026-09-15 patch batch (16 new cards): paladin/octopus/clockwork/parrot
+  // are the 4 PIECE-phase cards, all single-square, all confirmed
+  // self-contained by reading generateMovesForPiece/threeMoveAllowed in the
+  // freshly re-fetched aiWorker.js (site-oracle/aiWorker-fresh-20260915.js):
+  // - paladin: plain leapMoves(knight deltas); its no-capture rule lives in
+  //   canWorkerCaptureTarget (attackerType-based) and threeMoveAllowed, both
+  //   read live off the piece/board, no card/deck state.
+  // - octopus: plain leapMoves(queenDirections); its submerge-when-no-
+  //   adjacent-enemy tick (completeThreeTurn) runs unconditionally every
+  //   turn inside finishWorkerMove, not gated behind ever having drawn the
+  //   "octopus"/"metal" cards.
+  // - clockwork: rayMoves(queenDirections) gated by a live 8-neighbor
+  //   allied-piece adjacency check in generateMovesForPiece -- no state.
+  // - parrot: mimics boardState.parrotMovement[color], which every move
+  //   (any piece, any color) now lazily seeds via applyMoveAction's wrapper
+  //   (see engine-merged.js); a parrot placed before any move has happened
+  //   for its color simply has no moves yet (matches real: `if
+  //   (!memory?.type) return [];`), not a crash.
+  "paladin", "octopus", "clockwork", "parrot"
 ];
 
 // Pool trickster draws its per-turn movement type from. Deliberately NOT the
@@ -305,7 +324,25 @@ const SELFPLAY_CARD_POOL = [
   "nullification", "recurrence", "outpost", "killerKing", "majesty",
   "overtake", "leap", "vanguard", "infiltration", "reversal", "lastStand",
   "fastGrowth", "earlyPromotion", "bribe", "conscription", "barricade",
-  "collapse"
+  "collapse",
+  // 2026-09-15 patch batch: all 16 new cards, ported from the fresh
+  // aiWorker.js this session (see engine-merged.js's INTERNAL_THREE/FIVE/
+  // EIGHT dispatch and the graft-progress notes). All checked the same way
+  // as the rest of this pool -- their apply/tick logic only touches
+  // lazily-initialized per-color boardState.<effect> flags or per-piece
+  // fields (metalized/thiefVisited/locustOrigin/parrotMovement/etc.), none
+  // of which makeInitialState needs to pre-seed (all read via optional
+  // chaining with safe falsy defaults). "highlander" is an instant win
+  // condition wired into resolveWorkerReligiousVictory/
+  // updateWorkerCaptureFlags (both already called every turn inside
+  // finishWorkerMove) -- needs no extra state at all. "paladin"/"octopus"/
+  // "clockwork"/"parrot" (the 4 PIECE-phase cards) are listed here too so
+  // self-play can also draw them as CARDS (transforming an existing piece
+  // finish game start), on top of being directly placeable via
+  // SELFPLAY_SPECIAL_TYPES above.
+  "highlander", "thief", "disassembly", "falseStart", "proficiency",
+  "locustSwarm", "longEnPassant", "extinction", "symmetry", "brutus",
+  "clockwork", "mutation", "parrot", "paladin", "octopus", "metal"
 ];
 // Real games apparently deal a fixed hand size that depends on game mode
 // (owner: "반은 3장 받고 반은 6개 받는 게임" -- basic mode deals 3, grand
