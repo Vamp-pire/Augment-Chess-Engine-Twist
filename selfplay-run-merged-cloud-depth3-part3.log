@@ -1,0 +1,32 @@
+workers: 3 run budget (ms): 13442000 -> until 2026-09-15T05:30:05.216Z
+[progress @ 15.0min] games: 25 errors: 0 positions: 1674 outcomes: {"white":9,"black":6,"draw":10,"unfinished":0}
+[progress @ 30.0min] games: 53 errors: 0 positions: 3614 outcomes: {"white":13,"black":15,"draw":23,"unfinished":2}
+[progress @ 45.0min] games: 78 errors: 0 positions: 5405 outcomes: {"white":13,"black":20,"draw":42,"unfinished":3}
+[progress @ 60.0min] games: 111 errors: 0 positions: 7163 outcomes: {"white":21,"black":31,"draw":55,"unfinished":4}
+[progress @ 75.0min] games: 136 errors: 0 positions: 8943 outcomes: {"white":25,"black":35,"draw":72,"unfinished":4}
+[progress @ 90.0min] games: 165 errors: 0 positions: 10506 outcomes: {"white":31,"black":41,"draw":87,"unfinished":6}
+[progress @ 105.0min] games: 188 errors: 0 positions: 12214 outcomes: {"white":35,"black":42,"draw":105,"unfinished":6}
+[progress @ 120.0min] games: 216 errors: 0 positions: 13824 outcomes: {"white":41,"black":49,"draw":120,"unfinished":6}
+[progress @ 135.0min] games: 243 errors: 0 positions: 15643 outcomes: {"white":52,"black":50,"draw":133,"unfinished":8}
+[progress @ 150.0min] games: 273 errors: 0 positions: 17518 outcomes: {"white":57,"black":57,"draw":150,"unfinished":9}
+[progress @ 165.0min] games: 302 errors: 0 positions: 19151 outcomes: {"white":59,"black":65,"draw":166,"unfinished":12}
+[progress @ 180.0min] games: 328 errors: 0 positions: 20841 outcomes: {"white":65,"black":73,"draw":177,"unfinished":13}
+[progress @ 195.0min] games: 353 errors: 0 positions: 22642 outcomes: {"white":68,"black":77,"draw":194,"unfinished":14}
+[progress @ 210.0min] games: 376 errors: 0 positions: 24138 outcomes: {"white":73,"black":82,"draw":207,"unfinished":14}
+elapsed ms: 13499701
+games: 404 errors: 0
+games/sec: 0.030
+positions written: 26074 ->  /home/user/Augment-Chess-Engine-Twist/selfplay-data.merged-engine-cloud-depth3-part3.jsonl
+outcome distribution: { white: 77, black: 89, draw: 223, unfinished: 15 }
+
+=== RUN COMPLETE: this part3 process reached its own deadline normally (no restart) ===
+=== COMBINED FINAL STATS across part1 + part2 + part3 (single continuous ~17.9h window, resumed twice after platform-wide cloud container restarts) ===
+  part1: selfplay-data.merged-engine-cloud-depth3.jsonl        -- 1330 games, 90658 positions (killed by restart @ ~698min)
+  part2: selfplay-data.merged-engine-cloud-depth3-part2.jsonl  --  315 games, 21542 positions (killed by restart @ ~153min)
+  part3: selfplay-data.merged-engine-cloud-depth3-part3.jsonl  --  404 games, 26074 positions (completed normally @ 224min)
+  TOTAL: 2049 games, 0 errors, 138274 positions, ~17.94h wall clock (11:34:37Z Sep14 -> ~05:31:00Z Sep15)
+  outcome distribution: { white: 404, black: 431, draw: 1104, unfinished: 110 } (draw rate 53.9%, unfinished rate 5.4%)
+  avg positions/game: 67.48
+  throughput: ~114 games/hour, ~7710 positions/hour with 3 workers (4 cores in this sandbox)
+  combined data size: ~245MB across the 3 files -- too large to push to git (see final report to user for
+  in-sandbox paths; this session is ephemeral, so retrieve before it's reclaimed if the data is wanted)
