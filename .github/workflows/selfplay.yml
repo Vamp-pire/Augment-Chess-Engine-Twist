@@ -38,8 +38,13 @@ jobs:
           # Hard stop for the whole collection effort -- update/remove this
           # when the collection window changes.
           CUTOFF_ISO: "2026-09-16T03:00:00Z"
+        # GitHub Actions' default `bash` shell runs with -e (abort on first
+        # non-zero exit), which silently killed the whole step the moment an
+        # intentionally-allowed-to-fail command (fetching a not-yet-existing
+        # remote branch) returned non-zero. Override to drop -e; we still
+        # want -u/pipefail for real bugs, just not abort-on-any-failure here.
+        shell: bash --noprofile --norc -uo pipefail {0}
         run: |
-          set -uo pipefail
 
           NOW_MS=$(node -e "console.log(Date.now())")
           CUTOFF_MS=$(node -e "console.log(Date.parse(process.argv[1]))" "$CUTOFF_ISO")
@@ -85,9 +90,13 @@ jobs:
               fi
               git commit -q -m "$1"
               for i in 1 2 3; do
-                git fetch origin gha-segments-16cards -q
-                git rebase origin/gha-segments-16cards -q && break
-                git rebase --abort 2>/dev/null || true
+                if git fetch origin gha-segments-16cards -q 2>/dev/null \
+                    && git rev-parse -q --verify origin/gha-segments-16cards >/dev/null 2>&1; then
+                  git rebase origin/gha-segments-16cards -q && break
+                  git rebase --abort 2>/dev/null
+                else
+                  break
+                fi
                 sleep 5
               done
               git push -q "$remote_url" HEAD:gha-segments-16cards
