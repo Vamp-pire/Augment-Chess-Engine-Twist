@@ -535,11 +535,33 @@
   const threeType = (type) => String(type || "").replace(/[A-Z]/g, (c) => "-" + c.toLowerCase());
   const lightSquare = (row, col) => (row + col) % 2 === 0;
   const INTERNAL_THREE_DIRECTIONS = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [-1, 1], [1, -1], [1, 1]];
+  // `board` arrays are cloned fresh per search node (see cloneState) and never
+  // mutated in place afterward, so caching by array identity is safe: a given
+  // board reference always represents exactly one immutable position.
+  const THREE_CACHE = /* @__PURE__ */ new WeakMap();
+  function threeCacheFor(board) {
+    let cache = THREE_CACHE.get(board);
+    if (!cache) {
+      cache = { hasPaladin: void 0, radiance: /* @__PURE__ */ new Map() };
+      THREE_CACHE.set(board, cache);
+    }
+    return cache;
+  }
+  function boardHasPaladin(board) {
+    const cache = threeCacheFor(board);
+    if (cache.hasPaladin === void 0) cache.hasPaladin = board.some((line) => line.some((p) => threeType(pieceAbilityType(p)) === "paladin"));
+    return cache.hasPaladin;
+  }
   function radianceCells(board, movingColor = null) {
+    const cache = threeCacheFor(board);
+    const key = movingColor || "";
+    const cached = cache.radiance.get(key);
+    if (cached) return cached;
     const result = /* @__PURE__ */ new Set();
     for (const { item, row, col } of uniqueBoardPieces(board)) if (threeType(pieceAbilityType(item)) === "paladin" && lightSquare(row, col) && (!movingColor || item.color !== movingColor)) {
       for (const [dr, dc] of INTERNAL_THREE_DIRECTIONS) if (board[row + dr]?.[col + dc] !== void 0) result.add(`${row + dr},${col + dc}`);
     }
+    cache.radiance.set(key, result);
     return result;
   }
   function octopusHasEnemy(board, row, col, color) {
@@ -593,7 +615,7 @@
       if (!threeMoveAllowed(board, target, to.row, to.col, { row, col }, { teleport: true, secondary: true, enemyOnlyRadiance })) return false;
     }
     if (threeType(pieceAbilityType(item)) === "paladin" && !move.crownGroundCapture && (move.capture || move.jumpCapture || target && target.color !== item.color && !["crown", "wall"].includes(threeType(target.type)))) return false;
-    if (lightSquare(row, col) || !board.some((line) => line.some((p) => threeType(pieceAbilityType(p)) === "paladin"))) return true;
+    if (lightSquare(row, col) || !boardHasPaladin(board)) return true;
     const lit = radianceCells(board, enemyOnlyRadiance ? item.color : null), blocked = (r, c) => lit.has(`${r},${c}`);
     const landing = move.highlightCells || [to];
     if (landing.some((cell) => blocked(cell.row, cell.col)) || [move.portalEntry, move.portalExit].filter(Boolean).some((cell) => blocked(cell.row, cell.col))) return false;
