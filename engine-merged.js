@@ -211,7 +211,15 @@
     }
     return removed;
   }
+  // NOTE: real's own catalog ids are kebab-case for 3 of these
+  // (false-start/locust-swarm/long-en-passant) while their `effect` field
+  // is camelCase (falseStart/locustSwarm/longEnPassant); this project's own
+  // selfplay-worker-merged.js constructs card objects with `id === effect`
+  // (always camelCase), so every dispatch gate below keys off `.effect`
+  // (camelCase, matches both real cards and selfplay-drawn cards) rather
+  // than `.id`.
   const INTERNAL_EIGHT_IDS = Object.freeze(["highlander", "thief", "disassembly", "false-start", "proficiency", "locust-swarm", "long-en-passant", "extinction"]);
+  const INTERNAL_EIGHT_EFFECTS = Object.freeze(["highlander", "thief", "disassembly", "falseStart", "proficiency", "locustSwarm", "longEnPassant", "extinction"]);
   const INTERNAL_EIGHT_PASSIVE_EFFECTS = Object.freeze(["highlander", "falseStart", "proficiency", "locustSwarm", "longEnPassant"]);
   function internalWorkerCallbacks(boardState) {
     return {
@@ -13847,7 +13855,7 @@
       const result = applyFiveLocalCard(boardState, card, action.target, color, { isRoyal: (item) => isWorkerKingRole(boardState, item) });
       if (!result.ok) return { ok: false, score: 0 };
       score += (color === aiColor ? 1 : -1) * 300;
-    } else if (INTERNAL_EIGHT_IDS.includes(card.id)) {
+    } else if (INTERNAL_EIGHT_EFFECTS.includes(card.effect)) {
       const result = applyWorkerInternalEightCard(boardState, card, action.target, color);
       if (!result.ok) return { ok: false, score: 0 };
       score += (color === aiColor ? 1 : -1) * 300;
@@ -16876,7 +16884,8 @@
   function canWorkerCaptureTarget(color, target, attacker = null, boardState = null, options = {}) {
     if (septemberNullificationBlocks(target, attacker)) return false;
     const attackerType = attacker ? pieceAbilityType(attacker) || renderType(attacker) || attacker.type : "";
-    if (attackerType === "campfire") return false;
+    if (["campfire", "paladin"].includes(attackerType)) return false;
+    if (target?.metalized && target.type !== "scarecrow" && !options.forceCapture) return false;
     const actualAttacker = attacker || { color, type: attackerType };
     if (actualAttacker.color === color && isChaosChessCaptureBlocked(boardState?.chaosNoCaptureUntilHalfTurn, boardState?.turnsTaken)) return false;
     if (attackerType === "monster" && (target?.type === "darkWizard" || !legacySeptember12RulesStates.has(boardState) && target?.type === "scarecrow")) return false;
@@ -16890,7 +16899,7 @@
       });
       if (frontlineResponseBlocksCapture(true, target, attackerSquare, targetSquare, attackerType) && !(pieceHasAbility(actualAttacker, "primeMinister") && primeMinisterHasDiagonalCapturePath(attackerSquare, targetSquare, (row, col) => inBounds(row, col, boardState) && !get(boardState, row, col) && !isWorkerCollapsedSquare(boardState, row, col) && !workerPortalExitAt(boardState, row, col)))) return false;
     }
-    return Boolean(target && (options.ignoreFreeMoveLock || !isFreeMoveCaptureBlocked(boardState?.freeMoveCaptureLock, actualAttacker, target)) && !isArmisticeCaptureBlocked(boardState?.armistice, actualAttacker, target) && !(attacker && !options.ignoreSaturation && isWorkerSaturationCaptureLocked(boardState, attacker)) && (!["recruiter", "guard"].includes(attackerType) || options.allowBasicTrainingCapture && attacker?.basicTraining || hasWorkerRoyalCommandCaptureAccess(boardState, attacker)) && !isOverwhelmCaptureBlocked(boardState?.overwhelm, actualAttacker, target) && !(attacker && isWorkerCardNoCaptureActive(boardState, attacker)) && !(attacker && isWorkerQuantumCaptureLocked(boardState, attacker)) && (attackerType !== "idol" || attacker?.crownBearer) && !target.submerged && target.color !== color && target.type !== "wall" && target.type !== "football" && (target.type !== "monster" || attackerType === "darkWizard") && !pieceHasAbility(target, "guard") && target.captureRestriction !== "immune" && !(attacker?.frenzy && isRoyalPiece(target)) && !isDesperadoRoyalCaptureBlocked(attacker, target) && (target.type === "scarecrow" || !target.protected) && !isWorkerEncouragedTarget(boardState, target) && !isFrozenPiece(target) && (!attacker || canTimePhaseInteract(boardState, attacker, target)) && !(attacker?.type === "timeTraveler" && timeTravelerState(boardState)?.attackEnabledFor !== attacker.color) && (!pieceHasAbility(target, "jester") && target.captureRestriction !== "royal-only" || attackerType !== "jester" && (attacker?.crownBearer || isWorkerNativeKing(attacker) || isWorkerRegencyRoyalHeir(boardState, attacker))));
+    return Boolean(target && (options.ignoreFreeMoveLock || !isFreeMoveCaptureBlocked(boardState?.freeMoveCaptureLock, actualAttacker, target)) && !isArmisticeCaptureBlocked(boardState?.armistice, actualAttacker, target) && !(attacker && !options.ignoreSaturation && isWorkerSaturationCaptureLocked(boardState, attacker)) && (!["recruiter", "guard"].includes(attackerType) || options.allowBasicTrainingCapture && attacker?.basicTraining || hasWorkerRoyalCommandCaptureAccess(boardState, attacker)) && !isOverwhelmCaptureBlocked(boardState?.overwhelm, actualAttacker, target) && !(attacker && isWorkerCardNoCaptureActive(boardState, attacker)) && !(attacker && isWorkerQuantumCaptureLocked(boardState, attacker)) && (attackerType !== "idol" || attacker?.crownBearer) && !target.submerged && (target.color !== color || options.allowFriendly) && target.type !== "wall" && target.type !== "football" && (target.type !== "monster" || attackerType === "darkWizard") && !pieceHasAbility(target, "guard") && target.captureRestriction !== "immune" && !(attacker?.frenzy && isRoyalPiece(target)) && !isDesperadoRoyalCaptureBlocked(attacker, target) && (target.type === "scarecrow" || !target.protected) && !isWorkerEncouragedTarget(boardState, target) && !isFrozenPiece(target) && (!attacker || canTimePhaseInteract(boardState, attacker, target)) && !(attacker?.type === "timeTraveler" && timeTravelerState(boardState)?.attackEnabledFor !== attacker.color) && (!pieceHasAbility(target, "jester") && target.captureRestriction !== "royal-only" || attackerType !== "jester" && (attacker?.crownBearer || isWorkerNativeKing(attacker) || isWorkerRegencyRoyalHeir(boardState, attacker))));
   }
   function canWorkerRadicalChargeCaptureTarget(boardState, color, target, attacker = null) {
     return Boolean(
