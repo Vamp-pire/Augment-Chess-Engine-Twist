@@ -1,1 +1,2 @@
 chunk-0001-off0-len226863.jsonl.gz  offset=0  len=226863  total_after=226863  at=2026-09-15T10:01:53Z
+chunk-0001-selfplay-data.merged-engine-cloud-16cards-safe-off226863-len1331767.jsonl.gz  src=selfplay-data.merged-engine-cloud-16cards-safe.jsonl  offset=226863  len=1331767  total_after=1558630  at=2026-09-15T10:08:39Z
