@@ -11,3 +11,4 @@ selfplay-deep-cloud-run.log
 selfplay-deep-cloud-run-part2.log
 selfplay-deep-cloud-run-part3.log
 .claude/scheduled_tasks.lock
+selfplay-cloud-16cards*.log
