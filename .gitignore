@@ -7,7 +7,6 @@ nnue/snapshots/
 scratch_*.json
 scratch_*.jsonl
 *.pid
-selfplay-run-merged-cloud-depth3-part3.log
 selfplay-deep-cloud-run.log
 selfplay-deep-cloud-run-part2.log
 selfplay-deep-cloud-run-part3.log
