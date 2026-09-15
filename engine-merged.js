@@ -330,7 +330,7 @@
     };
   }
   function rememberLocalMovement(state, item) {
-    if (!state.parrotMovement || !item || !["white", "black"].includes(item.color)) return;
+    if (!item || !["white", "black"].includes(item.color)) return;
     state.parrotMovement ||= { white: null, black: null };
     state.parrotMovement[item.color] = rememberedBaseMovement(item, state.parrotMovement[item.color]);
   }
@@ -5022,6 +5022,7 @@
     if (workerIdolEncoreRepeatBlocked(boardState, piece)) return [];
     if (isWorkerUndergroundBunkerKing(piece) || isPoisonStunned(piece) || isExhaustionMoveBlocked(boardState.exhaustion, piece)) return [];
     if ((septemberCounterLimit(piece.type) > 0 || pieceHasAbility(piece, "hedgehog")) && (Number(boardState.turnsTaken?.[piece.color]) || 0) < (Number(piece.bearMoveLockedUntilTurn) || 0)) return [];
+    if (piece.type === "clockwork" && !clockworkHasNeighbor(piece, row, col, (r, c) => get(boardState, r, c))) return [];
     if (piece.type === "babyBear") return [];
     const type = renderType(piece);
     if (boardState.zugzwang?.[piece.color] && !isWorkerZugzwangTargetKing(boardState, piece)) return [];
@@ -5065,6 +5066,12 @@
     else if (type === "herald") moves = heraldMoves(boardState, row, col, piece);
     else if (type === "dragon") moves = dragonMoves(boardState, row, col, piece);
     else if (type === "wizard") moves = wizardPieceMoves(boardState, row, col, piece.color);
+    else if (type === "paladin") moves = leapMoves(boardState, row, col, piece.color, INTERNAL_KNIGHT_DELTAS);
+    else if (type === "octopus") moves = leapMoves(boardState, row, col, piece.color, queenDirections());
+    else if (type === "brutus") moves = hookMoves(boardState, row, col, piece.color);
+    else if (type === "clockwork") moves = rayMoves(boardState, row, col, piece.color, queenDirections());
+    else if (type === "parrot") moves = parrotBaseMoves({ state: boardState, memory: boardState.parrotMovement?.[piece.color], row, col, color: piece.color, moved: piece.moved, rows: boardRowCount(boardState), cols: boardColCount(boardState), at: (r, c) => get(boardState, r, c), canCapture: (target) => target.color !== piece.color && canWorkerCaptureTarget(piece.color, target, piece, boardState) });
+    else if (type === "thief") moves = leapMoves(boardState, row, col, piece.color, thiefOffsets()).filter((to) => thiefBaseMoveAllowed({ row, col }, to, (r, c) => boardState.board[r]?.[c], boardState));
     else if (type === "princess") moves = septemberPrincessHasQueenMovement(piece.color, boardState.board.flat().filter(Boolean)) ? rayMoves(boardState, row, col, piece.color, queenDirections()) : leapMoves(boardState, row, col, piece.color, diagonals());
     else if (type === "campfire") moves = wizardPieceMoves(boardState, row, col, piece.color).filter((move) => move.row === row || move.col === col);
     else if (type === "hedgehog") moves = leapMoves(boardState, row, col, piece.color, queenDirections());
@@ -5156,10 +5163,12 @@
     if (!slimeSpecialMovementLocked && isPromotionRushActive(piece, boardState.turnsTaken?.[piece.color] || 0)) {
       moves = uniqueMoves([...moves, ...workerPromotionRushMoves(boardState, piece, row, col)]);
     }
+    if (boardState.locustSwarm?.[piece.color] && locustReady(piece, row, col)) moves = uniqueMoves([...moves, ...grasshopperMoves(boardState, row, col, piece.color)]);
     const availableSubstitutions = slimeSpecialMovementLocked ? [] : workerSubstitutionMoves(boardState, piece);
     if (availableSubstitutions.length) {
       moves = uniqueMoves([...availableSubstitutions, ...moves]);
     }
+    if (!slimeSpecialMovementLocked) moves = uniqueMoves([...workerSymmetryMoves(boardState, piece, row, col), ...moves]);
     const availableRelays = slimeSpecialMovementLocked ? [] : workerRelayMoves(boardState, piece, row, col);
     if (availableRelays.length) moves = uniqueMoves([...availableRelays, ...moves]);
     if (!slimeSpecialMovementLocked && isWorkerRegencyRoyalHeir(boardState, piece)) {
@@ -5204,6 +5213,8 @@
       moves = moves.filter(isWorkerZugzwangKingMove);
     }
     moves = moves.filter((move) => !workerMoveLandingCellsForQuantum(move).some((cell) => isWorkerPendingPortalReservedSquare(boardState, cell.row, cell.col) || isWorkerPendingSpawnReservedSquare(boardState, cell.row, cell.col)));
+    moves = moves.filter((move) => thiefMoveAllowed(piece, move, boardState, { row, col }));
+    moves = moves.filter((move) => threeMoveAllowed(boardState.board, piece, row, col, move, { enemyOnlyRadiance: usesEnemyOnlyRadiance(boardState), movementType: pieceHasAbility(piece, "parrot") ? boardState.parrotMovement?.[piece.color]?.type : pieceAbilityType(piece) }));
     moves = applyWorkerScarecrowCaptureRules(boardState, piece, row, col, moves, options);
     return moves.flatMap((move) => {
       const destination = workerPortalMoveDestination(move);
@@ -6883,6 +6894,26 @@
   function isWorkerVanguardPawn(boardState, piece, row) {
     return Boolean(boardState.vanguard?.[piece?.color] && septemberVanguardPawn(piece, row, boardState.board.flatMap((line, r) => line.filter((item) => item?.type === "pawn").map((item) => ({ color: item.color, row: r })))));
   }
+  function addWorkerInternalPawnMoves(boardState, moves, pawn, row, col, color) {
+    if (pawn?.type !== "pawn") return;
+    const direction = pawnDir(boardState, color), to = row + direction, target = get(boardState, to, col);
+    if (boardState.proficiency?.[color] && row === (color === "white" ? 1 : boardRowCount(boardState) - 2) && target && canWorkerCaptureTarget(color, target, pawn, boardState) && !moves.some((move) => move.row === to && move.col === col)) moves.push({ row: to, col, capture: true });
+    if (boardState.longEnPassant?.[color]) {
+      const rights = enPassantRightEntries(boardState.enPassant);
+      const extra = longEnPassantCandidates({
+        from: { row, col },
+        color,
+        direction,
+        rights,
+        at: (r, c) => get(boardState, r, c),
+        canCapture: (victim) => canWorkerCaptureTarget(color, victim, pawn, boardState)
+      });
+      for (const move of extra) {
+        for (let i = moves.length - 1; i >= 0; i--) if (moves[i].row === move.row && moves[i].col === move.col) moves.splice(i, 1);
+        moves.push(move);
+      }
+    }
+  }
   function pawnMoves(boardState, row, col, color, movementPiece = null) {
     const moves = basePawnMoves(boardState, row, col, color, movementPiece);
     const piece = movementPiece || get(boardState, row, col);
@@ -6901,6 +6932,7 @@
         moves.push({ row: landingRow, col: landingCol, enPassant: true, capturedRow, capturedCol, ...frenzy ? { enPassantFrenzy: true } : {} });
       }
     }
+    addWorkerInternalPawnMoves(boardState, moves, piece, row, col, color);
     if (!isWorkerVanguardPawn(boardState, piece, row)) return moves;
     const dir = pawnDir(boardState, color);
     for (const extra of leapMoves(boardState, row, col, color, [[dir, -1], [dir, 0], [dir, 1]])) {
@@ -7719,6 +7751,17 @@
     // any of this color's own knights (apply-time logic grafted into
     // applyCardActionUnchecked's "bribe" branch below).
     if (card.effect === "bribe") return piecesMatching(boardState, (piece) => piece.color === color && piece.type === "knight").map(({ row, col }) => ({ row, col })).slice(0, 20);
+    // 2026-09-15 patch: 16 new cards' targeting, grafted from the fresh
+    // aiWorker.js's generateWorkerCardTargetsV2 (INTERNAL_THREE/FIVE/EIGHT).
+    if (["symmetry", "mutation"].includes(card.id)) return boardState[card.id]?.[color] ? [] : [null];
+    if (["paladin", "octopus"].includes(card.id)) return workerPositionsOf(boardState, (p) => p.color === color && p.type === (card.id === "paladin" ? "knight" : "rook") && !isWorkerKingRole(boardState, p));
+    if (card.id === "metal") return workerPositionsOf(boardState, (p) => p.color === color && !p.metalized && !isWorkerKingRole(boardState, p) && workerIsIceSheetRangedPiece(boardState, p));
+    if (card.id === "thief" && usesThiefRemake(boardState)) return thiefQueenCandidates(boardState.board, color, (item) => isWorkerKingRole(boardState, item)).length ? [null] : [];
+    if (card.id === "brutus") return workerCountPiecesOf(boardState, color, "rook") > 0 ? [null] : [];
+    if (["clockwork", "parrot"].includes(card.id)) return workerPositionsOf(boardState, (p) => p.color === color && (card.id === "parrot" ? parrotTransformTypes(boardState) : ["knight", "bishop", "camel"]).includes(p.type) && !isWorkerKingRole(boardState, p));
+    if (INTERNAL_EIGHT_PASSIVE_EFFECTS.includes(card.effect)) return boardState[card.effect]?.[color] ? [] : [null];
+    if (card.effect === "disassembly") return boardState.disassembly?.[color] ? [] : [null];
+    if (card.effect === "extinction") return piecesMatching(boardState, (p) => p.color === color && !isWorkerRoyalIdentityPiece(boardState, p) && extinctionTargetTypeAllowed(p.type, boardState)).map(({ row, col }) => ({ row, col }));
     if (SEPTEMBER_PASSIVE_EFFECTS.includes(card.effect) && card.effect !== "bigBishop") return boardState[card.effect]?.[color] ? [] : [null];
     const effect = card.effect || "";
     const enemy = opponent(color);
@@ -8591,6 +8634,8 @@
     const enemy = opponent(color);
     if (activeWorkerForcedExtraMove(boardState, color)) return false;
     if (effect === "replayMove") return canWorkerReplayLastMove(boardState, color);
+    if (effect === "thief" && usesThiefRemake(boardState)) return thiefQueenCandidates(boardState.board, color, (item) => isWorkerKingRole(boardState, item)).length > 0;
+    if (effect === "brutus") return workerCountPiecesOf(boardState, color, "rook") > 0;
     // Grafted from engine.optimized.js (our-only addition): "collapse"
     // (one-shot, distinct from the existing RULE card periodicCollapse) is
     // genuinely absent from aiWorker-raw.js entirely -- confirmed by
@@ -10138,6 +10183,7 @@
     return piecesMatching(boardState, (piece) => piece.color === color && piece.type === "bishop").length;
   }
   function resolveWorkerReligiousVictory(boardState) {
+    if (resolveInternalHighlander(boardState)) return boardState.winner;
     if (boardState.mode === "gameover") return boardState.winner || "";
     for (const color of ["white", "black"]) {
       if (!boardState.religiousVictory?.[color]) continue;
@@ -10721,6 +10767,7 @@
     return true;
   }
   function updateWorkerCaptureFlags(boardState, actor, completed = false) {
+    if (resolveInternalHighlander(boardState)) return true;
     if (!boardState.captureTheFlag || boardState.mode === "gameover") return false;
     const after = { ...boardState.turnsTaken }, before = { ...after };
     if (completed) before[actor] = Math.max(0, (Number(after[actor]) || 0) - 1);
@@ -10739,7 +10786,10 @@
     resolveWorkerDemocracyDefeat(boardState);
     if (boardState.mode === "gameover") return;
     resolveWorkerTwinSwaps(boardState);
+    completeThreeTurn(boardState.board, color);
     resolveWorkerSubmergedPieces(boardState);
+    tickThiefArrests(boardState.board, color, boardState);
+    if (boardState.disassembly) boardState.disassembly[color] = false;
     if (updateWorkerCaptureFlags(boardState, color)) return;
     resolveWorkerDoubleCheckThreats(boardState, color);
     resolveWorkerSpecialObjectiveVictories(boardState, color);
@@ -10876,6 +10926,7 @@
     applyWorkerPendingTrolleyForTurn(boardState, boardState.turn);
     maybeGrantWorkerNightBloodForTurn(boardState, boardState.turn);
     resolveWorkerHoldoutPromotions(boardState, boardState.turn);
+    resolveWorkerBrutus(boardState, boardState.turn);
     resolveWorkerDoubleCheckThreats(boardState, boardState.turn);
     resolveWorkerSpecialObjectiveVictories(boardState, boardState.turn);
   }
@@ -11535,6 +11586,18 @@
     return { ok: true, score: color === aiColor ? positionalValue : -positionalValue };
   }
   function applyMoveAction(boardState, action, aiColor) {
+    const piece0 = get(boardState, action.from?.row, action.from?.col), color0 = piece0?.color;
+    const memory0 = piece0 ? rememberedBaseMovement(piece0, boardState.parrotMovement?.[color0]) : null;
+    const metalBefore0 = metalPositions(boardState.board), turnBefore0 = boardState.turn;
+    const result0 = applyMoveActionCore(boardState, action, aiColor);
+    if (result0.ok) noteMetalRelocations(boardState.board, metalBefore0, boardState.turn !== turnBefore0 ? turnBefore0 : null);
+    if (result0.ok && memory0 && ["white", "black"].includes(color0)) {
+      boardState.parrotMovement ||= { white: null, black: null };
+      boardState.parrotMovement[color0] = memory0;
+    }
+    return result0;
+  }
+  function applyMoveActionCore(boardState, action, aiColor) {
     const color = action.color || boardState.turn;
     const from = action.from || {};
     const selectedMove = action.move || {};
@@ -12238,7 +12301,10 @@
     }
     let promotedByMove = promotedByField;
     if ((boardState.mode !== "gameover" || legacyAttackRulesStates.has(boardState)) && ["pawn", "squire", "standardBearer"].includes(piece.type) && isPromotionRow(piece, move.row, boardState)) {
-      if (boardState.recycling) {
+      if (canMutationPromote(boardState, piece, move.row, boardRowCount(boardState))) {
+        piece.type = "monster";
+        promotedByMove = true;
+      } else if (boardState.recycling) {
         const recycledType = workerBestRecyclingPromotionType(boardState, piece.color);
         if (recycledType && consumeWorkerRecycledPromotionPiece(boardState, piece.color, recycledType)) {
           piece.type = recycledType;
@@ -12255,6 +12321,7 @@
       if (promotedByMove) {
         delete piece.holdoutPromotion;
         clearWorkerPromotionTraits(piece, boardState);
+        if (piece.type === "monster") Object.assign(piece, { alliedMonster: true, blackMagicMonster: true, blackMagicOwner: piece.color });
         if (piece.type !== "pawn") piece.promotedFromPawn = true;
       }
       if (promotedByMove && boardState.coronation?.[piece.color]) {
@@ -12266,6 +12333,9 @@
       score += color === aiColor ? promotedByMove ? 650 : -180 : promotedByMove ? -650 : 180;
     }
     set(boardState, move.row, move.col, piece);
+    if (piece.locustOrigin) piece.locustUsed = true;
+    noteThiefMove(piece, from, move, boardState);
+    disassembleMovedQueen(boardState, piece, from, move, movedAsType, internalWorkerCallbacks(boardState));
     septemberConsumeResolveMove(boardState, color, movedAsType);
     if (movedAbilityType === "slime" && move.slimeMove && !get(boardState, from.row, from.col)) {
       const spawned = workerCreatePiece(color, "slime", boardState, from.row, from.col);
@@ -13769,6 +13839,18 @@
       if (!boardState.coronation) boardState.coronation = { white: false, black: false };
       boardState.coronation[color] = true;
       score += (color === aiColor ? 1 : -1) * 260;
+    } else if (INTERNAL_THREE_IDS.includes(card.id)) {
+      const result = applyThreeLocalCard(boardState, card, action.target, color, { isRoyal: (item) => isWorkerKingRole(boardState, item), isRanged: (item) => workerIsIceSheetRangedPiece(boardState, item) });
+      if (!result.ok) return { ok: false, score: 0 };
+      score += (color === aiColor ? 1 : -1) * 300;
+    } else if (INTERNAL_FIVE_IDS.includes(card.id)) {
+      const result = applyFiveLocalCard(boardState, card, action.target, color, { isRoyal: (item) => isWorkerKingRole(boardState, item) });
+      if (!result.ok) return { ok: false, score: 0 };
+      score += (color === aiColor ? 1 : -1) * 300;
+    } else if (INTERNAL_EIGHT_IDS.includes(card.id)) {
+      const result = applyWorkerInternalEightCard(boardState, card, action.target, color);
+      if (!result.ok) return { ok: false, score: 0 };
+      score += (color === aiColor ? 1 : -1) * 300;
     } else if (SEPTEMBER_PASSIVE_EFFECTS.includes(card.effect) && card.effect !== "bigBishop") {
       boardState[card.effect] = { ...boardState[card.effect] || {}, [color]: true };
       score += (color === aiColor ? 1 : -1) * 300;
