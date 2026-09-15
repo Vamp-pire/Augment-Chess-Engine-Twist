@@ -1,0 +1,77 @@
+workers: 3 run budget (ms): 13266000 -> until 2026-09-15T05:30:13.949Z
+[progress @ 15.0min] games: 14 errors: 0 positions: 954 outcomes: {"white":4,"black":2,"draw":7,"unfinished":1}
+[progress @ 30.0min] games: 23 errors: 0 positions: 1709 outcomes: {"white":6,"black":3,"draw":13,"unfinished":1}
+[progress @ 45.0min] games: 41 errors: 0 positions: 3313 outcomes: {"white":11,"black":6,"draw":22,"unfinished":2}
+[progress @ 60.0min] games: 56 errors: 0 positions: 4375 outcomes: {"white":11,"black":10,"draw":32,"unfinished":3}
+[progress @ 75.0min] games: 73 errors: 0 positions: 5559 outcomes: {"white":14,"black":12,"draw":42,"unfinished":5}
+[progress @ 90.0min] games: 92 errors: 0 positions: 6704 outcomes: {"white":20,"black":12,"draw":54,"unfinished":6}
+[progress @ 105.0min] games: 109 errors: 0 positions: 7757 outcomes: {"white":22,"black":14,"draw":66,"unfinished":7}
+[progress @ 120.0min] games: 126 errors: 0 positions: 8996 outcomes: {"white":27,"black":16,"draw":75,"unfinished":8}
+[progress @ 135.0min] games: 139 errors: 0 positions: 9913 outcomes: {"white":27,"black":19,"draw":84,"unfinished":9}
+[progress @ 150.0min] games: 151 errors: 0 positions: 11166 outcomes: {"white":28,"black":21,"draw":92,"unfinished":10}
+[progress @ 165.0min] games: 166 errors: 0 positions: 12246 outcomes: {"white":32,"black":22,"draw":102,"unfinished":10}
+[progress @ 180.0min] games: 183 errors: 0 positions: 13549 outcomes: {"white":36,"black":24,"draw":113,"unfinished":10}
+[progress @ 195.0min] games: 203 errors: 0 positions: 14842 outcomes: {"white":38,"black":26,"draw":129,"unfinished":10}
+[progress @ 210.0min] games: 220 errors: 0 positions: 16130 outcomes: {"white":40,"black":28,"draw":141,"unfinished":11}
+elapsed ms: 13490540
+games: 235 errors: 0
+games/sec: 0.017
+positions written: 17345 ->  /home/user/Augment-Chess-Engine-Twist/selfplay-data.merged-engine-deep-cloud-part3.jsonl
+outcome distribution: { white: 44, black: 29, draw: 151, unfinished: 11 }
+
+=== RUN COMPLETE (reached original target deadline) ===
+Finished normally at 2026-09-15T05:34Z, printing its own final summary
+above. Verified: 17345/17345 lines valid JSON.
+  game length (plies): min 1, max 300, avg 73.8
+  (235 complete games, matches the process's own final games=235 count)
+
+=== COMBINED TOTALS: full depth=5 merged-engine cloud self-play run ===
+Three segments, split by two unplanned cloud container restarts
+(2026-09-14T23:12Z and 2026-09-15T01:48Z), each resumed to a fresh
+output file within ~1.5-4 minutes, all three targeting the same
+original deadline (2026-09-15T05:30:00Z). No data lost; no
+selfplay-data*.jsonl file overwritten.
+
+  segment          games  errors  positions  wall time      log file
+  part1            740    0       54543      ~11h53m37s     selfplay-deep-cloud-run.log
+  part2            172    0       12362      ~2h32m49s      selfplay-deep-cloud-run-part2.log
+  part3            235    0       17345      ~3h44m51s      selfplay-deep-cloud-run-part3.log
+  -----------------------------------------------------------------
+  TOTAL            1147   0       84250      ~18h11m17s active compute
+                                              (~18h17m wall incl. restart gaps)
+
+  game length (plies) across all 84250 positions / 1147 games:
+    min 1, max 300, avg 73.5
+  outcome distribution: white 195 (17.0%), black 216 (18.8%),
+    draw 671 (58.5%), unfinished 65 (5.7%)
+  throughput: ~63.1 games/hour, ~4632 positions/hour
+
+Comparison to prior local runs (context from the task):
+  run1 (depth3/80ms, 1h):    92 games, 0 errors, 5621 positions,
+                              avg 61.1 plies, draw 59%
+  run2 (depth3/80ms, 1h):    61 games, 0 errors, 4019 positions,
+                              draw 67%
+  run3 (nominal depth6, but
+        effectively depth4 --
+        MAX_DEPTH bug not yet
+        fixed, ~65min):      57 games, 0 errors, 3884-4706 positions
+                              (60min heartbeat / final), draw ~67%
+  this run (depth5, genuinely
+        honored post-bugfix,
+        200ms budget, ~18h13m): 1147 games, 0 errors, 84250 positions,
+                              avg 73.5 plies, draw 58.5%
+
+Takeaways: throughput/hour dropped substantially vs. the depth3 runs
+(~63/hr vs. 92/hr and 61/hr) -- expected, since 200ms raw search budget
+at depth5 (~1600ms effective after the internal 8x flexibleBudget
+multiplier) is far more expensive per move than 80ms at depth3/4
+(~640ms effective). Average game length rose noticeably (73.5 vs.
+61.1 plies for run1), consistent with deeper/stronger search avoiding
+the kind of early blunders that end games quickly. Draw rate landed
+close to run1's 59% and below run2/run3's ~67% -- no strong signal
+that greater search depth alone shifts the draw rate; likely within
+normal run-to-run variance for this sample size. This is the first
+depth=5 run where MAX_DEPTH actually permitted depth 5 (vs. the
+earlier "depth-6" run silently capped at 4), so it's the first real
+data point on how this engine's play changes with genuinely deeper
+search.
