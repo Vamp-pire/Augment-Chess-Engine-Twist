@@ -1,0 +1,18 @@
+[
+  {"id":"thief","title":"도적","phase":"OPENING","desc":"퀸을 도적으로 변경하고 잠복을 부여합니다. 도적은 내 턴이 끝날때 잠복이 없다면 체포되어 사라집니다."},
+  {"id":"locust-swarm","title":"메뚜기떼","phase":"OPENING","desc":"모든 아군 비폰 기물이 시작 위치에서 움직이지 않았을 경우 1회에 한해 그래스호퍼처럼 이동할 수 있습니다."},
+  {"id":"false-start","title":"부정출발","phase":"OPENING","desc":"모든 아군 기물이 2칸 전진된 상태로 시작합니다."},
+  {"id":"long-en-passant","title":"롱파상","phase":"MIDDLE","desc":"아군 폰이 먼 거리에 있는 폰을 상대로도 앙파상 할 수 있습니다."},
+  {"id":"disassembly","title":"분해","phase":"MIDDLE","desc":"사용한 턴에 퀸을 움직일 경우 아군 퀸을 룩과 비숍으로 분해합니다. 퀸이 이동한 위치에 비숍을, 원래 위치에 룩을 소환합니다."},
+  {"id":"proficiency","title":"숙련","phase":"MIDDLE","desc":"내 폰이 프로모션 직전 랭크에 있다면 전진으로 적을 잡을 수 있습니다."},
+  {"id":"symmetry","title":"대칭","phase":"MIDDLE","desc":"이번 턴 동안 아군 기물이 턴을 소모하여 중앙선을 기준으로 한 좌우대칭점으로 이동할 수 있습니다."},
+  {"id":"metal","title":"메탈","phase":"MIDDLE","desc":"아군 원거리기물 하나를 선택해 금속화 효과를 부여합니다."},
+  {"id":"paladin","title":"팔라딘","phase":"PIECE","desc":"나이트 하나를 선택해 팔라딘으로 변경합니다."},
+  {"id":"octopus","title":"문어","phase":"PIECE","desc":"룩 하나를 선택해 문어로 변경합니다."},
+  {"id":"parrot","title":"앵무새","phase":"PIECE","desc":"아군 룩 하나를 선택해 앵무새로 변경합니다."},
+  {"id":"clockwork","title":"태엽인형","phase":"PIECE","desc":"마이너 피스 하나를 선택해 태엽인형으로 변경합니다."},
+  {"id":"mutation","title":"변이","phase":"END","desc":"아군 폰들이 마지막 랭크에 도달할 경우 괴물로 프로모션할 수 있습니다. 해당 괴물은 아군으로 취급됩니다."},
+  {"id":"extinction","title":"멸종","phase":"END","desc":"아군 마이너 피스 하나를 선택합니다. 해당 기물과 동일한 종류의 모든 기물을 진영을 가리지 않고 삭제합니다."},
+  {"id":"brutus","title":"브루투스","phase":"END","desc":"획득시 무작위 아군 룩 하나를 브루투스로 변경합니다."},
+  {"id":"highlander","title":"하이랜더","phase":"END","desc":"폰을 포함해 아군 진영에 중복되는 기물이 하나도 없을 경우 즉시 승리합니다."}
+]
