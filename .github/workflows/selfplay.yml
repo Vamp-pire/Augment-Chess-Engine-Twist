@@ -1,0 +1,125 @@
+name: Cloud self-play (16-card engine)
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    # Every 6 hours -- GitHub-hosted job max runtime is 6h, so this keeps
+    # back-to-back coverage with only a small gap between jobs.
+    - cron: "7 */6 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: cloud-selfplay-16cards
+  cancel-in-progress: false
+
+jobs:
+  selfplay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Configure git identity
+        run: |
+          git config user.email "actions@github.com"
+          git config user.name "gha-selfplay-bot"
+
+      - name: Run self-play with periodic checkpoints
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Hard stop for the whole collection effort -- update/remove this
+          # when the collection window changes.
+          CUTOFF_ISO: "2026-09-16T03:00:00Z"
+        run: |
+          set -uo pipefail
+
+          NOW_MS=$(node -e "console.log(Date.now())")
+          CUTOFF_MS=$(node -e "console.log(Date.parse(process.argv[1]))" "$CUTOFF_ISO")
+          REMAINING_MS=$((CUTOFF_MS - NOW_MS))
+          echo "now_ms=$NOW_MS cutoff_ms=$CUTOFF_MS remaining_ms=$REMAINING_MS"
+
+          if [ "$REMAINING_MS" -le 300000 ]; then
+            echo "Cutoff reached (or under 5 min remaining) -- skipping self-play launch."
+            exit 0
+          fi
+
+          # Cap at 5h50m so the process finishes safely before the 355min job timeout.
+          CAP_MS=21000000
+          RUN_MS=$REMAINING_MS
+          if [ "$RUN_MS" -gt "$CAP_MS" ]; then RUN_MS=$CAP_MS; fi
+          echo "RUN_MS=$RUN_MS"
+
+          RUN_ID="gha-$(date -u +%Y%m%dT%H%M%SZ)-${GITHUB_RUN_ID}"
+          OUT_FILE="${RUN_ID}.jsonl"
+
+          SELFPLAY_OUT_FILE="$OUT_FILE" node selfplay-run-merged.js "$RUN_MS" > "${RUN_ID}.log" 2>&1 &
+          SELFPLAY_PID=$!
+          echo "launched self-play pid=$SELFPLAY_PID out=$OUT_FILE"
+
+          # Prepare (or reuse) the dedicated data branch in a separate worktree
+          # so we never touch this job's own checked-out branch/commit.
+          git fetch origin gha-segments-16cards 2>/dev/null || true
+          if git show-ref --verify --quiet refs/remotes/origin/gha-segments-16cards; then
+            git worktree add /tmp/segwt gha-segments-16cards origin/gha-segments-16cards
+          else
+            git worktree add --orphan -b gha-segments-16cards /tmp/segwt
+          fi
+          mkdir -p /tmp/segwt/segments
+
+          push_checkpoint() {
+            local remote_url="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+            (
+              cd /tmp/segwt
+              git add -A
+              if git diff --cached --quiet; then
+                echo "checkpoint: nothing new to commit"
+                return 0
+              fi
+              git commit -q -m "$1"
+              for i in 1 2 3; do
+                git fetch origin gha-segments-16cards -q
+                git rebase origin/gha-segments-16cards -q && break
+                git rebase --abort 2>/dev/null || true
+                sleep 5
+              done
+              git push -q "$remote_url" HEAD:gha-segments-16cards
+            )
+          }
+
+          LAST_LINE=0
+          WALL_START=$(date -u +%s)
+          while kill -0 "$SELFPLAY_PID" 2>/dev/null; do
+            sleep 900
+            NOW=$(date -u +%s)
+            N=$(wc -l < "$OUT_FILE" 2>/dev/null || echo 0)
+            if [ "$N" -gt "$LAST_LINE" ]; then
+              CKPT="ckpt-${RUN_ID}-lines$((LAST_LINE+1))-${N}.jsonl"
+              sed -n "$((LAST_LINE+1)),${N}p" "$OUT_FILE" > "/tmp/segwt/segments/${CKPT}"
+              gzip -f "/tmp/segwt/segments/${CKPT}"
+              push_checkpoint "checkpoint ${RUN_ID}: lines $((LAST_LINE+1))-${N}"
+              LAST_LINE=$N
+            fi
+            echo "checkpoint loop: elapsed=$((NOW-WALL_START))s lines_so_far=$LAST_LINE pid_alive=yes"
+          done
+
+          wait "$SELFPLAY_PID" || true
+          echo "self-play process exited"
+          cat "${RUN_ID}.log" || true
+
+          N=$(wc -l < "$OUT_FILE" 2>/dev/null || echo 0)
+          if [ "$N" -gt "$LAST_LINE" ]; then
+            CKPT="ckpt-${RUN_ID}-lines$((LAST_LINE+1))-${N}-final.jsonl"
+            sed -n "$((LAST_LINE+1)),${N}p" "$OUT_FILE" > "/tmp/segwt/segments/${CKPT}"
+            gzip -f "/tmp/segwt/segments/${CKPT}"
+            push_checkpoint "checkpoint ${RUN_ID}: final lines $((LAST_LINE+1))-${N}"
+          fi
+
+          echo "Run ${RUN_ID} complete. Total lines: ${N}"
