@@ -10,10 +10,6 @@ on:
 permissions:
   contents: write
 
-concurrency:
-  group: cloud-selfplay-16cards
-  cancel-in-progress: false
-
 jobs:
   selfplay:
     runs-on: ubuntu-latest
@@ -71,11 +67,17 @@ jobs:
 
           # Prepare (or reuse) the dedicated data branch in a separate worktree
           # so we never touch this job's own checked-out branch/commit.
+          rm -rf /tmp/segwt
           git fetch origin gha-segments-16cards 2>/dev/null || true
           if git show-ref --verify --quiet refs/remotes/origin/gha-segments-16cards; then
-            git worktree add /tmp/segwt gha-segments-16cards origin/gha-segments-16cards
+            git worktree add -B gha-segments-16cards /tmp/segwt origin/gha-segments-16cards
           else
             git worktree add --orphan -b gha-segments-16cards /tmp/segwt
+          fi
+          if [ ! -d /tmp/segwt/.git ] && [ ! -f /tmp/segwt/.git ]; then
+            echo "FATAL: worktree setup failed, /tmp/segwt is not a git checkout" >&2
+            ls -la /tmp/segwt 2>&1 || true
+            exit 1
           fi
           mkdir -p /tmp/segwt/segments
 
