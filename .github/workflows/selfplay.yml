@@ -32,11 +32,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Hard stop for the whole collection effort -- update/remove this
-          # when the collection window changes.
-          # TEMP: short trial cutoff to verify the "branch already exists"
-          # code path works, per feedback_automation_verification.md --
-          # revert to a real collection window once two checkpoints land.
-          CUTOFF_ISO: "2026-09-16T06:45:00Z"
+          # when the collection window changes. Verified working (both the
+          # fresh-branch and branch-already-exists code paths landed real
+          # checkpoints) before this real cutoff was set.
+          CUTOFF_ISO: "2026-09-17T05:30:00Z"
         # GitHub Actions' default `bash` shell runs with -e (abort on first
         # non-zero exit), which silently killed the whole step the moment an
         # intentionally-allowed-to-fail command (fetching a not-yet-existing
