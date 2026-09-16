@@ -3,12 +3,12 @@ selfplay-data*.jsonl
 selfplay-data.jsonl.bak-*
 nnue/cache/
 nnue/snapshots/
+# Large intermediate merges of self-play checkpoints (regenerable from the
+# gha-segments-16cards branch + local selfplay-data* files) -- not meant to
+# be committed, easily exceeds GitHub's 100MB single-blob limit.
+nnue/aggregated/
 *.zip
 scratch_*.json
 scratch_*.jsonl
 *.pid
-selfplay-deep-cloud-run.log
-selfplay-deep-cloud-run-part2.log
-selfplay-deep-cloud-run-part3.log
 .claude/scheduled_tasks.lock
-selfplay-cloud-16cards*.log

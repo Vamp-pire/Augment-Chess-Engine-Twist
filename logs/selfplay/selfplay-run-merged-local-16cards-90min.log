@@ -1,0 +1,12 @@
+workers: 7 run budget (ms): 5400000 -> until 2026-09-15T08:36:25.565Z
+[progress @ 15.0min] games: 28 errors: 0 positions: 1587 outcomes: {"white":5,"black":3,"draw":20,"unfinished":0}
+[progress @ 30.0min] games: 52 errors: 0 positions: 3430 outcomes: {"white":9,"black":4,"draw":38,"unfinished":1}
+[progress @ 45.0min] games: 81 errors: 0 positions: 5087 outcomes: {"white":12,"black":13,"draw":54,"unfinished":2}
+[progress @ 60.0min] games: 112 errors: 0 positions: 7192 outcomes: {"white":14,"black":22,"draw":73,"unfinished":3}
+[progress @ 75.0min] games: 144 errors: 0 positions: 9283 outcomes: {"white":21,"black":26,"draw":94,"unfinished":3}
+[progress @ 90.0min] games: 177 errors: 0 positions: 11093 outcomes: {"white":27,"black":31,"draw":115,"unfinished":4}
+elapsed ms: 5677384
+games: 184 errors: 0
+games/sec: 0.032
+positions written: 11696 ->  D:\증강체스엔진\selfplay-data.merged-engine-16cards-local-2026-09-15.jsonl
+outcome distribution: { white: 28, black: 32, draw: 120, unfinished: 4 }
