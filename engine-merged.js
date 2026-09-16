@@ -937,6 +937,28 @@
   function septemberPrincessHasQueenMovement(color, pieces) {
     return !pieces.some((piece) => piece.color === color && piece.type === "queen" && piece.regencyHeir !== true);
   }
+  // Perf (2026-09-16, same pattern as boardHasPaladin/radianceCells above):
+  // every call site was doing `board.flat().filter(Boolean)` -- a fresh
+  // O(64) scan + array allocation -- then handing it to the plain function
+  // above, PER CANDIDATE MOVE, for any princess on the board. Cache per
+  // board object (safe for the same reason as the paladin cache: cloneState
+  // makes a new board array per search node and this engine never mutates
+  // a board array in place after that). Board-shaped-null-safe since one
+  // call site (workerRangedPieceOptions) passes `boardState?.board` which
+  // can be undefined.
+  const PRINCESS_QUEEN_MOVEMENT_CACHE = /* @__PURE__ */ new WeakMap();
+  function septemberPrincessHasQueenMovementCached(board, color) {
+    if (!board) return true; // matches the old `[]` fallback: .some() on [] is false, !false is true
+    let cache = PRINCESS_QUEEN_MOVEMENT_CACHE.get(board);
+    if (!cache) {
+      cache = {};
+      PRINCESS_QUEEN_MOVEMENT_CACHE.set(board, cache);
+    }
+    if (cache[color] === void 0) {
+      cache[color] = !board.some((line) => line.some((piece) => piece && piece.color === color && piece.type === "queen" && piece.regencyHeir !== true));
+    }
+    return cache[color];
+  }
   function septemberRecurrenceCandidates({ color, size = 1, rowCount = 8, colCount = 8, isOpen }) {
     if (!["white", "black"].includes(color)) return [];
     const rows = Array.from({ length: Math.max(0, rowCount - size + 1) }, (_, row) => row);
@@ -5102,7 +5124,7 @@
     else if (type === "clockwork") moves = rayMoves(boardState, row, col, piece.color, queenDirections());
     else if (type === "parrot") moves = parrotBaseMoves({ state: boardState, memory: boardState.parrotMovement?.[piece.color], row, col, color: piece.color, moved: piece.moved, rows: boardRowCount(boardState), cols: boardColCount(boardState), at: (r, c) => get(boardState, r, c), canCapture: (target) => target.color !== piece.color && canWorkerCaptureTarget(piece.color, target, piece, boardState) });
     else if (type === "thief") moves = leapMoves(boardState, row, col, piece.color, thiefOffsets()).filter((to) => thiefBaseMoveAllowed({ row, col }, to, (r, c) => boardState.board[r]?.[c], boardState));
-    else if (type === "princess") moves = septemberPrincessHasQueenMovement(piece.color, boardState.board.flat().filter(Boolean)) ? rayMoves(boardState, row, col, piece.color, queenDirections()) : leapMoves(boardState, row, col, piece.color, diagonals());
+    else if (type === "princess") moves = septemberPrincessHasQueenMovementCached(boardState.board, piece.color) ? rayMoves(boardState, row, col, piece.color, queenDirections()) : leapMoves(boardState, row, col, piece.color, diagonals());
     else if (type === "campfire") moves = wizardPieceMoves(boardState, row, col, piece.color).filter((move) => move.row === row || move.col === col);
     else if (type === "hedgehog") moves = leapMoves(boardState, row, col, piece.color, queenDirections());
     else if (type === "darkWizard") moves = rayMoves(
@@ -8137,7 +8159,7 @@
   }
   function workerRangedPieceOptions(boardState, piece) {
     return {
-      princessQueenMovement: pieceAbilityType(piece) === "princess" && septemberPrincessHasQueenMovement(piece.color, boardState?.board?.flat().filter(Boolean) ?? []),
+      princessQueenMovement: pieceAbilityType(piece) === "princess" && septemberPrincessHasQueenMovementCached(boardState?.board, piece.color),
       magicGirlAwakened: Boolean(boardState?.magicGirlSurge?.[piece?.color]),
       berserkerTier: boardState && piece?.color ? berserkerMovementTier(workerUniqueAlliedPieceCount(boardState, piece.color)) : "",
       tricksterMoveType: piece?.tricksterMoveType
@@ -16107,7 +16129,7 @@
       return Math.max(Math.abs(dr), Math.abs(dc)) === 1 || tier === "rook-king-step" && orthogonals().some(([stepR, stepC]) => workerRayReaches(boardState, row, col, targetRow2, targetCol2, stepR, stepC, 8));
     }
     if (type === "slime") return (dr === 0 || dc === 0) && Math.abs(dr) + Math.abs(dc) === 3;
-    if (type === "princess") return septemberPrincessHasQueenMovement(piece.color, boardState.board.flat().filter(Boolean)) ? queenDirections().some(([r, c]) => workerRayReaches(boardState, row, col, targetRow2, targetCol2, r, c, 8)) : Math.abs(dr) === 1 && Math.abs(dc) === 1;
+    if (type === "princess") return septemberPrincessHasQueenMovementCached(boardState.board, piece.color) ? queenDirections().some(([r, c]) => workerRayReaches(boardState, row, col, targetRow2, targetCol2, r, c, 8)) : Math.abs(dr) === 1 && Math.abs(dc) === 1;
     if (["siren", "undead", "hedgehog"].includes(type)) return Math.max(Math.abs(dr), Math.abs(dc)) === 1;
     if (type === "trickster") {
       const movementType = TRICKSTER_MOVEMENT_TYPES.includes(piece.tricksterMoveType) ? piece.tricksterMoveType : TRICKSTER_MOVEMENT_TYPES[0] || "queen";
