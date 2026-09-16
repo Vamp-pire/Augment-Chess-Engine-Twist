@@ -647,6 +647,51 @@
         event.target.value = v;
       });
       settings.querySelector(".aug-engine-live-instance-select").addEventListener("change", (event) => applyInstanceCount(Number(event.target.value)));
+
+      // Performance panel (2026-09-16): shows engine.js's own
+      // self.__augLastSearchProfile (set at the end of every
+      // searchBestAction call -- see engine.js's comment there) as a
+      // real per-depth time/node bar chart instead of raw numbers only.
+      // Plain inline SVG, no charting library -- this file's CSP
+      // (script-src 'self') wouldn't allow loading one from a CDN anyway,
+      // and a handful of bars is simple enough to draw by hand.
+      const perfPanel = document.createElement("details");
+      perfPanel.className = "aug-engine-perf-panel";
+      perfPanel.innerHTML = '<summary>성능 분석</summary><div class="aug-engine-perf-content">아직 탐색 기록 없음 (베타 엔진으로 한 수 두면 표시됩니다)</div>';
+      toggle.appendChild(perfPanel);
+
+      function renderPerfPanel() {
+        const content = perfPanel.querySelector(".aug-engine-perf-content");
+        if (!content || !perfPanel.open) return; // don't waste cycles rendering a collapsed panel
+        const profile = window.__augLastSearchProfile;
+        if (!profile || !Array.isArray(profile.depthProfile) || !profile.depthProfile.length) return;
+        const nps = profile.totalMs > 0 ? Math.round((profile.totalNodes / profile.totalMs) * 1000) : 0;
+        const maxMs = Math.max(...profile.depthProfile.map((d) => d.ms), 1);
+        const barsHtml = profile.depthProfile.map((d) => {
+          const widthPct = Math.max(2, (d.ms / maxMs) * 100);
+          const barColor = d.completed ? "#4a90d9" : "#c9843a"; // orange = ran out of time mid-depth
+          return (
+            '<div class="aug-perf-bar-row">' +
+            `<span class="aug-perf-bar-label">깊이 ${d.depth}</span>` +
+            '<div class="aug-perf-bar-track">' +
+            `<div class="aug-perf-bar-fill" style="width:${widthPct.toFixed(1)}%;background:${barColor}"></div>` +
+            "</div>" +
+            `<span class="aug-perf-bar-value">${d.ms.toFixed(0)}ms / ${d.nodes.toLocaleString()}노드</span>` +
+            "</div>"
+          );
+        }).join("");
+        content.innerHTML =
+          '<div class="aug-perf-summary">' +
+          `<span>총 ${profile.totalMs.toFixed(0)}ms</span>` +
+          `<span>총 ${profile.totalNodes.toLocaleString()}노드</span>` +
+          `<span>초당 ${nps.toLocaleString()}노드</span>` +
+          `<span>도달 깊이 ${profile.completedDepth}/${profile.maxDepth}</span>` +
+          "</div>" +
+          barsHtml +
+          '<p class="aug-engine-hint">주황 막대 = 그 깊이는 시간 안에 다 못 끝내고 중단됨 (그래도 지금까지 찾은 최선수 사용)</p>';
+      }
+      perfPanel.addEventListener("toggle", renderPerfPanel);
+      setInterval(renderPerfPanel, 1000);
     }
     const checkbox = toggle.querySelector("input[type=checkbox]");
     checkbox.checked = localStorage.getItem(AI_OVERRIDE_KEY) === "1";

@@ -2507,21 +2507,50 @@
     let lastCandidates = [];
     let previousCompletedDepthMs = 0;
     const hasRuleMonster = workerHasRuleMonster(boardState);
+    // Perf-visibility (2026-09-16): per-depth timing/node breakdown, purely
+    // additive bookkeeping -- doesn't affect any search decision, just
+    // recorded so the extension UI can show a real "where did the time go"
+    // graph instead of guessing. See self.__augLastSearchProfile below.
+    const depthProfile = [];
     for (let currentDepth = 1; currentDepth <= maxDepth; currentDepth += 1) {
       if (hasRuleMonster && completedDepth >= 2 && !monsterSearchHasTimeForNextDepth(context.deadline - performance.now(), previousCompletedDepthMs)) {
         break;
       }
       const depthStartedAt = performance.now();
+      const nodesBeforeDepth = context.nodes;
       const depthResult = searchAtDepth(boardState, orderedRoot, aiColor, currentDepth, context);
+      const depthMs = performance.now() - depthStartedAt;
+      depthProfile.push({
+        depth: currentDepth,
+        ms: depthMs,
+        nodes: context.nodes - nodesBeforeDepth,
+        completed: Boolean(depthResult.completed)
+      });
       if (depthResult.action && (depthResult.completed || flexibleBudget)) {
         bestAction = depthResult.action;
         bestScore = depthResult.score;
         completedDepth = currentDepth;
         lastCandidates = depthResult.candidates || lastCandidates;
-        previousCompletedDepthMs = performance.now() - depthStartedAt;
+        previousCompletedDepthMs = depthMs;
         orderedRoot = [bestAction, ...orderedRoot.filter((action) => !sameAction(action, bestAction))];
       }
       if (context.timedOut) break;
+    }
+    const totalMs = performance.now() - startedAt;
+    try {
+      self.__augLastSearchProfile = {
+        timestamp: Date.now(),
+        aiColor,
+        totalMs,
+        totalNodes: context.nodes,
+        cutoffs: context.cutoffs,
+        completedDepth,
+        maxDepth,
+        depthProfile
+      };
+    } catch (e) {
+      // self may not exist in some embedding contexts -- profiling is
+      // best-effort, never worth failing the actual search over.
     }
     return { action: bestAction, score: bestScore, nodes: context.nodes, cutoffs: context.cutoffs, completedDepth, candidates: lastCandidates };
   }
