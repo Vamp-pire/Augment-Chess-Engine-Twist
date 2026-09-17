@@ -1,0 +1,71 @@
+name: NNUE cloud encode
+
+# Manual only -- this is a one-off (or occasional) heavy CPU job to encode
+# selfplay-data.jsonl into NNUE input features, offloaded here because doing
+# it locally (os.cpus().length - 1 worker_threads, each loading the full
+# engine-merged.js and running evaluateStateComponents per position) pegged
+# the owner's machine hard enough to be unusable (2026-09-17 incident).
+# Training itself stays local (cheap, minutes, and the owner wants to iterate
+# on hyperparameters without a cloud round-trip each time) -- only the
+# expensive encode step runs here. See nnue/README-cloud-encode.md (if it
+# exists) or this workflow's own steps for how to consume the output.
+on:
+  workflow_dispatch:
+    inputs:
+      dataset_path:
+        description: "Path (within gha-segments-16cards) to the gzipped dataset to encode"
+        required: false
+        default: "datasets/round1-full-218007.jsonl.gz"
+
+permissions:
+  contents: read
+
+jobs:
+  encode:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Fetch dataset from gha-segments-16cards
+        run: |
+          git fetch --depth=1 origin gha-segments-16cards
+          git show "origin/gha-segments-16cards:${{ github.event.inputs.dataset_path }}" > selfplay-data.jsonl.gz
+          gunzip -f selfplay-data.jsonl.gz
+          wc -l selfplay-data.jsonl
+
+      - name: Pin encode.js mtime
+        # train.js's on-disk encode cache is keyed on sha1(dataFile content) +
+        # encode.js's OWN mtime (so an encode.js edit invalidates stale
+        # caches). git checkout sets mtimes to checkout time, which won't
+        # match whatever the owner's local encode.js mtime happens to be --
+        # pinning both sides to this same fixed timestamp (see the matching
+        # `touch` the owner runs locally before copying this job's cache
+        # output into nnue/cache/) makes the cache key line up so the local
+        # `node train.js` run picks this up as a hit instead of re-encoding.
+        run: touch -d "2026-01-01T00:00:00Z" nnue/encode.js
+
+      - name: Encode (no TF training here, just the cached feature build)
+        run: |
+          cd nnue
+          node -e "
+            require('./train.js').loadData().then((d) => {
+              console.log('encoded', d.inputs.length, 'positions,', d.gameIds.length ? d.gameIds[d.gameIds.length-1]+1 : 0, 'games');
+            }).catch((e) => { console.error(e); process.exit(1); });
+          "
+
+      - name: Upload encode cache
+        uses: actions/upload-artifact@v4
+        with:
+          name: nnue-encode-cache
+          path: nnue/cache/
+          retention-days: 14
