@@ -1,3 +1,27 @@
+/* Palette pulled from the live site's own computed styles (2026-09-17) --
+   dark near-black surfaces, teal accent, blue-purple highlight -- so the
+   extension's own UI reads as part of the site instead of a foreign overlay.
+   Previously used an unrelated navy+gold palette; kept --aug-warn/danger/
+   success as distinct semantic colors since the site doesn't expose
+   equivalents for those. */
+:root {
+  --aug-surface: #202326;
+  --aug-surface-2: #262a2d;
+  --aug-border: #35393c;
+  --aug-accent: #4b8582;
+  --aug-accent-2: #778aff;
+  --aug-text: #f1efe8;
+  --aug-text-muted: #9aa39f;
+  --aug-warn: #e8c15a;
+  --aug-danger: #e0685f;
+  --aug-success: #6fcf72;
+}
+
+@keyframes augFadeSlideIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .notation-entry.notation-move,
 .notation-entry.notation-gain {
   position: relative;
@@ -24,14 +48,15 @@
   gap: 8px;
   margin: 0;
   padding: 8px 12px;
-  background: #1f2330;
-  color: #f2f2f2;
-  border: 2px solid #e8c15a;
+  background: var(--aug-surface);
+  color: var(--aug-text);
+  border: 2px solid var(--aug-accent);
   border-radius: 8px;
   font-size: 13px;
   font-weight: 600;
   width: 100%;
   box-sizing: border-box;
+  animation: augFadeSlideIn 0.25s ease-out;
 }
 
 .aug-engine-ai-toggle-row {
@@ -59,7 +84,7 @@
 .aug-engine-live-settings summary {
   cursor: pointer;
   font-size: 12px;
-  color: #cfcfcf;
+  color: var(--aug-text-muted);
   user-select: none;
 }
 
@@ -82,18 +107,18 @@
 
 .aug-engine-live-settings input[type="number"] {
   width: 64px;
-  background: #2b2f3a;
-  color: #f2f2f2;
-  border: 1px solid #454b5a;
+  background: var(--aug-surface-2);
+  color: var(--aug-text);
+  border: 1px solid var(--aug-border);
   border-radius: 6px;
   padding: 2px 6px;
   font-size: 12px;
 }
 
 .aug-engine-live-settings select {
-  background: #2b2f3a;
-  color: #f2f2f2;
-  border: 1px solid #454b5a;
+  background: var(--aug-surface-2);
+  color: var(--aug-text);
+  border: 1px solid var(--aug-border);
   border-radius: 6px;
   padding: 2px 6px;
   font-size: 12px;
@@ -101,7 +126,7 @@
 
 .aug-engine-live-settings .aug-engine-hint {
   font-size: 11px;
-  color: #9aa0ab;
+  color: var(--aug-text-muted);
   margin: 0 0 2px;
   line-height: 1.4;
 }
@@ -116,7 +141,7 @@
 .aug-engine-perf-panel summary {
   cursor: pointer;
   font-size: 12px;
-  color: #cfcfcf;
+  color: var(--aug-text-muted);
   user-select: none;
 }
 
@@ -126,7 +151,7 @@
 
 .aug-engine-perf-content {
   font-size: 11px;
-  color: #9aa0ab;
+  color: var(--aug-text-muted);
 }
 
 .aug-perf-summary {
@@ -134,7 +159,7 @@
   flex-wrap: wrap;
   gap: 10px;
   font-size: 12px;
-  color: #f2f2f2;
+  color: var(--aug-text);
   margin-bottom: 6px;
 }
 
@@ -148,13 +173,13 @@
 .aug-perf-bar-label {
   width: 44px;
   flex-shrink: 0;
-  color: #cfcfcf;
+  color: var(--aug-text-muted);
 }
 
 .aug-perf-bar-track {
   flex: 1;
   height: 10px;
-  background: #2b2f3a;
+  background: var(--aug-surface-2);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -169,7 +194,7 @@
   width: 120px;
   flex-shrink: 0;
   text-align: right;
-  color: #9aa0ab;
+  color: var(--aug-text-muted);
   font-size: 10px;
 }
 
@@ -188,6 +213,11 @@
   z-index: 999998;
 }
 
+@keyframes augFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 .aug-engine-overlay {
   position: fixed;
   inset: 0;
@@ -196,17 +226,19 @@
   align-items: center;
   justify-content: center;
   z-index: 999999;
+  animation: augFadeIn 0.15s ease-out;
 }
 
 .aug-engine-panel {
-  background: #1f2330;
-  color: #f2f2f2;
+  background: var(--aug-surface);
+  color: var(--aug-text);
   border-radius: 12px;
   padding: 28px 32px;
   max-width: 360px;
   text-align: center;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
   font-family: inherit;
+  animation: augFadeSlideIn 0.25s ease-out;
 }
 
 .aug-engine-panel h2 {
@@ -218,17 +250,23 @@
   margin: 0 0 20px;
   font-size: 14px;
   line-height: 1.5;
-  color: #cfcfcf;
+  color: var(--aug-text-muted);
 }
 
 .aug-engine-close {
-  background: #e8c15a;
-  color: #1f2330;
+  background: var(--aug-accent);
+  color: var(--aug-surface);
   border: none;
   border-radius: 8px;
   padding: 8px 20px;
   font-weight: 600;
   cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.aug-engine-close:hover {
+  background: var(--aug-accent-2);
+  transform: translateY(-1px);
 }
 
 .aug-engine-review-box {
@@ -249,19 +287,23 @@
   box-sizing: border-box;
   margin: 0;
   position: relative;
-  background: #1f2330;
-  color: #f2f2f2;
-  border: 2px solid #e8c15a;
+  background: var(--aug-surface);
+  color: var(--aug-text);
+  border: 2px solid var(--aug-accent);
   border-radius: 8px;
   padding: 10px 18px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  animation: augFadeSlideIn 0.25s ease-out;
 }
 
-.aug-engine-live-button:hover {
-  background: #2b2f3a;
+.aug-engine-live-button:hover:not(:disabled) {
+  background: var(--aug-surface-2);
+  border-color: var(--aug-accent-2);
+  transform: translateY(-1px);
 }
 
 .aug-engine-live-button:disabled {
@@ -271,7 +313,7 @@
 }
 
 .aug-engine-live-button:disabled:hover {
-  background: #1f2330;
+  background: var(--aug-surface);
 }
 
 .aug-engine-review-nnue-toggle {
@@ -280,14 +322,20 @@
   gap: 8px;
   margin: 0;
   padding: 8px 12px;
-  background: #1f2330;
-  color: #f2f2f2;
-  border: 2px solid #e8c15a;
+  background: var(--aug-surface);
+  color: var(--aug-text);
+  border: 2px solid var(--aug-accent);
   border-radius: 8px;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   box-sizing: border-box;
+  transition: border-color 0.15s ease, transform 0.1s ease;
+  animation: augFadeSlideIn 0.25s ease-out;
+}
+
+.aug-engine-review-nnue-toggle:hover {
+  border-color: var(--aug-accent-2);
 }
 
 .aug-engine-review-nnue-toggle input {
@@ -313,7 +361,7 @@
 .aug-engine-accuracy {
   display: flex;
   justify-content: space-around;
-  background: #2b2f3a;
+  background: var(--aug-surface-2);
   border-radius: 10px;
   padding: 10px 12px;
   margin-bottom: 14px;
@@ -322,7 +370,7 @@
 
 .aug-engine-hint {
   font-size: 12px;
-  color: #9aa0ab;
+  color: var(--aug-text-muted);
   text-align: center;
   margin: 0 0 10px;
 }
@@ -349,7 +397,7 @@
 }
 
 .aug-engine-review-tag {
-  color: #cfcfcf;
+  color: var(--aug-text-muted);
   margin-left: auto;
 }
 
@@ -360,14 +408,14 @@
 
 .aug-engine-warning {
   font-size: 12px;
-  color: #e8c15a;
+  color: var(--aug-warn);
   text-align: center;
   margin: 0 0 10px;
 }
 
 .aug-engine-live-button.aug-engine-drag-over {
-  background: #e8c15a;
-  color: #1f2330;
+  background: var(--aug-accent-2);
+  color: var(--aug-surface);
   transform: scale(1.05);
 }
 
@@ -389,14 +437,20 @@
 }
 
 .aug-engine-mode-fast {
-  background: #e8c15a;
-  color: #1f2330;
+  background: var(--aug-accent);
+  color: var(--aug-surface);
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.aug-engine-mode-fast:hover {
+  background: var(--aug-accent-2);
+  transform: translateY(-1px);
 }
 
 .aug-engine-mode-deep {
-  background: #2b2f3a;
-  color: #f2f2f2;
-  border: 1px solid #454b5a;
+  background: var(--aug-surface-2);
+  color: var(--aug-text);
+  border: 1px solid var(--aug-border);
 }
 
 .aug-engine-settings-row {
@@ -405,15 +459,15 @@
   justify-content: space-between;
   gap: 8px;
   font-size: 13px;
-  color: #cfcfcf;
+  color: var(--aug-text-muted);
   margin-bottom: 4px;
 }
 
 .aug-engine-instance-select,
 .aug-engine-concurrency-select {
-  background: #2b2f3a;
-  color: #f2f2f2;
-  border: 1px solid #454b5a;
+  background: var(--aug-surface-2);
+  color: var(--aug-text);
+  border: 1px solid var(--aug-border);
   border-radius: 6px;
   padding: 4px 8px;
   font-size: 13px;
@@ -430,24 +484,24 @@
 }
 
 .aug-engine-settings-checkbox input {
-  accent-color: #e8c15a;
+  accent-color: var(--aug-accent);
 }
 
 .aug-engine-summary {
   font-size: 12px;
-  color: #cfcfcf;
+  color: var(--aug-text-muted);
   text-align: center;
   margin: 0 0 10px;
 }
 
 .aug-engine-accuracy-good {
-  color: #6fcf72;
+  color: var(--aug-success);
 }
 
 .aug-engine-accuracy-mid {
-  color: #e8c15a;
+  color: var(--aug-warn);
 }
 
 .aug-engine-accuracy-bad {
-  color: #e0685f;
+  color: var(--aug-danger);
 }

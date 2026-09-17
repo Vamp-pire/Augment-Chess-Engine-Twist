@@ -660,26 +660,64 @@
       perfPanel.innerHTML = '<summary>성능 분석</summary><div class="aug-engine-perf-content">아직 탐색 기록 없음 (베타 엔진으로 한 수 두면 표시됩니다)</div>';
       toggle.appendChild(perfPanel);
 
+      // Redesigned 2026-09-17 (bigger bars, an eval-trend sparkline, and a
+      // second nodes-per-depth chart alongside the original time chart) --
+      // only actually rebuilds the DOM when a NEW search finished
+      // (profile.timestamp changed), not on every 1s poll, so the entrance
+      // animation (bars growing from 0) plays once per real result instead
+      // of replaying pointlessly while the panel just sits open.
+      let lastRenderedTimestamp = null;
+      function buildSparkline(depthProfile) {
+        const points = depthProfile.filter((d) => typeof d.score === "number");
+        if (points.length < 2) return "";
+        const scores = points.map((d) => d.score);
+        const min = Math.min(...scores);
+        const max = Math.max(...scores);
+        const span = max - min || 1;
+        const W = 100;
+        const H = 32;
+        const coords = points.map((d, i) => {
+          const x = (i / (points.length - 1)) * W;
+          const y = H - ((d.score - min) / span) * H;
+          return `${x.toFixed(1)},${y.toFixed(1)}`;
+        });
+        const last = points[points.length - 1].score;
+        const lineColor = last > 0 ? "#6fcf72" : last < 0 ? "#e0685f" : "#9aa0ab";
+        return (
+          `<svg class="aug-perf-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">` +
+          `<polyline points="${coords.join(" ")}" fill="none" stroke="${lineColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>` +
+          `<circle cx="${coords[coords.length - 1].split(",")[0]}" cy="${coords[coords.length - 1].split(",")[1]}" r="2.5" fill="${lineColor}"/>` +
+          "</svg>"
+        );
+      }
+      function buildBarSection(depthProfile, label, valueFn, formatFn) {
+        const max = Math.max(...depthProfile.map(valueFn), 1);
+        const rows = depthProfile.map((d) => {
+          const pct = Math.max(2, (valueFn(d) / max) * 100);
+          const barColor = d.completed ? "#4a90d9" : "#c9843a";
+          return (
+            '<div class="aug-perf-bar-row">' +
+            `<span class="aug-perf-bar-label">깊이 ${d.depth}</span>` +
+            '<div class="aug-perf-bar-track">' +
+            `<div class="aug-perf-bar-fill" data-w="${pct.toFixed(1)}" style="width:0%;background:${barColor}"></div>` +
+            "</div>" +
+            `<span class="aug-perf-bar-value">${formatFn(d)}</span>` +
+            "</div>"
+          );
+        }).join("");
+        return `<div class="aug-perf-section-label">${label}</div>` + rows;
+      }
       function renderPerfPanel() {
         const content = perfPanel.querySelector(".aug-engine-perf-content");
         if (!content || !perfPanel.open) return; // don't waste cycles rendering a collapsed panel
         const profile = window.__augLastSearchProfile;
         if (!profile || !Array.isArray(profile.depthProfile) || !profile.depthProfile.length) return;
+        if (profile.timestamp === lastRenderedTimestamp) return; // no new result -- skip rebuild+reanimate
+        lastRenderedTimestamp = profile.timestamp;
         const nps = profile.totalMs > 0 ? Math.round((profile.totalNodes / profile.totalMs) * 1000) : 0;
-        const maxMs = Math.max(...profile.depthProfile.map((d) => d.ms), 1);
-        const barsHtml = profile.depthProfile.map((d) => {
-          const widthPct = Math.max(2, (d.ms / maxMs) * 100);
-          const barColor = d.completed ? "#4a90d9" : "#c9843a"; // orange = ran out of time mid-depth
-          return (
-            '<div class="aug-perf-bar-row">' +
-            `<span class="aug-perf-bar-label">깊이 ${d.depth}</span>` +
-            '<div class="aug-perf-bar-track">' +
-            `<div class="aug-perf-bar-fill" style="width:${widthPct.toFixed(1)}%;background:${barColor}"></div>` +
-            "</div>" +
-            `<span class="aug-perf-bar-value">${d.ms.toFixed(0)}ms / ${d.nodes.toLocaleString()}노드</span>` +
-            "</div>"
-          );
-        }).join("");
+        const sparkline = buildSparkline(profile.depthProfile);
+        const timeBars = buildBarSection(profile.depthProfile, "깊이별 소요 시간", (d) => d.ms, (d) => `${d.ms.toFixed(0)}ms`);
+        const nodeBars = buildBarSection(profile.depthProfile, "깊이별 탐색 노드 수", (d) => d.nodes, (d) => d.nodes.toLocaleString() + "노드");
         content.innerHTML =
           '<div class="aug-perf-summary">' +
           `<span>총 ${profile.totalMs.toFixed(0)}ms</span>` +
@@ -687,8 +725,20 @@
           `<span>초당 ${nps.toLocaleString()}노드</span>` +
           `<span>도달 깊이 ${profile.completedDepth}/${profile.maxDepth}</span>` +
           "</div>" +
-          barsHtml +
+          (sparkline ? '<div class="aug-perf-section-label">깊이별 평가값 추이</div>' + sparkline : "") +
+          timeBars +
+          nodeBars +
           '<p class="aug-engine-hint">주황 막대 = 그 깊이는 시간 안에 다 못 끝내고 중단됨 (그래도 지금까지 찾은 최선수 사용)</p>';
+        // Entrance animation: bars are painted at width:0 above, then grown
+        // to their real width on the next frame so the CSS transition
+        // actually plays (setting the final width directly in the same
+        // paint would skip straight to it, no animation).
+        requestAnimationFrame(() => {
+          content.querySelectorAll(".aug-perf-bar-fill").forEach((el, i) => {
+            el.style.transitionDelay = (i * 25) + "ms";
+            el.style.width = el.dataset.w + "%";
+          });
+        });
       }
       perfPanel.addEventListener("toggle", renderPerfPanel);
       setInterval(renderPerfPanel, 1000);

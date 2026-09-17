@@ -2524,7 +2524,10 @@
         depth: currentDepth,
         ms: depthMs,
         nodes: context.nodes - nodesBeforeDepth,
-        completed: Boolean(depthResult.completed)
+        completed: Boolean(depthResult.completed),
+        // Added for the panel's eval-trend sparkline (2026-09-17) -- purely
+        // additive, same best-effort spirit as the rest of this profiling.
+        score: typeof depthResult.score === "number" ? depthResult.score : null
       });
       if (depthResult.action && (depthResult.completed || flexibleBudget)) {
         bestAction = depthResult.action;
