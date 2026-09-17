@@ -700,9 +700,12 @@ async function main() {
     const valLoss = (await valLossScalar.data())[0];
     (Array.isArray(valLossTensor) ? valLossTensor : [valLossTensor]).forEach((t) => t.dispose());
 
-    if (epoch % 5 === 0 || epoch === EPOCHS_CAP - 1) {
-      console.log("epoch", epoch, "loss", trainLoss.toFixed(4), "val_loss", valLoss.toFixed(4));
-    }
+    // Log every epoch, not just every 5th (2026-09-17) -- diagnosing the
+    // round-1 retrain regression needed the real epoch-by-epoch trajectory
+    // and GitHub Actions job logs aren't readable via the API this project
+    // has access to, so sparse logging meant flying blind on any future
+    // cloud run too.
+    console.log("epoch", epoch, "loss", trainLoss.toFixed(4), "val_loss", valLoss.toFixed(4));
     if (valLoss < bestValLoss) {
       bestValLoss = valLoss;
       bestEpoch = epoch;
@@ -797,5 +800,5 @@ if (require.main === module) {
   // two saved weight files on the same validation split) that need the
   // exact same filtering/game-boundary logic main() uses, without
   // duplicating it and risking a subtly different split.
-  module.exports = { loadData, DATA_FILE, INPUT_SIZE, FEATURE_NAMES, snapshotDataFile, ORIGINAL_EVAL_WEIGHTS };
+  module.exports = { loadData, DATA_FILE, INPUT_SIZE, FEATURE_NAMES, snapshotDataFile, ORIGINAL_EVAL_WEIGHTS, buildModel };
 }
