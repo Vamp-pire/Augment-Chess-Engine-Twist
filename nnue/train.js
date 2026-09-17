@@ -145,7 +145,17 @@ function encodeCacheKey(dataFile) {
 }
 
 async function encodeInParallel(entries) {
-  const workerCount = Math.max(1, os.cpus().length - 1);
+  // Reserving one core (os.cpus().length - 1) makes sense on a local dev
+  // machine so it stays responsive for the person using it -- but on a
+  // headless CI runner there's no one to keep responsive, so that reserved
+  // core is pure waste. Confirmed live 2026-09-17: GitHub's standard
+  // 2-core runner computed workerCount=1, meaning the cloud encode job (the
+  // whole reason it moved off the owner's machine) ran with ZERO actual
+  // parallelism. ENCODE_WORKER_COUNT lets the cloud workflow request the
+  // full core count explicitly without changing local behavior.
+  const workerCount = process.env.ENCODE_WORKER_COUNT
+    ? Math.max(1, Number(process.env.ENCODE_WORKER_COUNT))
+    : Math.max(1, os.cpus().length - 1);
   const chunkSize = Math.ceil(entries.length / workerCount) || 1;
   const chunks = [];
   for (let i = 0; i < entries.length; i += chunkSize) chunks.push(entries.slice(i, i + chunkSize));
