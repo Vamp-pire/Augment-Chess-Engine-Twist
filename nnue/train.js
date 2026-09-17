@@ -182,6 +182,27 @@ async function encodeInParallel(entries) {
   return { flat, survivorMask, skippedTerminal };
 }
 
+// fs.writeFileSync hands the whole buffer to a single write() syscall, which
+// has a hard length cap of 2^31-1 bytes (RangeError ERR_OUT_OF_RANGE) --
+// confirmed live 2026-09-17 in the cloud encode job on the round-1 dataset
+// (192,984 positions, INPUT_SIZE 5509 -> a 4.2GB flat buffer, comfortably
+// past the 2.1GB cap even though the 7GB runner had plenty of RAM for the
+// buffer itself). Chunking the write in <2GB pieces sidesteps the syscall
+// limit regardless of how large the encoded feature set grows.
+function writeFileChunked(filePath, buffer, chunkSize = 1 << 30) {
+  const fd = fs.openSync(filePath, "w");
+  try {
+    let offset = 0;
+    while (offset < buffer.length) {
+      const end = Math.min(offset + chunkSize, buffer.length);
+      fs.writeSync(fd, buffer, offset, end - offset);
+      offset = end;
+    }
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
 async function getEncodedInputs(dataFile, kept) {
   fs.mkdirSync(ENCODE_CACHE_DIR, { recursive: true });
   const key = encodeCacheKey(dataFile);
@@ -198,7 +219,7 @@ async function getEncodedInputs(dataFile, kept) {
     console.log("encode cache found but kept-count mismatch (" + meta.keptCount + " vs " + kept.length + ") -- re-encoding");
   }
   const result = await encodeInParallel(kept);
-  fs.writeFileSync(binPath, Buffer.from(result.flat.buffer, result.flat.byteOffset, result.flat.byteLength));
+  writeFileChunked(binPath, Buffer.from(result.flat.buffer, result.flat.byteOffset, result.flat.byteLength));
   fs.writeFileSync(metaPath, JSON.stringify({
     keptCount: kept.length,
     survivorMask: Array.from(result.survivorMask),
