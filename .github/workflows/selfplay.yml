@@ -54,8 +54,17 @@ jobs:
             exit 0
           fi
 
-          # Cap at 5h50m so the process finishes safely before the 355min job timeout.
-          CAP_MS=21000000
+          # Cap at 5h25m, not 5h50m -- the checkpoint loop below only notices
+          # the self-play process has exited on its next `sleep 900` (15min)
+          # poll, so the real margin needed against the 355min job timeout is
+          # CAP_MS + up to 15min poll delay + final-checkpoint git overhead,
+          # not just CAP_MS itself. 5h50m only left 5min, which the poll delay
+          # alone could eat -- confirmed live 2026-09-16/17: 3 of the last 4
+          # full-length runs got killed by GitHub's own job timeout
+          # (conclusion "cancelled") before their final checkpoint ran, losing
+          # up to one 15min checkpoint's worth of data each time. 5h25m leaves
+          # a real ~30min buffer.
+          CAP_MS=19500000
           RUN_MS=$REMAINING_MS
           if [ "$RUN_MS" -gt "$CAP_MS" ]; then RUN_MS=$CAP_MS; fi
           echo "RUN_MS=$RUN_MS"
