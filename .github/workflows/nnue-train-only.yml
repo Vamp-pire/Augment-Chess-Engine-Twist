@@ -1,0 +1,112 @@
+name: NNUE cloud pipeline (train only, TEMP)
+
+# TEMPORARY workflow (2026-09-17) -- skips the encode step entirely by
+# fetching an already-computed encode cache from gha-segments-16cards
+# instead of running it. Exists because the owner already has a valid
+# cache for the round-1 dataset sitting around (from an earlier encode
+# run, downloaded as an artifact before nnue-encode.yml/nnue-pipeline.yml
+# learned to push cache to the data branch too) and doesn't want to pay
+# the ~10min encode cost again just to iterate on training.
+#
+# train.js's own on-disk cache (keyed on sha1(dataFile) + encode.js mtime)
+# is what actually skips the encode work -- this workflow's only job is
+# staging that cache file at the right path/name BEFORE running train.js,
+# same mtime-pinning trick nnue-pipeline.yml uses. Delete this file once
+# nnue-pipeline.yml (which encodes fresh every time) is fast enough /
+# frequent enough that a separate train-only path isn't worth keeping.
+on:
+  workflow_dispatch:
+    inputs:
+      cacheKey:
+        description: "Cache key (filename without extension) to fetch from gha-segments-16cards:nnue-cache/"
+        required: false
+        default: "77bdef0056169d85.1767225600000"
+
+permissions:
+  contents: write
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Read pipeline config
+        id: cfg
+        run: |
+          node -e "
+            const c = require('./nnue/pipeline-config.json');
+            const fs = require('fs');
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, 'datasetPath=' + c.datasetPath + '\n');
+            const envNames = {
+              nnueVariant: 'NNUE_VARIANT', ablatePlyFeature: 'ABLATE_PLY_FEATURE',
+              ablateDeepUnits: 'ABLATE_DEEP_UNITS', ablateWarmStart: 'ABLATE_WARM_START',
+              ablateOversample: 'ABLATE_OVERSAMPLE', ablateBlend: 'ABLATE_BLEND',
+              ablateBlunder: 'ABLATE_BLUNDER'
+            };
+            const exportLines = Object.entries(envNames)
+              .filter(([k]) => c[k] !== undefined && c[k] !== null && c[k] !== '')
+              .map(([k, envName]) => 'export ' + envName + '=' + JSON.stringify(String(c[k])));
+            fs.writeFileSync('train-env.sh', exportLines.join('\n') + '\n');
+            console.log('pipeline config:', JSON.stringify(c, null, 2));
+          "
+
+      - name: Back up current deployed model
+        run: |
+          if [ -f nnue/model/weights.json ]; then
+            cp nnue/model/weights.json "nnue/model/weights.before-run-${{ github.run_id }}.json"
+          fi
+
+      - name: Fetch dataset from gha-segments-16cards
+        # Still needed even on a cache hit -- getEncodedInputs's cache only
+        # stores the ENCODED FEATURES, not labels/outcomes/game boundaries,
+        # so loadData() always re-derives those from the raw dataset file.
+        run: |
+          git fetch --depth=1 origin gha-segments-16cards
+          git show "origin/gha-segments-16cards:${{ steps.cfg.outputs.datasetPath }}" > selfplay-data.jsonl.gz
+          gunzip -f selfplay-data.jsonl.gz
+          wc -l selfplay-data.jsonl
+
+      - name: Fetch pre-computed encode cache
+        run: |
+          KEY="${{ github.event.inputs.cacheKey }}"
+          mkdir -p nnue/cache
+          git show "origin/gha-segments-16cards:nnue-cache/${KEY}.bin.gz" > "nnue/cache/${KEY}.bin.gz"
+          gunzip -f "nnue/cache/${KEY}.bin.gz"
+          git show "origin/gha-segments-16cards:nnue-cache/${KEY}.meta.json" > "nnue/cache/${KEY}.meta.json"
+          ls -la nnue/cache/
+
+      - name: Pin encode.js mtime
+        # Must match whatever mtime produced the cache key above (the cache
+        # was originally built with encode.js pinned to 2026-01-01T00:00:00Z
+        # -- see nnue-pipeline.yml/nnue-encode.yml's own comment on this).
+        run: touch -d "2026-01-01T00:00:00Z" nnue/encode.js
+
+      - name: Train (cache should hit -- no re-encode)
+        run: |
+          source train-env.sh
+          cd nnue && node train.js
+
+      - name: Merge trained weights into master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.email "actions@github.com"
+          git config user.name "gha-selfplay-bot"
+          git add nnue/model/
+          if git diff --cached --quiet; then
+            echo "no model change to merge"
+          else
+            git commit -q -m "nnue: retrain (train-only pipeline) run ${{ github.run_id }}"
+            git push -q "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:master
+          fi
