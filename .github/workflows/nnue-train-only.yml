@@ -97,9 +97,26 @@ jobs:
           source train-env.sh
           cd nnue && node train.js
 
+      - name: Upload weights (artifact, safety net before merge)
+        # Confirmed live 2026-09-17: the merge step below can fail (master
+        # moved since this job's checkout) after training already spent
+        # ~20min producing real weights -- without this, that whole run's
+        # output was gone the moment the job ended, nowhere to recover it
+        # from. Runs regardless of what the merge step below does.
+        uses: actions/upload-artifact@v4
+        with:
+          name: nnue-trained-weights
+          path: nnue/model/
+          retention-days: 14
+
       - name: Merge trained weights into master
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Confirmed live 2026-09-17: a plain push here failed outright
+        # ("fetch first") because master had moved since this job's
+        # checkout -- fetch+rebase+retry, same pattern the gha-segments
+        # push steps already use, instead of a single unretried push.
+        shell: bash --noprofile --norc -uo pipefail {0}
         run: |
           git config user.email "actions@github.com"
           git config user.name "gha-selfplay-bot"
@@ -108,5 +125,11 @@ jobs:
             echo "no model change to merge"
           else
             git commit -q -m "nnue: retrain (train-only pipeline) run ${{ github.run_id }}"
+            for i in 1 2 3 4 5; do
+              git fetch origin master -q
+              git rebase origin/master -q && break
+              git rebase --abort 2>/dev/null
+              sleep 10
+            done
             git push -q "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:master
           fi
