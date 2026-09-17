@@ -4958,8 +4958,12 @@
     return destinations.length > 0 && destinations.every((cell) => workerDarkMagicCircleContains(boardState, piece, row, col, cell.row, cell.col));
   }
   function workerUniqueAlliedPieceCount(boardState, color) {
+    // Perf (2026-09-16): read-only counter (never mutates the board via
+    // set() while iterating), so it's safe to use the cached piece-list
+    // scan instead of a fresh uncached one -- called from 3 move-generation
+    // hot paths (berserker tier lookups) per candidate move.
     const seen = /* @__PURE__ */ new Set();
-    forEachPiece(boardState, (item, row, col) => {
+    forEachPieceCached(boardState, (item, row, col) => {
       if (item?.color === color) seen.add(item.id || `${row}:${col}`);
     });
     return seen.size;
