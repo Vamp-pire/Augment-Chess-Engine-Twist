@@ -614,8 +614,6 @@ async function main() {
     trainLabelsFlat[row] = trainingLabels[idx];
   });
 
-  const xTrain = tf.tensor2d(trainFlat, [trainIndices.length, INPUT_SIZE]);
-  const yTrain = tf.tensor2d(trainLabelsFlat, [trainIndices.length, 1]);
   const xVal = tf.tensor2d(inputs.slice(splitAt));
   const yVal = tf.tensor2d(labels.slice(splitAt), [inputs.length - splitAt, 1]);
 
@@ -642,31 +640,70 @@ async function main() {
   // NNUE_VARIANT toggle above, raised for the "new" variant alongside the
   // lower learning rate/dropout to give slower convergence room to actually
   // show whether best-epoch moves past 0-1.
-  await model.fit(xTrain, yTrain, {
-    epochs: EPOCHS_CAP,
-    batchSize: 64,
-    validationData: [xVal, yVal],
-    verbose: 0,
-    callbacks: {
-      onEpochEnd: (epoch, logs) => {
-        if (epoch % 5 === 0 || epoch === EPOCHS_CAP - 1) {
-          console.log("epoch", epoch, "loss", logs.loss.toFixed(4), "val_loss", logs.val_loss.toFixed(4));
-        }
-        if (logs.val_loss < bestValLoss) {
-          bestValLoss = logs.val_loss;
-          bestEpoch = epoch;
-          epochsSinceBest = 0;
-          bestWeights = model.getWeights().map((w) => ({ shape: w.shape, data: Array.from(w.dataSync()) }));
-        } else {
-          epochsSinceBest += 1;
-          if (epochsSinceBest >= PATIENCE) {
-            stoppedEarly = true;
-            model.stopTraining = true;
-          }
-        }
+  //
+  // Hand-rolled batch loop instead of model.fit(xTrain, yTrain, {...})
+  // (2026-09-17): fit() needs one full-size xTrain tensor up front, and on
+  // the wasm backend that means copying the WHOLE training set into wasm
+  // linear memory as a single allocation before training even starts --
+  // confirmed live on the round-1 dataset (173k oversampled rows, ~3.8GB)
+  // as a "memory access out of bounds" wasm RuntimeError, well past
+  // whatever this build's wasm heap can grow to. trainFlat/trainLabelsFlat
+  // stay as plain JS Float32Arrays (regular V8 heap, no such ceiling) and
+  // only ONE BATCH_SIZE-row slice gets tensor-ified (then disposed) at a
+  // time -- this is exactly what fit() was already doing internally per
+  // batch, just without the giant tensor it built that slicing from.
+  const BATCH_SIZE = 64;
+  const numExamples = trainIndices.length;
+  const order = new Int32Array(numExamples);
+  for (let i = 0; i < numExamples; i += 1) order[i] = i;
+  function shuffleOrder() {
+    for (let i = order.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const tmp = order[i]; order[i] = order[j]; order[j] = tmp;
+    }
+  }
+  const batchInputBuf = new Float32Array(BATCH_SIZE * INPUT_SIZE);
+  const batchLabelBuf = new Float32Array(BATCH_SIZE);
+
+  for (let epoch = 0; epoch < EPOCHS_CAP; epoch += 1) {
+    shuffleOrder();
+    let trainLossSum = 0;
+    for (let start = 0; start < numExamples; start += BATCH_SIZE) {
+      const rows = Math.min(BATCH_SIZE, numExamples - start);
+      for (let r = 0; r < rows; r += 1) {
+        const srcRow = order[start + r];
+        batchInputBuf.set(trainFlat.subarray(srcRow * INPUT_SIZE, (srcRow + 1) * INPUT_SIZE), r * INPUT_SIZE);
+        batchLabelBuf[r] = trainLabelsFlat[srcRow];
+      }
+      const xBatch = tf.tensor2d(batchInputBuf.subarray(0, rows * INPUT_SIZE), [rows, INPUT_SIZE]);
+      const yBatch = tf.tensor2d(batchLabelBuf.subarray(0, rows), [rows, 1]);
+      const batchLoss = await model.trainOnBatch(xBatch, yBatch);
+      trainLossSum += (Array.isArray(batchLoss) ? batchLoss[0] : batchLoss) * rows;
+      xBatch.dispose();
+      yBatch.dispose();
+    }
+    const trainLoss = trainLossSum / numExamples;
+    const valLossTensor = model.evaluate(xVal, yVal, { batchSize: 256 });
+    const valLossScalar = Array.isArray(valLossTensor) ? valLossTensor[0] : valLossTensor;
+    const valLoss = (await valLossScalar.data())[0];
+    (Array.isArray(valLossTensor) ? valLossTensor : [valLossTensor]).forEach((t) => t.dispose());
+
+    if (epoch % 5 === 0 || epoch === EPOCHS_CAP - 1) {
+      console.log("epoch", epoch, "loss", trainLoss.toFixed(4), "val_loss", valLoss.toFixed(4));
+    }
+    if (valLoss < bestValLoss) {
+      bestValLoss = valLoss;
+      bestEpoch = epoch;
+      epochsSinceBest = 0;
+      bestWeights = model.getWeights().map((w) => ({ shape: w.shape, data: Array.from(w.dataSync()) }));
+    } else {
+      epochsSinceBest += 1;
+      if (epochsSinceBest >= PATIENCE) {
+        stoppedEarly = true;
+        break;
       }
     }
-  });
+  }
   console.log(
     stoppedEarly ? `stopped early at best epoch ${bestEpoch} (val_loss ${bestValLoss.toFixed(4)})` : `finished all epochs, best was epoch ${bestEpoch} (val_loss ${bestValLoss.toFixed(4)})`
   );
