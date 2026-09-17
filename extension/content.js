@@ -34,7 +34,8 @@
     // readiness fixes). ai-override.js reads these same keys directly via
     // localStorage (it can't call these getters -- different file/closure).
     liveStockfishDepth: "augEngineLiveStockfishDepth",
-    liveStockfishThinkTimeMs: "augEngineLiveStockfishThinkTimeMs"
+    liveStockfishThinkTimeMs: "augEngineLiveStockfishThinkTimeMs",
+    showAnalysisLine: "augEngineShowAnalysisLine"
   };
 
   function getStoredInstanceCount() {
@@ -609,6 +610,58 @@
       row.appendChild(text);
       toggle.appendChild(row);
 
+      // Eval bar + live thinking indicator (2026-09-17): shown always, not
+      // behind a details toggle -- the whole point is a quick glance during
+      // play, which matters MORE while the underlying engine's accuracy is
+      // still limited, so the player can sanity-check its read on the
+      // position themselves instead of trusting it blindly. Reuses the same
+      // data engine.js already tracks (__augLastSearchProfile/
+      // __augSearchLive), no new engine work needed for this part.
+      const evalBar = document.createElement("div");
+      evalBar.className = "aug-eval-bar-wrap";
+      evalBar.innerHTML =
+        '<div class="aug-eval-bar-track"><div class="aug-eval-bar-fill"></div></div>' +
+        '<div class="aug-eval-bar-label">평가값 없음</div>' +
+        '<div class="aug-thinking-indicator" hidden></div>';
+      toggle.appendChild(evalBar);
+
+      function renderEvalBar() {
+        const live = window.__augSearchLive;
+        const indicator = evalBar.querySelector(".aug-thinking-indicator");
+        if (live) {
+          indicator.hidden = false;
+          indicator.textContent = `생각 중... (깊이 ${live.depth}/${live.maxDepth})`;
+        } else {
+          indicator.hidden = true;
+        }
+
+        const profile = window.__augLastSearchProfile;
+        const fill = evalBar.querySelector(".aug-eval-bar-fill");
+        const label = evalBar.querySelector(".aug-eval-bar-label");
+        if (!profile || !Array.isArray(profile.depthProfile) || !profile.depthProfile.length) return;
+        const lastScored = [...profile.depthProfile].reverse().find((d) => typeof d.score === "number");
+        if (!lastScored) return;
+        // Squash with the same tanh(score/400) training uses, so the wide
+        // range of raw engine units maps onto a readable -1..1 bar. score
+        // is FROM profile.aiColor's perspective (whichever side this
+        // engine was computing for), not necessarily white's.
+        const squashed = Math.tanh(lastScored.score / 400);
+        fill.style.width = (50 + squashed * 50).toFixed(1) + "%";
+        const aiColorKor = profile.aiColor === "white" ? "백" : "흑";
+        const enemyColorKor = profile.aiColor === "white" ? "흑" : "백";
+        if (squashed > 0.05) {
+          fill.style.background = "var(--aug-success)";
+          label.textContent = `${aiColorKor} 유리 (${(squashed * 100).toFixed(0)}%)`;
+        } else if (squashed < -0.05) {
+          fill.style.background = "var(--aug-danger)";
+          label.textContent = `${enemyColorKor} 유리 (${(Math.abs(squashed) * 100).toFixed(0)}%)`;
+        } else {
+          fill.style.background = "var(--aug-text-muted)";
+          label.textContent = "균형";
+        }
+      }
+      setInterval(renderEvalBar, 300);
+
       // Live-play Stockfish tuning (2026-09-13): depth/think-time/instance
       // count were previously hardcoded (depth 16, no time cap) inside
       // ai-override.js -- exposed here now that the hybrid Stockfish path is
@@ -627,6 +680,15 @@
       settings.className = "aug-engine-live-settings";
       settings.innerHTML =
         '<summary>세부 설정</summary>' +
+        // Presets (2026-09-17): raw depth/think-time number inputs aren't
+        // approachable for a non-technical player -- three buttons cover
+        // the common cases in one click, still just writing to the SAME
+        // localStorage keys/inputs below (no separate code path).
+        '<div class="aug-engine-preset-row">' +
+        '<button type="button" class="aug-engine-preset" data-depth="10" data-thinktime="1500">빠르게</button>' +
+        '<button type="button" class="aug-engine-preset" data-depth="16" data-thinktime="0">보통</button>' +
+        '<button type="button" class="aug-engine-preset" data-depth="22" data-thinktime="8000">정확하게</button>' +
+        '</div>' +
         '<label class="aug-engine-settings-row">스톡피시 탐색 깊이 <input type="number" class="aug-engine-live-depth" min="4" max="24" step="1"></label>' +
         '<p class="aug-engine-hint">숫자가 클수록 더 강해지지만 한 수 두는 데 더 오래 걸립니다. 기본값 16.</p>' +
         '<label class="aug-engine-settings-row">생각 시간 제한 (ms, 0=제한없음) <input type="number" class="aug-engine-live-thinktime" min="0" max="30000" step="500"></label>' +
@@ -635,6 +697,17 @@
         '<p class="aug-engine-hint">인스턴스가 많을수록 메모리를 더 쓰지만(인스턴스당 약 7MB) 여러 계산을 동시에 처리할 수 있습니다.</p>';
       toggle.appendChild(settings);
       document.body.appendChild(toggle);
+
+      settings.querySelectorAll(".aug-engine-preset").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const depth = Number(btn.dataset.depth);
+          const thinktime = Number(btn.dataset.thinktime);
+          localStorage.setItem(SETTINGS_KEYS.liveStockfishDepth, String(depth));
+          localStorage.setItem(SETTINGS_KEYS.liveStockfishThinkTimeMs, String(thinktime));
+          settings.querySelector(".aug-engine-live-depth").value = depth;
+          settings.querySelector(".aug-engine-live-thinktime").value = thinktime;
+        });
+      });
 
       settings.querySelector(".aug-engine-live-depth").addEventListener("change", (event) => {
         const v = Math.max(4, Math.min(24, Number(event.target.value) || 16));
@@ -742,6 +815,58 @@
       }
       perfPanel.addEventListener("toggle", renderPerfPanel);
       setInterval(renderPerfPanel, 1000);
+
+      // Analysis line ("다음 수순 보기", 2026-09-17), lichess/chess.com-style.
+      // OFF by default since it costs real extra computation on top of the
+      // move search that already ran (see engine.js's computeQuickLine) --
+      // only actually computes while the checkbox is on AND the panel is
+      // open AND a genuinely new search result just landed.
+      const linePanel = document.createElement("details");
+      linePanel.className = "aug-engine-line-panel";
+      linePanel.innerHTML =
+        '<summary>분석 수순 (실험적)</summary>' +
+        '<label class="aug-engine-settings-row aug-engine-settings-checkbox"><input type="checkbox" class="aug-engine-line-enable"> 다음 수순 계산해서 보여주기</label>' +
+        '<p class="aug-engine-hint">엔진이 이 수 다음 어떻게 진행될지 예상하는 수순입니다 -- 실제 탐색보다 얕은 계산이라 최선수와 다를 수 있습니다. 켜두면 매 수마다 계산이 더 걸립니다.</p>' +
+        '<div class="aug-engine-line-content"></div>';
+      toggle.appendChild(linePanel);
+
+      const lineEnableCheckbox = linePanel.querySelector(".aug-engine-line-enable");
+      lineEnableCheckbox.checked = localStorage.getItem(SETTINGS_KEYS.showAnalysisLine) === "1";
+      let lastLineTimestamp = null;
+      lineEnableCheckbox.addEventListener("change", () => {
+        localStorage.setItem(SETTINGS_KEYS.showAnalysisLine, lineEnableCheckbox.checked ? "1" : "0");
+        lastLineTimestamp = null; // force a recompute next tick if just re-enabled
+      });
+
+      function squareLabel(sq) {
+        const files = "abcdefgh";
+        return (files[sq.col] || "?") + (8 - sq.row);
+      }
+      function renderAnalysisLine() {
+        if (!lineEnableCheckbox.checked || !linePanel.open) return;
+        const contentEl = linePanel.querySelector(".aug-engine-line-content");
+        const profile = window.__augLastSearchProfile;
+        if (!profile || !profile.boardState || profile.timestamp === lastLineTimestamp) return;
+        lastLineTimestamp = profile.timestamp;
+        const engine = window.AugmentEngine;
+        if (!engine || !engine.computeQuickLine) { contentEl.textContent = "엔진을 불러오지 못했습니다."; return; }
+        contentEl.textContent = "계산 중...";
+        // computeQuickLine is a synchronous shallow-search loop (no I/O),
+        // so this can just run inline -- no async/await needed here.
+        try {
+          const line = engine.computeQuickLine(profile.boardState, profile.aiColor, 6, 2, 300);
+          contentEl.textContent = line.length
+            ? line.map((step) => {
+              const a = step.action;
+              return a.type === "move" && a.from && a.move ? squareLabel(a.from) + "→" + squareLabel(a.move) : (a.type || "?");
+            }).join("  ")
+            : "표시할 수순 없음";
+        } catch (e) {
+          contentEl.textContent = "계산 실패";
+        }
+      }
+      linePanel.addEventListener("toggle", renderAnalysisLine);
+      setInterval(renderAnalysisLine, 1000);
     }
     const checkbox = toggle.querySelector("input[type=checkbox]");
     checkbox.checked = localStorage.getItem(AI_OVERRIDE_KEY) === "1";

@@ -2516,6 +2516,13 @@
       if (hasRuleMonster && completedDepth >= 2 && !monsterSearchHasTimeForNextDepth(context.deadline - performance.now(), previousCompletedDepthMs)) {
         break;
       }
+      // Live "thinking" indicator (2026-09-17): set BEFORE this depth's
+      // (possibly multi-second) work starts, so the extension UI can show
+      // "searching depth N" while it's actually happening instead of only
+      // learning about it after the whole search finishes. Cleared
+      // (self.__augSearchLive = null) once the loop exits below -- a
+      // stuck/stale "still thinking" indicator would be worse than none.
+      try { self.__augSearchLive = { aiColor, depth: currentDepth, maxDepth, startedAt: Date.now() }; } catch (e) {}
       const depthStartedAt = performance.now();
       const nodesBeforeDepth = context.nodes;
       const depthResult = searchAtDepth(boardState, orderedRoot, aiColor, currentDepth, context);
@@ -2540,6 +2547,7 @@
       if (context.timedOut) break;
     }
     const totalMs = performance.now() - startedAt;
+    try { self.__augSearchLive = null; } catch (e) {}
     try {
       self.__augLastSearchProfile = {
         timestamp: Date.now(),
@@ -2549,7 +2557,13 @@
         cutoffs: context.cutoffs,
         completedDepth,
         maxDepth,
-        depthProfile
+        depthProfile,
+        // The position this search actually ran from (2026-09-17) -- lets
+        // the extension UI's optional "analysis line" feature call
+        // computeQuickLine() on the SAME position without needing its own
+        // separate way to fetch live board state. Read-only reuse:
+        // computeQuickLine clones before ever mutating anything.
+        boardState
       };
     } catch (e) {
       // self may not exist in some embedding contexts -- profiling is
@@ -16767,6 +16781,38 @@
     }
     return { ok: true, after: augmentBaseParityProjection(clientState, termination) };
   }
+  // Toggleable "analysis line" UI feature (2026-09-17), lichess/chess.com-
+  // style "what happens next" display. NOT a true principal variation --
+  // this search's alpha-beta doesn't thread a PV array through its
+  // recursive calls (a real one would need touching the core search
+  // internals, a much bigger change than a purely-for-display line
+  // deserves right now). Instead this is a shallow greedy walk: clone the
+  // position, then alternate sides picking each one's own best move via a
+  // SHALLOW searchBestAction call, for up to `plies` steps. Cheap and
+  // reads reasonably (it's still this engine's own real move choice at
+  // each step, just without the deeper lookahead the main search gets),
+  // but can diverge from what the main search actually found at the root
+  // since it's a different (shallower) search at every step after the
+  // first. Purely additive -- boardState is cloned before the first step,
+  // the real game state is never touched.
+  function computeQuickLine(boardState, aiColor, plies = 6, depth = 2, timeLimitMs = 300) {
+    let state = cloneState(boardState);
+    let color = aiColor;
+    const line = [];
+    for (let i = 0; i < plies; i += 1) {
+      if (state.mode === "gameover") break;
+      const actions = generateActions(state, color);
+      if (!actions || !actions.length) break;
+      const result = searchBestAction(state, actions, color, depth, timeLimitMs, { skipOpeningBook: true });
+      if (!result || !result.action) break;
+      const applied = applyAction(state, cloneAction(result.action), color);
+      if (!applied.ok) break;
+      line.push({ action: result.action, color, score: result.score });
+      color = color === "white" ? "black" : "white";
+    }
+    return line;
+  }
+  __exports.computeQuickLine = computeQuickLine;
   __exports.searchBestAction = searchBestAction;
   __exports.cloneState = cloneState;
   __exports.applyAction = applyAction;

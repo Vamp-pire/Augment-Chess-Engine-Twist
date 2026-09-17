@@ -70,6 +70,97 @@
   cursor: pointer;
 }
 
+.aug-eval-bar-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.aug-eval-bar-track {
+  height: 10px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--aug-danger);
+}
+
+.aug-eval-bar-fill {
+  height: 100%;
+  width: 50%;
+  background: var(--aug-text-muted);
+  transition: width 0.4s ease-out, background-color 0.4s ease-out;
+}
+
+.aug-eval-bar-label {
+  font-size: 12px;
+  text-align: center;
+  color: var(--aug-text-muted);
+}
+
+.aug-thinking-indicator {
+  font-size: 11px;
+  text-align: center;
+  color: var(--aug-accent-2);
+  animation: augPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes augPulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+.aug-engine-preset-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.aug-engine-preset {
+  flex: 1;
+  background: var(--aug-surface-2);
+  color: var(--aug-text);
+  border: 1px solid var(--aug-border);
+  border-radius: 6px;
+  padding: 5px 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.aug-engine-preset:hover {
+  background: var(--aug-accent);
+  border-color: var(--aug-accent);
+  color: var(--aug-surface);
+}
+
+.aug-engine-line-panel {
+  font-weight: 400;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  padding-top: 8px;
+  margin-top: 8px;
+}
+
+.aug-engine-line-panel summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--aug-text-muted);
+  user-select: none;
+}
+
+.aug-engine-line-panel[open] summary {
+  margin-bottom: 6px;
+}
+
+.aug-engine-line-content {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--aug-text);
+  background: var(--aug-surface-2);
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin-top: 4px;
+  min-height: 16px;
+}
+
 /* A <details> element (2026-09-13, was a plain always-visible <div>) --
    collapsed by default so the toggle box doesn't cover as much of the
    board; the browser's native <details> behavior hides everything but
