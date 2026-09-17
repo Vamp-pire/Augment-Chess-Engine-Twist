@@ -132,35 +132,6 @@
   color: var(--aug-surface);
 }
 
-.aug-engine-line-panel {
-  font-weight: 400;
-  border-top: 1px solid rgba(255, 255, 255, 0.15);
-  padding-top: 8px;
-  margin-top: 8px;
-}
-
-.aug-engine-line-panel summary {
-  cursor: pointer;
-  font-size: 12px;
-  color: var(--aug-text-muted);
-  user-select: none;
-}
-
-.aug-engine-line-panel[open] summary {
-  margin-bottom: 6px;
-}
-
-.aug-engine-line-content {
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  color: var(--aug-text);
-  background: var(--aug-surface-2);
-  border-radius: 6px;
-  padding: 6px 8px;
-  margin-top: 4px;
-  min-height: 16px;
-}
-
 /* A <details> element (2026-09-13, was a plain always-visible <div>) --
    collapsed by default so the toggle box doesn't cover as much of the
    board; the browser's native <details> behavior hides everything but
