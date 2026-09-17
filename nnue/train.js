@@ -213,6 +213,28 @@ function writeFileChunked(filePath, buffer, chunkSize = 1 << 30) {
   }
 }
 
+// Mirror of writeFileChunked: fs.readFileSync/readSync also cap out around
+// 2GiB (ERR_FS_FILE_TOO_LARGE), hit live 2026-09-17 loading back the round-1
+// dataset's 4.2GB cache file. Pre-allocate the full buffer (its size is
+// known up front, unlike a streaming append) and fill it via repeated
+// readSync calls, each under the 2GB-per-call cap.
+function readFileChunked(filePath, chunkSize = 1 << 30) {
+  const size = fs.statSync(filePath).size;
+  const buffer = Buffer.allocUnsafe(size);
+  const fd = fs.openSync(filePath, "r");
+  try {
+    let offset = 0;
+    while (offset < size) {
+      const end = Math.min(offset + chunkSize, size);
+      fs.readSync(fd, buffer, offset, end - offset, offset);
+      offset = end;
+    }
+  } finally {
+    fs.closeSync(fd);
+  }
+  return buffer;
+}
+
 async function getEncodedInputs(dataFile, kept) {
   fs.mkdirSync(ENCODE_CACHE_DIR, { recursive: true });
   const key = encodeCacheKey(dataFile);
@@ -221,7 +243,7 @@ async function getEncodedInputs(dataFile, kept) {
   if (fs.existsSync(binPath) && fs.existsSync(metaPath)) {
     const meta = JSON.parse(fs.readFileSync(metaPath, "utf8"));
     if (meta.keptCount === kept.length) {
-      const buf = fs.readFileSync(binPath);
+      const buf = readFileChunked(binPath);
       const flat = new Float32Array(buf.buffer, buf.byteOffset, buf.byteLength / 4);
       console.log("loaded cached encoded features (" + (flat.length / INPUT_SIZE) + " rows) -- skipping re-encode");
       return { flat, survivorMask: Uint8Array.from(meta.survivorMask), skippedTerminal: meta.skippedTerminal };
