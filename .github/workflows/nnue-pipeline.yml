@@ -134,6 +134,15 @@ jobs:
             echo "no model change to merge"
           else
             git commit -q -m "nnue: retrain from cloud pipeline run ${{ github.run_id }}"
+            # npm install can leave package-lock.json (or similar tracked
+            # files) with incidental drift that was never part of our own
+            # change -- confirmed live 2026-09-17: that alone blocked every
+            # rebase attempt below with "cannot rebase: you have unstaged
+            # changes", since it's a real uncommitted modification to a
+            # tracked file, not just an untracked one. Nothing here is a
+            # change worth keeping (our actual change is already safely in
+            # the commit above), so discard it outright.
+            git checkout -- . || true
             for i in 1 2 3 4 5; do
               git fetch origin master -q
               git rebase origin/master -q && break
