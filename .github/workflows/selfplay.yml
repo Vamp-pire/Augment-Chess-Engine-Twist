@@ -31,11 +31,17 @@ jobs:
       - name: Run self-play with periodic checkpoints
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Hard stop for the whole collection effort -- update/remove this
-          # when the collection window changes. Verified working (both the
-          # fresh-branch and branch-already-exists code paths landed real
-          # checkpoints) before this real cutoff was set.
-          CUTOFF_ISO: "2026-09-17T05:30:00Z"
+          # Round 2 (2026-09-17, switched per standing authorization from
+          # earlier this session): round 1 (depth 3, ended 2026-09-17T05:30Z)
+          # is aggregated/retrained already -- this collects with deeper
+          # search until the new cutoff below. NOTE: self-play sat
+          # completely idle for ~6h after round 1 ended because this switch
+          # was missed while other work (NNUE pipeline debugging, extension
+          # UX) was in progress -- if a THIRD round is ever planned, update
+          # this promptly when round 2 ends, don't let it slip again.
+          CUTOFF_ISO: "2026-09-18T05:30:00Z"
+          SELFPLAY_SEARCH_DEPTH: "5"
+          SELFPLAY_SEARCH_MS: "200"
         # GitHub Actions' default `bash` shell runs with -e (abort on first
         # non-zero exit), which silently killed the whole step the moment an
         # intentionally-allowed-to-fail command (fetching a not-yet-existing
