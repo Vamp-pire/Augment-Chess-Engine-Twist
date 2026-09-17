@@ -18,7 +18,7 @@ on:
         default: "datasets/round1-full-218007.jsonl.gz"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   encode:
@@ -63,9 +63,53 @@ jobs:
             }).catch((e) => { console.error(e); process.exit(1); });
           "
 
-      - name: Upload encode cache
+      - name: Upload encode cache (artifact, convenience backup)
         uses: actions/upload-artifact@v4
         with:
           name: nnue-encode-cache
           path: nnue/cache/
           retention-days: 14
+
+      - name: Push encode cache to gha-segments-16cards
+        # Actions artifacts need an authenticated download (works fine from
+        # a browser, but not from a plain unauthenticated `git`/API call),
+        # so this pushes the same files to the data branch too -- a public
+        # git read is all that's needed to pull them back down from there,
+        # same as the self-play checkpoints already do.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Default bash runs with -e -- the `[ -f "$f" ] && ...` guards below
+        # are meant to no-op harmlessly if a glob doesn't match, but -e
+        # would abort the whole step on that "failed" test instead (same
+        # gotcha already hit and fixed in selfplay.yml). Drop -e, keep -u/
+        # pipefail for real bugs.
+        shell: bash --noprofile --norc -uo pipefail {0}
+        run: |
+          mkdir -p /tmp/cachestage
+          cd nnue/cache
+          for f in *.bin; do [ -f "$f" ] && gzip -c "$f" > "/tmp/cachestage/${f}.gz"; done
+          for f in *.meta.json; do [ -f "$f" ] && cp "$f" "/tmp/cachestage/$f"; done
+          cd "$GITHUB_WORKSPACE"
+
+          rm -rf /tmp/cwt
+          git fetch origin gha-segments-16cards
+          git worktree add -B gha-segments-16cards /tmp/cwt origin/gha-segments-16cards
+          mkdir -p /tmp/cwt/nnue-cache
+          cp /tmp/cachestage/* /tmp/cwt/nnue-cache/
+
+          cd /tmp/cwt
+          git config user.email "actions@github.com"
+          git config user.name "gha-selfplay-bot"
+          git add nnue-cache/
+          if git diff --cached --quiet; then
+            echo "nothing new to push"
+          else
+            git commit -q -m "nnue encode cache from run ${{ github.run_id }}"
+            for i in 1 2 3; do
+              git fetch origin gha-segments-16cards -q
+              git rebase origin/gha-segments-16cards -q && break
+              git rebase --abort 2>/dev/null
+              sleep 5
+            done
+            git push -q "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:gha-segments-16cards
+          fi
