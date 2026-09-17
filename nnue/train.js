@@ -641,19 +641,31 @@ async function main() {
   // lower learning rate/dropout to give slower convergence room to actually
   // show whether best-epoch moves past 0-1.
   //
-  // Hand-rolled batch loop instead of model.fit(xTrain, yTrain, {...})
-  // (2026-09-17): fit() needs one full-size xTrain tensor up front, and on
-  // the wasm backend that means copying the WHOLE training set into wasm
-  // linear memory as a single allocation before training even starts --
-  // confirmed live on the round-1 dataset (173k oversampled rows, ~3.8GB)
-  // as a "memory access out of bounds" wasm RuntimeError, well past
-  // whatever this build's wasm heap can grow to. trainFlat/trainLabelsFlat
-  // stay as plain JS Float32Arrays (regular V8 heap, no such ceiling) and
-  // only ONE BATCH_SIZE-row slice gets tensor-ified (then disposed) at a
-  // time -- this is exactly what fit() was already doing internally per
-  // batch, just without the giant tensor it built that slicing from.
-  const BATCH_SIZE = 64;
+  // Chunked model.fit() instead of one all-at-once fit(xTrain, yTrain)
+  // (2026-09-17): fit() needs its input tensor up front, and on the wasm
+  // backend that means copying the WHOLE training set into wasm linear
+  // memory as a single allocation before training even starts -- confirmed
+  // live on the round-1 dataset (173k oversampled rows, ~3.8GB) as a
+  // "memory access out of bounds" wasm RuntimeError, past whatever this
+  // build's wasm heap can grow to.
+  //
+  // A first fix (hand-rolled per-BATCH_SIZE=64-row loop calling
+  // trainOnBatch directly) avoided the OOM but was confirmed live to be
+  // dramatically slower than fit() itself -- 4+ minutes without finishing
+  // even epoch 0, independent of CPU power-saving mode (same slowness with
+  // it off). ~2700 individual JS/async round-trips per epoch (tensor
+  // create -> await trainOnBatch -> dispose, once per 64-row batch) is
+  // apparently a lot more per-call overhead than fit()'s own internal batch
+  // loop pays. Splitting into much bigger CHUNK_SIZE tensors and calling
+  // fit() ONCE per chunk (still with batchSize:64 internally, so the actual
+  // gradient-step granularity/training dynamics are unchanged from before)
+  // cuts that down to ~9 JS-level calls per epoch instead of ~2700, while
+  // each chunk tensor (20000 rows -> ~440MB) stays comfortably under
+  // whatever ceiling broke on the full 3.8GB one.
+  const CHUNK_SIZE = 20000;
   const numExamples = trainIndices.length;
+  const chunkStarts = [];
+  for (let s = 0; s < numExamples; s += CHUNK_SIZE) chunkStarts.push(s);
   const order = new Int32Array(numExamples);
   for (let i = 0; i < numExamples; i += 1) order[i] = i;
   function shuffleOrder() {
@@ -662,25 +674,25 @@ async function main() {
       const tmp = order[i]; order[i] = order[j]; order[j] = tmp;
     }
   }
-  const batchInputBuf = new Float32Array(BATCH_SIZE * INPUT_SIZE);
-  const batchLabelBuf = new Float32Array(BATCH_SIZE);
 
   for (let epoch = 0; epoch < EPOCHS_CAP; epoch += 1) {
     shuffleOrder();
     let trainLossSum = 0;
-    for (let start = 0; start < numExamples; start += BATCH_SIZE) {
-      const rows = Math.min(BATCH_SIZE, numExamples - start);
+    for (const start of chunkStarts) {
+      const rows = Math.min(CHUNK_SIZE, numExamples - start);
+      const chunkInput = new Float32Array(rows * INPUT_SIZE);
+      const chunkLabel = new Float32Array(rows);
       for (let r = 0; r < rows; r += 1) {
         const srcRow = order[start + r];
-        batchInputBuf.set(trainFlat.subarray(srcRow * INPUT_SIZE, (srcRow + 1) * INPUT_SIZE), r * INPUT_SIZE);
-        batchLabelBuf[r] = trainLabelsFlat[srcRow];
+        chunkInput.set(trainFlat.subarray(srcRow * INPUT_SIZE, (srcRow + 1) * INPUT_SIZE), r * INPUT_SIZE);
+        chunkLabel[r] = trainLabelsFlat[srcRow];
       }
-      const xBatch = tf.tensor2d(batchInputBuf.subarray(0, rows * INPUT_SIZE), [rows, INPUT_SIZE]);
-      const yBatch = tf.tensor2d(batchLabelBuf.subarray(0, rows), [rows, 1]);
-      const batchLoss = await model.trainOnBatch(xBatch, yBatch);
-      trainLossSum += (Array.isArray(batchLoss) ? batchLoss[0] : batchLoss) * rows;
-      xBatch.dispose();
-      yBatch.dispose();
+      const xChunk = tf.tensor2d(chunkInput, [rows, INPUT_SIZE]);
+      const yChunk = tf.tensor2d(chunkLabel, [rows, 1]);
+      const history = await model.fit(xChunk, yChunk, { epochs: 1, batchSize: 64, shuffle: true, verbose: 0 });
+      trainLossSum += history.history.loss[0] * rows;
+      xChunk.dispose();
+      yChunk.dispose();
     }
     const trainLoss = trainLossSum / numExamples;
     const valLossTensor = model.evaluate(xVal, yVal, { batchSize: 256 });
