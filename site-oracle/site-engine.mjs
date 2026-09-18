@@ -99336,4 +99336,4 @@ if (typeof window !== "undefined" && typeof document !== "undefined" && readTrue
 } catch (e) {
   console.error("[patched] boot sequence error suppressed:", e && e.message);
 }
-export { state, resetGame, renderAll, pawnMoves, canCaptureTarget, resolveWitchTrialCapture, frontlineResponseBlocksCapture, primeMinisterHasDiagonalCapturePath, isRoyalLikePiece, isRoyalIdentityPiece, isDesperadoTargetCandidate, hasRoyalCommandCaptureAccess, socialismSuppressesRoyalCommand, applyCard, applyCardEffect, royalShield, isEncouraged, isRoyalKing, isDefeatRoyalPiece };
+export { state, resetGame, renderAll, pawnMoves, canCaptureTarget, resolveWitchTrialCapture, frontlineResponseBlocksCapture, primeMinisterHasDiagonalCapturePath, isRoyalLikePiece, isRoyalIdentityPiece, isDesperadoTargetCandidate, hasRoyalCommandCaptureAccess, socialismSuppressesRoyalCommand, applyCard, applyCardEffect, royalShield, isEncouraged, isRoyalKing, isDefeatRoyalPiece, decodeAcgRecord, acgCodecOptions };

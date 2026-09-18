@@ -494,7 +494,7 @@ function explorationChance(plyIndex) {
   return plyIndex < EXPLORATION_OPENING_PLIES ? 0.15 : 0;
 }
 
-function playOneGame({ searchDepth, searchTimeMs, maxPlies, seed, flexibleBudget = true }) {
+function playOneGame({ searchDepth, searchTimeMs, maxPlies, seed, flexibleBudget = true, evalFnByColor = null }) {
   const rng = makeRng(seed);
   const state = makeInitialState(rng);
   const record = [];
@@ -564,7 +564,7 @@ function playOneGame({ searchDepth, searchTimeMs, maxPlies, seed, flexibleBudget
         MAX_BASE_SEARCH_MS,
         searchTimeMs + Math.max(0, actions.length - CANDIDATE_BASELINE) * EXTRA_MS_PER_CANDIDATE
       );
-      let result = engine.searchBestAction(state, actions, color, searchDepth, adaptiveSearchTimeMs, { flexibleBudget, evalFn: nnueEvalFn || void 0 });
+      let result = engine.searchBestAction(state, actions, color, searchDepth, adaptiveSearchTimeMs, { flexibleBudget, evalFn: (evalFnByColor && evalFnByColor[color]) || nnueEvalFn || void 0 });
       // Adaptive retry (added 2026-09-11): completedDepth 0 means
       // searchAtDepth never finished even once within the budget, so
       // searchBestAction's returned action is really just
@@ -580,7 +580,7 @@ function playOneGame({ searchDepth, searchTimeMs, maxPlies, seed, flexibleBudget
       // while still getting a real score for the plies that need it. One
       // retry only, no unbounded loop.
       if (!result.completedDepth) {
-        result = engine.searchBestAction(state, actions, color, searchDepth, adaptiveSearchTimeMs * 4, { flexibleBudget, evalFn: nnueEvalFn || void 0 });
+        result = engine.searchBestAction(state, actions, color, searchDepth, adaptiveSearchTimeMs * 4, { flexibleBudget, evalFn: (evalFnByColor && evalFnByColor[color]) || nnueEvalFn || void 0 });
       }
       if (!result.action) break;
       chosenAction = result.action;
@@ -699,6 +699,17 @@ function playOneGame({ searchDepth, searchTimeMs, maxPlies, seed, flexibleBudget
   };
 }
 
-const startedAt = Date.now();
-const result = playOneGame(workerData);
-parentPort.postMessage({ ...result, ms: Date.now() - startedAt });
+// parentPort is only non-null when actually running inside a real
+// worker_threads Worker (normal self-play path, unchanged). When this file
+// is `require()`'d directly instead (2026-09-18, for a head-to-head match
+// script comparing two NNUE weight files), parentPort is null and this
+// exports playOneGame/makeRng for reuse instead of executing as a worker --
+// reuses the REAL game-setup/turn-loop logic (deck draft, special pieces,
+// draw rules) rather than a second hand-written copy that could drift from it.
+if (parentPort) {
+  const startedAt = Date.now();
+  const result = playOneGame(workerData);
+  parentPort.postMessage({ ...result, ms: Date.now() - startedAt });
+} else {
+  module.exports = { playOneGame, makeRng };
+}
