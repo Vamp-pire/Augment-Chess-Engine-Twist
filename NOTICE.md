@@ -31,6 +31,8 @@
 | `audit-data/` | 사이트의 카드·기물 목록을 대조한 자료 |
 | 카드 이름·기물 이름·규칙 목록 | `nnue/encode.js`, `extension/nnue.js` 안의 목록 등 |
 
+**운영자의 동의**: `site-oracle/`의 번들 사본을 오라클로 보관하면서 GitHub 저장소에 올리는 것, 그리고 이 문서로 출처와 권리 관계를 밝히는 것에 대해 운영자(개발자)에게 문의했고 디스코드에서 괜찮다는 답을 받았습니다(2026-09-19). 이 동의는 사이트 자료에 대한 권리가 운영자에게 있다는 점과 그 자료가 이 저장소의 `LICENSE` 대상이 아니라는 점을 바꾸지 않습니다.
+
 ### Stockfish (GPL-3.0)
 `extension/stockfish/`의 Stockfish.js 18은 **GNU GPL v3**로 배포되는 별개의 프로그램이며, 이 프로젝트의 라이선스와 무관합니다.
 라이선스 전문은 `extension/stockfish/COPYING-GPL-3.0.txt`에 있고, 소스는 아래에서 받을 수 있습니다.
