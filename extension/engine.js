@@ -11844,6 +11844,11 @@
     delete target.quantum;
     piece.moved = true;
     target.moved = true;
+    // Site parity (2026-09-19): swap paths also record thief movement and
+    // disassemble a moved queen, like the plain-move path.
+    disassembleMovedQueen(boardState, piece, from, move, piece.type, internalWorkerCallbacks(boardState));
+    noteThiefMove(piece, from, move, boardState);
+    if (usesThiefRemake(boardState)) noteThiefMove(target, move, from, boardState);
     if (piece.type === "trickster") {
       piece.tricksterPreviousAbilityForTurn = tricksterAbilityType(piece);
       rerollWorkerTricksterAbility(boardState, piece, `${piece.id || "trickster"}:${Number(boardState.moveCount) || 0}:${move.row}:${move.col}:substitution`);
@@ -11942,6 +11947,9 @@
       set(boardState, move.row, move.col, piece);
       piece.moved = true;
       target2.moved = true;
+      disassembleMovedQueen(boardState, piece, from, move, piece.type, internalWorkerCallbacks(boardState));
+      noteThiefMove(piece, from, move, boardState, [portalEntry, portalExit]);
+      if (usesThiefRemake(boardState)) noteThiefMove(target2, move, from, boardState);
       if (piece.type === "trickster") {
         piece.tricksterPreviousAbilityForTurn = movedAbilityType;
         rerollWorkerTricksterAbility(boardState, piece, `${piece.id || "trickster"}:${Number(boardState.moveCount) || 0}:${move.row}:${move.col}:relay`);
@@ -12622,7 +12630,7 @@
     }
     set(boardState, move.row, move.col, piece);
     if (piece.locustOrigin) piece.locustUsed = true;
-    noteThiefMove(piece, from, move, boardState);
+    noteThiefMove(piece, from, move, boardState, [portalEntry, portalExit]);
     disassembleMovedQueen(boardState, piece, from, move, movedAsType, internalWorkerCallbacks(boardState));
     septemberConsumeResolveMove(boardState, color, movedAsType);
     if (movedAbilityType === "slime" && move.slimeMove && !get(boardState, from.row, from.col)) {

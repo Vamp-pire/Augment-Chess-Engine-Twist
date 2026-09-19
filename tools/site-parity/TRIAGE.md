@@ -99,5 +99,6 @@ Minimal fix: define `function invalidateBoardCaches(boardState) { THREE_CACHE.de
 
 ## Status (2026-09-19, end of day)
 Applied: F1 portalGun non-blocking, F2 thief second move, F4 six-fixes gate, F6 board-cache invalidation (invalidateBoardCaches around applyAction).
-Not applied: F3 (noteThiefMove in swap paths — minor, thief movement restrictions after a swap) and F5 (parrot memory guard — could change self-play behaviour; needs a decision).
+Applied later: F3 (noteThiefMove + disassembleMovedQueen in swap paths, 2026-09-19).
+Not applied: F5 (parrot memory guard — could change self-play behaviour; needs a decision).
 Playout (seed 4242, 60x40): 27 divergences before -> 11 after; the rest are locustSwarm (expected), random-target brutus/freeze, parrot (F5).
