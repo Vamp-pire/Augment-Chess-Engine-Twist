@@ -141,7 +141,15 @@ const ENCODE_CACHE_DIR = path.join(__dirname, "cache");
 function encodeCacheKey(dataFile) {
   const encodeMtime = fs.statSync(path.join(__dirname, "encode.js")).mtimeMs;
   const contentHash = crypto.createHash("sha1").update(fs.readFileSync(dataFile)).digest("hex").slice(0, 16);
-  return contentHash + "." + Math.round(encodeMtime);
+  // ENCODE_CACHE_SALT (2026-09-19): the encoded features come from
+  // engine-merged.js's evaluateStateComponents, but this key only covered the
+  // data file + encode.js mtime -- so after an engine rules/balance change an
+  // old cache would silently be reused with stale features. The cloud train
+  // workflow sets the salt to a hash of engine-merged.js + encode.js; unset
+  // (default) keeps the legacy key so existing caches and local runs behave
+  // exactly as before.
+  const salt = process.env.ENCODE_CACHE_SALT ? "-" + process.env.ENCODE_CACHE_SALT : "";
+  return contentHash + "." + Math.round(encodeMtime) + salt;
 }
 
 async function encodeInParallel(entries) {
