@@ -55,3 +55,7 @@ Dependency: C (measure) first -> A (speed) -> B (evaluation) -> back to A.
 - Residual model (RESIDUAL=1, resid300-r3p, 50k round-3 positions) @hybrid300 vs handcoded: 23-22 (51%) -> no gain yet; retrain on the full round 3.
 - Tactics set (nnue/tactics-set.json, 75 positions, reference depth>=3): handcoded 16.0%, Squall@atanh400 16.0%, blend0.8 17.3%, resid@hybrid150 17.3%, resid@hybrid300 18.7% (+-4 pts noise) -> too easy to miss, cannot separate models yet; needs faster search to build a deeper reference.
 - Parrot check: parity-actions 0/300 differ; playouts 5/60 diverge (locustSwarm x2 expected, promotionRush x1, brutus x1, plain move x1) -> none parrot-related; leftovers listed in TODO.
+
+## While round 3 finishes (2026-09-20 morning)
+Order: (1) rule-fidelity check of the playout divergences (promotionRush, brutus, plain move) -- threats first; (2) card-heavy equivalence set for the speed changes (current checks are card-light); (3) speed A3: cloneState / quiescence ordering, only with identical-output proof; (4) refactor prep: list dead/unused files (legacy/, logs/, audit-data/, tools/perf junk) into a deletion candidate list, no deletion yet; (5) extension: add the residual model as a selectable entry behind the same picker (code ready, ships only if the full-round-3 retrain passes the gate).
+Stop conditions: round 3 reaches 150k -> switch to dataset-build -> retrain (RESIDUAL, 3 scales) -> matches (100+ decisive games).
