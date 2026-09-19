@@ -14,7 +14,7 @@ augmentchess.org(증강체스: 카드와 특수 기물이 있는 체스)의 AI�
 | `extension/` | 크롬 확장. `engine.js`는 `engine-merged.js`의 사본(아래 "확장 동기화") |
 | `extension/model/` | 확장에 실리는 모델 `nnue-squall.json`(기본), `nnue-tornado.json` |
 | `nnue/` | 학습 코드: `encode.js`(입력 인코더), `train.js`, `forward.js`, `match-two-models.js`, `match-depth.js`, 분석 스크립트 |
-| `nnue/model/` | 학습된 가중치 보관(`weights.json` = 현재 Squall). `pipeline-config.json`은 클라우드 학습 기본 설정 |
+| `nnue/model/` | 가중치. **저장소에는 라인업 4개만** 추적하고 실험 모델·백업은 로컬에만 둡니다(`.gitignore`). 클라우드 대전(`match.yml`)에 실험 모델을 쓰려면 `git add -f`로 잠깐 올려야 합니다. `pipeline-config.json`은 클라우드 학습 기본 설정 |
 | `selfplay-run-merged.js`, `selfplay-worker-merged.js` | 자기대국 실행기/워커 (클라우드 워크플로가 이걸 실행) |
 | `selfplay-data.jsonl` | 로컬 작업용 현재 데이터(하나만 루트에 둠, `train.js` 기본 경로) |
 | `smoke-merged.js` | 엔진 스모크 테스트 |
@@ -70,4 +70,4 @@ node nnue/match-two-models.js <A> <B> 10   # 모델 대전 (A/B는 가중치 경
 | Typhoon | `nnue/model/weights.baseline-current.json` | 라운드1 기준 |
 | Tornado | `nnue/model/weights.round1-candidate.json` | 확장에서 선택 가능 |
 | Squall | `nnue/model/weights.round2-full-112981.json` (= `weights.json`) | 확장 기본값 |
-| Blend0.8 | `nnue/model/weights.blend0.8-round2.json` | 검색 점수 비중 0.8 실험 모델 |
+| Blend0.8 | `nnue/model/weights.blend0.8-round2.json` (로컬 전용) | 검색 점수 비중 0.8 실험 모델, 실전에서 Squall보다 낫지 않음 |

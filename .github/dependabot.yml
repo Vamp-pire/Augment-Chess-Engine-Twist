@@ -1,0 +1,14 @@
+version: 2
+updates:
+  # npm packages (TensorFlow.js for training) -- security and version alerts
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
+  # GitHub Actions used by the workflows (checkout, setup-node, artifacts)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3

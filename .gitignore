@@ -15,3 +15,11 @@ scratch_*.jsonl
 
 # archived/experimental local data moved here on 2026-09-19 (see PROJECT.md)
 data/
+
+# NNUE weights: only the current lineup is tracked; experiments and run backups
+# stay local (2026-09-19). Files are kept on disk, just not committed.
+nnue/model/*
+!nnue/model/weights.json
+!nnue/model/weights.baseline-current.json
+!nnue/model/weights.round1-candidate.json
+!nnue/model/weights.round2-full-112981.json

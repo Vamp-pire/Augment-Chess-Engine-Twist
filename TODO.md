@@ -25,7 +25,7 @@ Last updated: 2026-09-19. Project map: `PROJECT.md`. Background: `HANDOFF.md`, `
 | deep units 4 / 8 / 8 + blend 0.5 / 8 + blend 0.8 | 67.4 / 68.7 / 68.9 / 69.5 |
 | blend 0.8 re-encoded with the NEW engine features | 70.6% (same as old features -> the 9/19 rule changes do not force a retrain) |
 
-- More search-score weight helps val accuracy (+2-4 pts), but **in play blend-0.8 did not beat Squall** (local match: 3 wins / 7 losses / 22 draws, 33 games) -> accuracy != strength
+- More search-score weight helps val accuracy (+2-4 pts), but **in play blend-0.8 did not beat Squall** (local match, 42 games: 5 wins / 9 losses / 27 draws / 1 unfinished; 5 of 14 decisive = 36%, within noise but not better) -> accuracy != strength
 - Draws dominate model-vs-model matches; judge by decisive games and never trust fewer than ~10 of them
 - The engine evaluation is ~3.4x and search ~1.5x faster with identical output (`tools/perf`)
 
@@ -62,7 +62,7 @@ Last updated: 2026-09-19. Project map: `PROJECT.md`. Background: `HANDOFF.md`, `
 | Typhoon | `weights.baseline-current.json` | Round 1 baseline |
 | Tornado | `weights.round1-candidate.json` | selectable in the extension |
 | Squall | `weights.round2-full-112981.json` (= `weights.json`) | extension default |
-| Blend0.8 | `weights.blend0.8-round2.json` | experiment; not better in play |
+| Blend0.8 | `weights.blend0.8-round2.json` (local only, not tracked) | experiment; not better in play |
 
 ## Done (recent)
 
