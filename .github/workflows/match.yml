@@ -74,6 +74,25 @@ jobs:
           MATCH_DEPTH_B: ${{ inputs.depth_b }}
           MATCH_SEARCH_MS: ${{ inputs.ms }}
         run: |
+          # A spec is "<weights path | handcoded | data:<path on gha-segments-16cards>>[@<output map>]".
+          # data:models/x.json pulls an experiment model from the data branch, so
+          # experiments never need to be committed to master.
+          resolve() {
+            local spec="$1" base suffix=""
+            base="${spec%%@*}"
+            if [[ "$spec" == *@* ]]; then suffix="@${spec#*@}"; fi
+            if [[ "$base" == data:* ]]; then
+              local p="${base#data:}"
+              mkdir -p .models
+              git fetch --depth=1 -q origin gha-segments-16cards
+              git show "origin/gha-segments-16cards:${p}" > ".models/$(basename "$p")"
+              echo ".models/$(basename "$p")${suffix}"
+            else
+              echo "$spec"
+            fi
+          }
+          MODEL_A="$(resolve "$MODEL_A")"
+          MODEL_B="$(resolve "$MODEL_B")"
           export MATCH_PAIR_START=$(( ${{ matrix.shard }} * PAIRS ))
           node nnue/match-two-models.js "$MODEL_A" "$MODEL_B" "$PAIRS" | tee "shard-${{ matrix.shard }}.log"
 
