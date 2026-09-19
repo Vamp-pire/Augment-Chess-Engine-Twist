@@ -81,6 +81,13 @@ jobs:
           CUTOFF_ISO: ${{ vars.SELFPLAY_CUTOFF_ISO || '2026-09-22T04:00:00Z' }}
           SELFPLAY_SEARCH_DEPTH: ${{ vars.SELFPLAY_DEPTH || '6' }}
           SELFPLAY_SEARCH_MS: ${{ vars.SELFPLAY_MS || '1500' }}
+          # Self-stopping: every 15-min checkpoint, and at start, the job adds up
+          # the positions of this round (runs started at/after ROUND_START, from
+          # the segment file names) and stops once TARGET is reached (0 = off).
+          #   SELFPLAY_ROUND_START  YYYYMMDDTHHMMSSZ of the round's first run
+          #   SELFPLAY_TARGET       positions wanted, e.g. 150000
+          ROUND_START: ${{ vars.SELFPLAY_ROUND_START || '20260919T035300Z' }}
+          TARGET: ${{ vars.SELFPLAY_TARGET || '150000' }}
         # GitHub Actions' default `bash` shell runs with -e (abort on first
         # non-zero exit), which silently killed the whole step the moment an
         # intentionally-allowed-to-fail command (fetching a not-yet-existing
@@ -164,6 +171,26 @@ jobs:
             )
           }
 
+          # Positions collected this round = per run the highest "lines a-b" end
+          # in its segment names (includes the -final segments), summed.
+          count_round_positions() {
+            ls /tmp/segwt/segments/ 2>/dev/null | grep '^ckpt-gha-' \
+              | sed -E 's#^ckpt-gha-([0-9]{8}T[0-9]{6}Z)-([0-9]+(-s[0-9]+)?)-lines[0-9]+-([0-9]+)(-final)?\.jsonl\.gz$#\1 \2 \4#' \
+              | awk -v since="$ROUND_START" '$1 >= since { if ($3 > m[$1 $2]) m[$1 $2] = $3 } END { t = 0; for (k in m) t += m[k]; print t + 0 }'
+          }
+          target_reached() {
+            [ "$TARGET" -gt 0 ] || return 1
+            local total
+            total=$(count_round_positions)
+            echo "round positions so far: $total / $TARGET"
+            [ "$total" -ge "$TARGET" ]
+          }
+
+          if target_reached; then
+            echo "target already reached -- stopping before collecting more"
+            kill "$SELFPLAY_PID" 2>/dev/null || true
+          fi
+
           LAST_LINE=0
           WALL_START=$(date -u +%s)
           while kill -0 "$SELFPLAY_PID" 2>/dev/null; do
@@ -178,6 +205,11 @@ jobs:
               LAST_LINE=$N
             fi
             echo "checkpoint loop: elapsed=$((NOW-WALL_START))s lines_so_far=$LAST_LINE pid_alive=yes"
+            if target_reached; then
+              echo "TARGET REACHED -- stopping self-play (the final partial checkpoint is still saved below)"
+              kill "$SELFPLAY_PID" 2>/dev/null || true
+              break
+            fi
           done
 
           wait "$SELFPLAY_PID" || true
