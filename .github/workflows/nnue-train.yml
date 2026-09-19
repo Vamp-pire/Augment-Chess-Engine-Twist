@@ -261,7 +261,7 @@ jobs:
           cp nnue/model/weights.json /tmp/saved-model.json
           rm -rf /tmp/mwt
           git fetch origin gha-segments-16cards
-          git worktree add -B gha-segments-16cards /tmp/mwt origin/gha-segments-16cards
+          git worktree add --detach /tmp/mwt origin/gha-segments-16cards
           mkdir -p /tmp/mwt/models
           cp /tmp/saved-model.json "/tmp/mwt/models/${MODEL_NAME}.json"
           cd /tmp/mwt

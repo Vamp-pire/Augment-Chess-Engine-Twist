@@ -4234,7 +4234,7 @@
     if (afterState.mode === "gameover") return afterState.winner && afterState.winner !== aiColor && afterState.winner !== "draw";
     const enemy = opponent(aiColor);
     if (afterState.turn !== enemy) return false;
-    const replies = generateActions(afterState, enemy);
+    const replies = orderActions(generateActions(afterState, enemy), afterState, enemy);
     if (replies.some((reply) => actionDecisivelyWins(afterState, reply, enemy))) return true;
     return rootCandidateAllowsImmediateDecisiveSetupReply(afterState, replies, enemy);
   }
@@ -4244,7 +4244,7 @@
       const next = cloneState(afterState);
       const applied = applyAction(next, cloneAction(setup), enemy);
       if (!applied.ok || next.mode === "gameover" || next.turn !== enemy) continue;
-      const followups = generateActions(next, enemy);
+      const followups = orderActions(generateActions(next, enemy), next, enemy);
       if (followups.some((followup) => actionDecisivelyWins(next, followup, enemy))) return true;
     }
     return false;
@@ -4255,24 +4255,8 @@
     if (!card || card.used || card.recovering || isWorkerCardPendingNextTurn(card)) return false;
     return card.effect === "bishopSnipe";
   }
-  // Cheap exact-in-practice prefilter (tools/perf/prefilter-check.js: 0 violations
-  // over 12k replies): a plain move by a standard piece (no extra move fields) can
-  // only end the game / remove a royal by landing on it, so skip clone+apply unless
-  // the destination holds a piece of the victim that might be royal.
-  const PLAIN_MOVER_TYPES = /* @__PURE__ */ new Set(["pawn", "knight", "bishop", "rook", "queen", "king"]);
-  const PLAIN_TARGET_TYPES = /* @__PURE__ */ new Set(["pawn", "knight", "bishop", "rook", "queen"]);
-  function actionCannotRemoveRoyal(boardState, action, color) {
-    if (action.type !== "move" || !action.from || !action.move) return false;
-    const mover = boardState.board?.[action.from.row]?.[action.from.col];
-    if (!mover || !PLAIN_MOVER_TYPES.has(mover.type)) return false;
-    for (const key in action.move) if (key !== "row" && key !== "col") return false;
-    const dest = boardState.board?.[action.move.row]?.[action.move.col];
-    if (dest && dest.color !== color && !PLAIN_TARGET_TYPES.has(dest.type)) return false;
-    return true;
-  }
   function actionDecisivelyWins(boardState, action, color, afterState = null) {
     if (!boardState || !action) return false;
-    if (!afterState && actionCannotRemoveRoyal(boardState, action, color)) return false;
     const beforeRoyal = royalPieceIdentityKeys(boardState, opponent(color));
     const next = afterState || cloneState(boardState);
     if (!afterState) {
@@ -4440,7 +4424,7 @@
     if (candidate?.afterState?.turn !== opponent(aiColor)) return false;
     const movedRef = rootMovedPieceRef(moving, action);
     const enemy = opponent(aiColor);
-    const replies = generateActions(candidate.afterState, enemy);
+    const replies = orderActions(generateActions(candidate.afterState, enemy), candidate.afterState, enemy);
     for (const reply of replies) {
       if (rootSafetyDeadlineTight(context)) return false;
       if (rootReplyCreatesBadFleeThreat(candidate.afterState, reply, aiColor, movedRef, moving, candidate.captureSwing)) {
@@ -4964,7 +4948,7 @@
       const next = cloneState(boardState);
       const applied = applyAction(next, cloneAction(action), aiColor);
       if (!applied.ok || next.mode === "gameover" || next.turn !== aiColor) continue;
-      const followups = generateActions(next, aiColor);
+      const followups = orderActions(generateActions(next, aiColor), next, aiColor);
       if (followups.some((followup) => actionCapturesRoyal(next, followup, aiColor))) return action;
     }
     return null;
