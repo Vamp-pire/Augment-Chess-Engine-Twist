@@ -33,6 +33,17 @@ Last updated: 2026-09-19. Project map: `PROJECT.md`. Background: `HANDOFF.md`, `
 - Draws dominate model-vs-model matches; judge by decisive games and never trust fewer than ~10 of them
 - The engine evaluation is ~3.4x and search ~1.5x faster with identical output (`tools/perf`)
 
+## Engine improvement candidates (2026-09-19; needs time / to be reviewed)
+
+Order of value (measure first, then evaluation, then data): 4 -> 1 -> 3.
+
+- [ ] 1. Evaluation: let the hand-coded evaluator keep the material/tactics and train the NNUE only on the DIFFERENCE (target = deep search score - hand-coded score). Alternatives: add material/threat features directly or feed them to the output layer. Background: trained nets barely react to material (queen down moves the output by ~0.09)
+- [ ] 3. Data: finish round 3 (target 150k, deep labels) and retrain with it; more opening/hand diversity; discount already-decided games; later self-play with the improved model (bootstrap). Round 3 was ~6x more sample-efficient than round 2
+- [ ] 4. Measurement (under review): far more games per comparison (64 is too few), position sets with fewer draws, a tactics test set (find the best move) instead of win/loss only, frozen benchmark
+- [ ] 5. Rule fidelity (under review): finish the remaining site-parity differences, automatic parity check whenever the site updates
+- [ ] 2. Search (lower priority for now): measure the time extension in play (match running), more speed (card threats, state cloning, move generation). Depth 4 showed no gain over depth 2 at 1.5 s
+- [ ] 6. Review: in progress, see CHANGELOG (context, depth confidence, brilliant/great/miss)
+
 ## In flight (2026-09-19, cloud)
 
 - Why NNUE is not stronger than the hand-coded evaluator: the trained nets barely react to material (start position minus a queen: Squall output -0.011 vs +0.078 even; hand-coded -1284; blend0.8 model 0.29 -> -0.16). Labels are mostly draws, so outputs stay near 0 and the engine's x100 mapping makes them tiny next to the hand-coded scale the safety rules are tuned to
