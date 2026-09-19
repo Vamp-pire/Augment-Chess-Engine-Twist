@@ -4,7 +4,7 @@ Last updated: 2026-09-19. Background and findings: `D:\HANDOFF-모음\증강체�
 
 ## Now / next
 
-- [ ] **Round 3 self-play is RUNNING** (depth 4, 700ms/move). **CUTOFF 2026-09-22T04:00:00Z** (`CUTOFF_ISO` in .github/workflows/selfplay.yml). If a round 4 is wanted, bump the cutoff BEFORE that time; otherwise aggregate the round-3 data afterwards
+- [ ] **Round 3 self-play is RUNNING**: depth 6, 1500ms/move, 4 parallel shards, started 2026-09-19T03:54Z. **Target ~150k positions** (count lines in `segments/` on branch gha-segments-16cards; ~5k/h per job at the old 200ms setting, expect far less per job now). Stop early once enough (cancel the runs and set `CUTOFF_ISO` in selfplay.yml to now, otherwise the 6-hourly cron keeps going). Backstop cutoff **2026-09-22T04:00:00Z**
 - [ ] Real-play check of blend-0.8 model (weights.blend0.8-round2.json, 70.6% on round-2 val) vs Squall: `logs/match-b08-vs-squall-*.log`. Accuracy != strength
 - [ ] Blend fine-tuning around 0.8 (0.7/0.9/0.8+units8/0.8 repeat for noise) via `nnue-train-only.yml` with `overrides` + `merge=false`
 - [ ] Depth 2 vs 4 (handcoded): `logs/depth-2v4-part*.log` (slow, ~10 min/game)
