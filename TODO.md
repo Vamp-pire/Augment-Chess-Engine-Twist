@@ -4,15 +4,15 @@ Last updated: 2026-09-19. Background and findings: `D:\HANDOFF-모음\증강체�
 
 ## Now / next
 
-- [ ] Check that depth actually helps: handcoded depth 2 vs depth 4, color-swapped, ~10 pairs. Decides whether speed work is worth it
-- [ ] Speed up `evaluateStateComponents` (~11ms/call; `tacticalSafetyScore` is 57.8%, engine-merged.js:15286)
-  - Needs go-ahead before touching; output must stay identical (diff old vs new on sampled positions)
-  - Why it matters: self-play depth 5 was nominal, ~90% of moves finished only depth 1 in 200ms
-  - Ideas: cache per-piece threat info, avoid the O(N^2) capture-threat scan; then `positionalScore` (12%), `cardThreatScore` (9%)
-- [ ] Build a frozen external benchmark (`nnue/eval-benchmark-fixed.json`)
-  - Positions labelled by objective material balance (`PIECE_VALUES`, engine-merged.js:3339), only large imbalances
-  - Plus the 38 real-game ACG positions; commit once, never regenerate
-- [ ] Decide default model in extension: Squall (default now) vs Tornado. Both selectable; no significant difference in deep matches
+- [ ] **Round 3 self-play is RUNNING** (depth 4, 700ms/move). **CUTOFF 2026-09-22T04:00:00Z** (`CUTOFF_ISO` in .github/workflows/selfplay.yml). If a round 4 is wanted, bump the cutoff BEFORE that time; otherwise aggregate the round-3 data afterwards
+- [ ] Real-play check of blend-0.8 model (weights.blend0.8-round2.json, 70.6% on round-2 val) vs Squall: `logs/match-b08-vs-squall-*.log`. Accuracy != strength
+- [ ] Blend fine-tuning around 0.8 (0.7/0.9/0.8+units8/0.8 repeat for noise) via `nnue-train-only.yml` with `overrides` + `merge=false`
+- [ ] Depth 2 vs 4 (handcoded): `logs/depth-2v4-part*.log` (slow, ~10 min/game)
+- [ ] Verify the extension in Chrome (reload unpacked): model dropdown, review, live-bot NNUE inside the worker
+- [ ] Decide whether PIECE_VALUES change (paladin/octopus/brutus/clockwork/parrot/thief, missionary 200) needs a re-encode: retrain from round-3 data will use the new engine features anyway
+- [ ] Remaining engine parity: F3 (noteThiefMove in swap paths) and F5 (parrot memory guard; may change self-play behaviour) -- see tools/site-parity/TRIAGE.md
+- [ ] Extension UX/UI: show active model / evaluator in the perf panel, model loading/failure state
+- [ ] Build a frozen external benchmark (`nnue/eval-benchmark-fixed.json`) and round-robin models once it exists
 
 ## Training ideas (from the ceiling analysis)
 
@@ -52,6 +52,11 @@ Last updated: 2026-09-19. Background and findings: `D:\HANDOFF-모음\증강체�
 | Squall | `weights.round2-full-112981.json` (= deployed `weights.json`) | Round 2, 67.1% on round-2 split |
 
 ## Done (recent)
+
+- [x] 2026-09-19: evaluateStateComponents ~3.4x faster, search ~1.5x, output identical (tools/perf harness); cache-staleness bug found+fixed
+- [x] 2026-09-19: tools/site-parity (parity vs live site worker, site-update checker); engine fixes: portalGun, thief second move, six-fixes gate, board-cache invalidation
+- [x] 2026-09-19: warm-start ablation: 67.2% vs Squall 67.1% -> no effect
+- [x] 2026-09-19: label blend sweep on round-2 cache (val acc): 0.3=69.1, 0.5=69.2, 0.8=70.6, 1.0=67.8 (baseline 0.15=67.1); units 8=68.7, units 4=67.4
 
 - [x] 2026-09-19: engine-merged.js synced to site 9/19 patch (generateActions identical on 600 random boards vs live worker); site-oracle bundle refreshed
 - [x] 2026-09-19: extension now ships engine-merged.js + 184-card/40-plane NNUE encoder; Tornado/Squall selectable in the review box (Node-vs-extension score diff 0 on 300 positions)

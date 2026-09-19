@@ -28,6 +28,8 @@ if (!weightsAPath || !weightsBPath) {
   process.exit(1);
 }
 const PAIR_COUNT = Number(pairCountArg) || 20;
+// MATCH_PAIR_START lets several processes play disjoint seed ranges in parallel.
+const PAIR_START = Number(process.env.MATCH_PAIR_START) || 0;
 const SEARCH_DEPTH = Number(process.env.MATCH_SEARCH_DEPTH) || 3;
 const SEARCH_TIME_MS = Number(process.env.MATCH_SEARCH_MS) || 80;
 const MAX_PLIES = Number(process.env.MATCH_MAX_PLIES) || 300;
@@ -82,7 +84,7 @@ function playAndScore(seed, evalFnByColor, label) {
 }
 
 console.log(`Match: ${path.basename(weightsAPath)} (A) vs ${path.basename(weightsBPath)} (B), ${PAIR_COUNT} pairs (${PAIR_COUNT * 2} games), depth=${SEARCH_DEPTH} time=${SEARCH_TIME_MS}ms maxPlies=${MAX_PLIES}`);
-for (let i = 0; i < PAIR_COUNT; i += 1) {
+for (let i = PAIR_START; i < PAIR_START + PAIR_COUNT; i += 1) {
   const seed = 1000000 + i * 7919; // arbitrary but deterministic/reproducible spacing
   playAndScore(seed, { white: evalA, black: evalB }, `pair ${i} game 1`);
   playAndScore(seed, { white: evalB, black: evalA }, `pair ${i} game 2 (swapped)`);
