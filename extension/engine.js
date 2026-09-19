@@ -4766,7 +4766,8 @@
       if (standPat <= alpha) return standPat;
       beta = Math.min(beta, standPat);
     }
-    const captureActions = orderActions(generateActions(boardState, color), boardState, color).filter((action) => isCaptureAction(boardState, action) || (qDepth === QUIESCENCE_MAX_PLIES && isTacticallyRelevantCardAction(boardState, action, color)));
+    // Filter first, order after: the order key (score desc, index asc) keeps the relative order of a subsequence, so this equals order-then-filter but scores far fewer actions.
+    const captureActions = orderActions(generateActions(boardState, color).filter((action) => isCaptureAction(boardState, action) || (qDepth === QUIESCENCE_MAX_PLIES && isTacticallyRelevantCardAction(boardState, action, color))), boardState, color);
     if (!captureActions.length) return standPat;
     if (isMaximizingPlayer) {
       let value2 = standPat;
