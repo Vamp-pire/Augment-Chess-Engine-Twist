@@ -31,6 +31,9 @@ const PAIR_COUNT = Number(pairCountArg) || 20;
 // MATCH_PAIR_START lets several processes play disjoint seed ranges in parallel.
 const PAIR_START = Number(process.env.MATCH_PAIR_START) || 0;
 const SEARCH_DEPTH = Number(process.env.MATCH_SEARCH_DEPTH) || 3;
+// MATCH_DEPTH_A / MATCH_DEPTH_B give each side its own depth (e.g. handcoded depth 2 vs depth 4).
+const DEPTH_A = Number(process.env.MATCH_DEPTH_A) || SEARCH_DEPTH;
+const DEPTH_B = Number(process.env.MATCH_DEPTH_B) || SEARCH_DEPTH;
 const SEARCH_TIME_MS = Number(process.env.MATCH_SEARCH_MS) || 80;
 const MAX_PLIES = Number(process.env.MATCH_MAX_PLIES) || 300;
 
@@ -69,7 +72,11 @@ function playAndScore(seed, evalFnByColor, label) {
     maxPlies: MAX_PLIES,
     seed,
     flexibleBudget: true,
-    evalFnByColor
+    evalFnByColor,
+    searchDepthByColor: {
+      white: evalFnByColor.white === evalA ? DEPTH_A : DEPTH_B,
+      black: evalFnByColor.black === evalA ? DEPTH_A : DEPTH_B
+    }
   });
   const whoIsA = evalFnByColor.white === evalA ? "white" : "black";
   let outcomeForA;

@@ -28,6 +28,14 @@ on:
         description: "Search depth"
         required: false
         default: "3"
+      depth_a:
+        description: "Optional depth for A only (empty = depth); e.g. handcoded vs handcoded with 2 vs 4"
+        required: false
+        default: ""
+      depth_b:
+        description: "Optional depth for B only (empty = depth)"
+        required: false
+        default: ""
       ms:
         description: "Base search time per move in ms"
         required: false
@@ -62,6 +70,8 @@ jobs:
           MODEL_B: ${{ inputs.model_b }}
           PAIRS: ${{ inputs.pairs_per_shard }}
           MATCH_SEARCH_DEPTH: ${{ inputs.depth }}
+          MATCH_DEPTH_A: ${{ inputs.depth_a }}
+          MATCH_DEPTH_B: ${{ inputs.depth_b }}
           MATCH_SEARCH_MS: ${{ inputs.ms }}
         run: |
           export MATCH_PAIR_START=$(( ${{ matrix.shard }} * PAIRS ))
