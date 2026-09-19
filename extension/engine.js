@@ -17838,7 +17838,9 @@
     forEachPieceRaw(boardState, callback);
   }
   function forEachPieceRaw(boardState, callback) {
-    const seen = /* @__PURE__ */ new Set();
+    // Pieces without an id are unique per cell, so only real ids need the dedupe set
+    // (multi-cell pieces share an id).
+    let seen = null;
     const rowCount = boardRowCount(boardState);
     const colCount = boardColCount(boardState);
     const boardRows = boardState.board;
@@ -17846,9 +17848,12 @@
       for (let col = 0; col < colCount; col += 1) {
         const piece = boardRows[row]?.[col] || null;
         if (!piece) continue;
-        const id = piece.id || `${row}:${col}`;
-        if (seen.has(id)) continue;
-        seen.add(id);
+        const id = piece.id;
+        if (id) {
+          if (seen === null) seen = /* @__PURE__ */ new Set();
+          if (seen.has(id)) continue;
+          seen.add(id);
+        }
         if (Number.isInteger(piece.anchorRow) && Number.isInteger(piece.anchorCol) && (piece.anchorRow !== row || piece.anchorCol !== col)) continue;
         callback(piece, row, col);
       }
