@@ -67,6 +67,9 @@ jobs:
       - name: Smoke test
         run: node smoke-merged.js
 
+      - name: Extension engine in sync
+        run: node tools/ci/engine-sync.js
+
       - name: Golden evaluation check
         run: node tools/ci/golden-eval.js
 
