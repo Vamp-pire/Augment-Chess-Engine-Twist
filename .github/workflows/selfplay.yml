@@ -14,6 +14,14 @@ jobs:
   selfplay:
     runs-on: ubuntu-latest
     timeout-minutes: 355
+    # Round 3: 4 parallel shards (2026-09-19) so a much deeper search per move
+    # (fewer positions per hour per job) still reaches ~100-200k positions.
+    # Each shard has its own RUN_ID/output file; game seeds are time-based
+    # (selfplay-run-merged.js) so shards never replay the same game.
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -50,9 +58,13 @@ jobs:
           # >>> CUTOFF: 2026-09-22T04:00:00Z. If this passes with no round 4
           # planned, self-play goes idle on its own; if a round 4 IS planned,
           # update it BEFORE the cutoff (see TODO.md). <<<
+          # Deeper on request (2026-09-19): depth 6, 1500ms/move x 4 shards.
+          # TARGET ~150k positions total; the cutoff below is only a
+          # backstop -- stop earlier (cancel runs + set CUTOFF_ISO to now)
+          # once the data branch has enough.
           CUTOFF_ISO: "2026-09-22T04:00:00Z"
-          SELFPLAY_SEARCH_DEPTH: "4"
-          SELFPLAY_SEARCH_MS: "700"
+          SELFPLAY_SEARCH_DEPTH: "6"
+          SELFPLAY_SEARCH_MS: "1500"
         # GitHub Actions' default `bash` shell runs with -e (abort on first
         # non-zero exit), which silently killed the whole step the moment an
         # intentionally-allowed-to-fail command (fetching a not-yet-existing
@@ -86,7 +98,10 @@ jobs:
           if [ "$RUN_MS" -gt "$CAP_MS" ]; then RUN_MS=$CAP_MS; fi
           echo "RUN_MS=$RUN_MS"
 
-          RUN_ID="gha-$(date -u +%Y%m%dT%H%M%SZ)-${GITHUB_RUN_ID}"
+          # Stagger shard start so their 15-min checkpoint pushes don't all
+          # collide on the shared data branch at the same second.
+          sleep $(( (${{ matrix.shard }} - 1) * 90 ))
+          RUN_ID="gha-$(date -u +%Y%m%dT%H%M%SZ)-${GITHUB_RUN_ID}-s${{ matrix.shard }}"
           OUT_FILE="${RUN_ID}.jsonl"
 
           SELFPLAY_OUT_FILE="$OUT_FILE" node selfplay-run-merged.js "$RUN_MS" > "${RUN_ID}.log" 2>&1 &
