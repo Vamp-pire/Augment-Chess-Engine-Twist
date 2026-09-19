@@ -214,10 +214,18 @@
   }
 
   const loadedWeights = {};
+  // "loading" | "ready" | "error" per model, so the UI can show it.
+  const loadState = {};
+  function notifyStatus() {
+    try { if (typeof self.dispatchEvent === "function" && typeof CustomEvent === "function") self.dispatchEvent(new CustomEvent("aug-nnue-status")); } catch (e) { /* UI hint only */ }
+  }
   function loadModel(name) {
-    return ensureLoaded(name).then((w) => { loadedWeights[name] = w; }).catch((err) => {
+    loadState[name] = "loading";
+    notifyStatus();
+    return ensureLoaded(name).then((w) => { loadedWeights[name] = w; loadState[name] = "ready"; }).catch((err) => {
+      loadState[name] = "error";
       console.warn("[증강체스엔진] NNUE weights (" + name + ") failed to load, evaluate() will fall back to evaluateState() until fixed:", err);
-    });
+    }).then(notifyStatus);
   }
   loadModel(currentModel);
 
@@ -233,6 +241,9 @@
     return currentModel;
   }
   function getModel() { return currentModel; }
+  // { model, state } -- state is "loading" | "ready" | "error"; while a newly
+  // chosen model is still loading, the previous one keeps answering.
+  function getStatus() { return { model: currentModel, state: loadState[currentModel] || "loading" }; }
   function activeWeights() { return loadedWeights[currentModel] || null; }
 
   // Returns a tanh-squashed score in [-1, 1] from `mover`'s perspective
@@ -271,5 +282,5 @@
     return nnueScore * SCORE_SCALE;
   }
 
-  self.__augNNUE = { ensureLoaded, evaluate, evaluateForSearch, INPUT_SIZE, FEATURE_NAMES, MODELS, setModel, getModel, forwardWith: forward, parseWeights, encodeFromState };
+  self.__augNNUE = { ensureLoaded, evaluate, evaluateForSearch, INPUT_SIZE, FEATURE_NAMES, MODELS, setModel, getModel, getStatus, forwardWith: forward, parseWeights, encodeFromState };
 })();

@@ -308,8 +308,21 @@
       modelSelect.value = nnueApi?.getModel?.() || "";
       modelSelect.disabled = !nnueApi?.setModel;
       modelSelect.addEventListener("change", () => nnueApi?.setModel(modelSelect.value));
+      // Load status next to the dropdown: a failed load silently falls back to
+      // the hand-coded evaluator, which used to look identical to "NNUE on".
+      const modelStatus = document.createElement("span");
+      modelStatus.className = "aug-engine-model-status";
+      const STATUS_TEXT = { loading: "불러오는 중…", ready: "준비됨", error: "불러오기 실패 (수제 평가 사용)" };
+      const renderModelStatus = () => {
+        const st = nnueApi?.getStatus?.();
+        modelStatus.textContent = st ? STATUS_TEXT[st.state] || "" : "";
+        modelStatus.dataset.state = st?.state || "";
+      };
+      renderModelStatus();
+      window.addEventListener("aug-nnue-status", renderModelStatus);
       modelPicker.appendChild(modelLabel);
       modelPicker.appendChild(modelSelect);
+      modelPicker.appendChild(modelStatus);
 
       box.appendChild(btn);
       box.appendChild(nnueToggle);
@@ -811,6 +824,14 @@
         }).join("");
         return `<div class="aug-perf-section-label">${label}</div>` + rows;
       }
+      // Which evaluator the search actually used: NNUE (with the chosen model)
+      // once its weights are loaded, otherwise the hand-coded evaluateState().
+      function evaluatorLabel() {
+        const api = window.__augNNUE;
+        const st = api?.getStatus?.();
+        if (!st || st.state !== "ready") return "수제 평가";
+        return "NNUE · " + (api.MODELS?.[st.model]?.label || st.model);
+      }
       function renderPerfPanel() {
         const content = perfPanel.querySelector(".aug-engine-perf-content");
         if (!content || !perfPanel.open) return; // don't waste cycles rendering a collapsed panel
@@ -828,6 +849,7 @@
           `<span>총 ${profile.totalNodes.toLocaleString()}노드</span>` +
           `<span>초당 ${nps.toLocaleString()}노드</span>` +
           `<span>도달 깊이 ${profile.completedDepth}/${profile.maxDepth}</span>` +
+          `<span>평가기 ${evaluatorLabel()}</span>` +
           "</div>" +
           (sparkline ? '<div class="aug-perf-section-label">깊이별 평가값 추이</div>' + sparkline : "") +
           timeBars +
