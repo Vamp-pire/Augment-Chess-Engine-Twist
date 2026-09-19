@@ -17549,8 +17549,42 @@
   function cloneCard(card) {
     return card ? { ...card } : null;
   }
+  // Perf: same result as JSON.parse(JSON.stringify(value)) for plain JSON-like data; anything
+  // exotic (undefined/function/symbol/non-finite/non-plain objects/__proto__/cycles) falls back to JSON.
+  const CLONE_PLAIN_BAIL = { bail: true };
+  function clonePlainFast(value, depth) {
+    if (value === null) return null;
+    const t = typeof value;
+    if (t === "string" || t === "boolean") return value;
+    if (t === "number") return Number.isFinite(value) ? (value === 0 ? 0 : value) : CLONE_PLAIN_BAIL;
+    if (t !== "object" || depth > 40) return CLONE_PLAIN_BAIL;
+    if (Array.isArray(value)) {
+      if (Object.getPrototypeOf(value) !== Array.prototype) return CLONE_PLAIN_BAIL;
+      const out = new Array(value.length);
+      for (let i = 0; i < value.length; i += 1) {
+        const c = clonePlainFast(value[i], depth + 1);
+        if (c === CLONE_PLAIN_BAIL) return c;
+        out[i] = c;
+      }
+      return out;
+    }
+    const proto = Object.getPrototypeOf(value);
+    if (proto !== Object.prototype && proto !== null) return CLONE_PLAIN_BAIL;
+    const keys = Object.keys(value);
+    const out = {};
+    for (let i = 0; i < keys.length; i += 1) {
+      const k = keys[i];
+      if (k === "__proto__") return CLONE_PLAIN_BAIL;
+      const c = clonePlainFast(value[k], depth + 1);
+      if (c === CLONE_PLAIN_BAIL) return c;
+      out[k] = c;
+    }
+    return out;
+  }
   function clonePlain(value) {
     if (value == null) return value;
+    const fast = clonePlainFast(value, 0);
+    if (fast !== CLONE_PLAIN_BAIL) return fast;
     return JSON.parse(JSON.stringify(value));
   }
   function cloneAction(action) {
@@ -17581,9 +17615,12 @@
   }
   function forEachPieceRaw(boardState, callback) {
     const seen = /* @__PURE__ */ new Set();
-    for (let row = 0; row < boardRowCount(boardState); row += 1) {
-      for (let col = 0; col < boardColCount(boardState); col += 1) {
-        const piece = get(boardState, row, col);
+    const rowCount = boardRowCount(boardState);
+    const colCount = boardColCount(boardState);
+    const boardRows = boardState.board;
+    for (let row = 0; row < rowCount; row += 1) {
+      for (let col = 0; col < colCount; col += 1) {
+        const piece = boardRows[row]?.[col] || null;
         if (!piece) continue;
         const id = piece.id || `${row}:${col}`;
         if (seen.has(id)) continue;
@@ -17622,6 +17659,15 @@
   function set(boardState, row, col, value) {
     if (!inBounds(row, col, boardState)) return;
     boardState.board[row][col] = value;
+    if (ATTACK_MEMO !== null && ATTACK_MEMO.board === boardState) {
+      // In-place mutation (e.g. vortex shuffle simulation) invalidates every per-call cache.
+      const memo = ATTACK_MEMO;
+      memo.map = /* @__PURE__ */ new Map();
+      memo.pieces = null;
+      memo.encouraged = /* @__PURE__ */ new Map();
+      memo.ranged = /* @__PURE__ */ new Map();
+      memo.attackers = /* @__PURE__ */ new Map();
+    }
     if (ALL_PIECES_LIST_CACHE.has(boardState)) ALL_PIECES_LIST_CACHE.delete(boardState);
   }
   function workerCreatePiece(color, type, boardState, row, col) {
@@ -17682,7 +17728,13 @@
   }
   function boardColCountRaw(boardState) {
     if (!Array.isArray(boardState?.board) || !boardState.board.length) return workerBoardCols;
-    return Math.max(1, ...boardState.board.map((row) => Array.isArray(row) ? row.length : 0));
+    const rows = boardState.board;
+    let max = 1;
+    for (let i = 0; i < rows.length; i += 1) {
+      const r = rows[i];
+      if (Array.isArray(r) && r.length > max) max = r.length;
+    }
+    return max;
   }
   function boardRayLimit(boardState) {
     return Math.max(boardRowCount(boardState), boardColCount(boardState));
