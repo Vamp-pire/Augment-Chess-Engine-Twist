@@ -81,6 +81,10 @@
   function usesThiefQuietJump(state) {
     return state?.thiefQuietJump !== false;
   }
+  // 2026-09-19 site default: the "internal six fixes" gate is ON unless state.internalSixFixes === false.
+  function usesInternalSixFixes(state) {
+    return state?.internalSixFixes !== false;
+  }
   function usesThiefRequiredJump(state) {
     return state?.thiefRequiredJump === true;
   }
@@ -1995,6 +1999,7 @@
       if (!["white", "black"].includes(color) || unique.length !== 2) return [];
       return [{
         id: String(entry?.id || `pending-portal-${index}`),
+        ...entry?.blocksMovement === true ? { blocksMovement: true } : {},
         color,
         cells: unique,
         triggerTurn: Math.max(0, Math.floor(Number(entry?.triggerTurn) || 0))
@@ -4970,7 +4975,7 @@
     const actions = [];
     const forcedExtraMove = activeWorkerForcedExtraMove(boardState, color);
     const forcedEnPassant = workerHasForcedEnPassant(boardState, color);
-    if (forcedExtraMove?.piece?.fileSurgeSecondMove || forcedExtraMove?.piece?.rookLiftSecondMove || forcedExtraMove?.piece?.ironMonarchExtraMove || forcedExtraMove?.piece?.madHorseSecondMove) {
+    if (!(forcedExtraMove?.piece?.thiefSecondMove && usesThiefRemake(boardState)) && (forcedExtraMove?.piece?.thiefSecondMove || forcedExtraMove?.piece?.fileSurgeSecondMove || forcedExtraMove?.piece?.rookLiftSecondMove || forcedExtraMove?.piece?.ironMonarchExtraMove || forcedExtraMove?.piece?.madHorseSecondMove)) {
       actions.push({
         type: "fileSurgeSkip",
         color,
@@ -5025,6 +5030,9 @@
   }
   function isWorkerPendingPortalReservedSquare(boardState, row, col) {
     return normalizePendingPortals(boardState.pendingPortals, boardRowCount(boardState), boardColCount(boardState)).some((entry) => entry.cells.some((cell) => cell.row === row && cell.col === col));
+  }
+  function isWorkerPortalMovementReservedSquare(boardState, row, col) {
+    return normalizePendingPortals(boardState.pendingPortals, boardRowCount(boardState), boardColCount(boardState)).some((entry) => entry.blocksMovement === true && entry.cells.some((cell) => cell.row === row && cell.col === col));
   }
   function isWorkerPendingSpawnReservedSquare(boardState, row, col) {
     return [...boardState.pendingScarecrows || [], ...boardState.pendingLobsters || []].some((entry) => !entry?.pieceId && entry?.row === row && entry?.col === col);
@@ -5371,7 +5379,7 @@
       moves = moves.filter(isWorkerZugzwangKingMove);
     }
     moves = moves.filter((move) => !crossesReservedScarecrow({ row, col }, move, [...boardState.pendingScarecrows || [], ...usesSeptember18Balance(boardState) ? piecesMatching(boardState, (p) => p.type === "scarecrow").map(({ row: row2, col: col2 }) => ({ row: row2, col: col2, solid: true })) : []]));
-    moves = moves.filter((move) => !workerMoveLandingCellsForQuantum(move).some((cell) => isWorkerPendingPortalReservedSquare(boardState, cell.row, cell.col) || isWorkerPendingSpawnReservedSquare(boardState, cell.row, cell.col)));
+    moves = moves.filter((move) => !workerMoveLandingCellsForQuantum(move).some((cell) => isWorkerPortalMovementReservedSquare(boardState, cell.row, cell.col) || isWorkerPendingSpawnReservedSquare(boardState, cell.row, cell.col)));
     moves = moves.filter((move) => thiefMoveAllowed(piece, move, boardState, { row, col }));
     moves = moves.filter((move) => threeMoveAllowed(boardState.board, piece, row, col, move, { allSquaresRadiance: usesSeptember18Balance(boardState), enemyOnlyRadiance: usesEnemyOnlyRadiance(boardState), movementType: pieceHasAbility(piece, "parrot") ? boardState.parrotMovement?.[piece.color]?.type : pieceAbilityType(piece) }));
     moves = applyWorkerScarecrowCaptureRules(boardState, piece, row, col, moves, options);
@@ -5877,7 +5885,7 @@
   function activeWorkerForcedExtraMove(boardState, color) {
     let found = null;
     forEachPiece(boardState, (piece, row, col) => {
-      if (!found && piece?.color === color && (piece.fileSurgeSecondMove || piece.rookLiftSecondMove || piece.ironMonarchExtraMove || piece.underpromotionSecondMove || piece.checkerChainCapture || piece.madHorseSecondMove || piece.repositionSecondMove?.used || piece.repositionSecondMove?.forced || piece.frenzyExtraMove || piece.platformExtraMove || piece.desperado)) {
+      if (!found && piece?.color === color && (piece.thiefSecondMove || piece.fileSurgeSecondMove || piece.rookLiftSecondMove || piece.ironMonarchExtraMove || piece.underpromotionSecondMove || piece.checkerChainCapture || piece.madHorseSecondMove || piece.repositionSecondMove?.used || piece.repositionSecondMove?.forced || piece.frenzyExtraMove || piece.platformExtraMove || piece.desperado)) {
         found = { piece, row, col };
       }
     });
@@ -9276,7 +9284,7 @@
         boardRowCount(boardState),
         boardColCount(boardState),
         (nextRow, nextCol) => {
-          if (isWorkerCollapsedSquare(boardState, nextRow, nextCol) || isWorkerCrownGroundSquare(boardState, nextRow, nextCol) || !legacySeptember12RulesStates.has(boardState) && (isWorkerPendingSpawnReservedSquare(boardState, nextRow, nextCol) || isWorkerPendingPortalReservedSquare(boardState, nextRow, nextCol))) return false;
+          if (isWorkerCollapsedSquare(boardState, nextRow, nextCol) || isWorkerCrownGroundSquare(boardState, nextRow, nextCol) || !legacySeptember12RulesStates.has(boardState) && (isWorkerPendingSpawnReservedSquare(boardState, nextRow, nextCol) || isWorkerPortalMovementReservedSquare(boardState, nextRow, nextCol))) return false;
           const target = get(boardState, nextRow, nextCol);
           return !target || canWorkerCaptureTarget("neutral", target, item, boardState, { ignoreSaturation: true });
         }
@@ -9786,7 +9794,7 @@
         restoredPiece.anchorCol = Math.min(...restoreCells.map((cell) => cell.col));
         restoredPiece.totalCaptures = Math.max(0, Number(restoredPiece.totalCaptures) || 0) + 1;
         restoredPiece.moved = true;
-        noteWorkerTwinMovement(restoredPiece);
+        if (!usesInternalSixFixes(boardState)) noteWorkerTwinMovement(restoredPiece);
         restoreCells.forEach((cell) => set(boardState, cell.row, cell.col, restoredPiece));
         if (parryTriggered) workerLearnImperialStudyMovement(boardState, restoredPiece, [attacker]);
         return;
@@ -9805,7 +9813,7 @@
         bear.bearMoveLockedUntilTurn = (Number(boardState.turnsTaken?.[bear.color]) || 0) + 1;
       }
       bear.moved = true;
-      noteWorkerTwinMovement(bear);
+      if (!usesInternalSixFixes(boardState)) noteWorkerTwinMovement(bear);
       set(boardState, destination.row, destination.col, bear);
       if (parried) workerLearnImperialStudyMovement(boardState, bear, [attacker]);
     });
@@ -10695,7 +10703,7 @@
     const dueIds = new Set(due.map((entry) => entry.id));
     boardState.pendingPortals = boardState.pendingPortals.filter((entry) => !dueIds.has(entry.id));
     const selected = due[due.length - 1];
-    if (selected.cells.some((cell) => get(boardState, cell.row, cell.col) || workerSeptember12PlacementCrownBlocked(boardState, cell.row, cell.col) || isWorkerCollapsedSquare(boardState, cell.row, cell.col))) return false;
+    if (selected.cells.some((cell) => selected.blocksMovement && get(boardState, cell.row, cell.col) || !inBounds(cell.row, cell.col, boardState) || isBlackHoleCell(boardState, cell.row, cell.col) || workerSeptember12PlacementCrownBlocked(boardState, cell.row, cell.col) || isWorkerCollapsedSquare(boardState, cell.row, cell.col))) return false;
     boardState.portalRule = normalizePortalRule({ enabled: true, cells: selected.cells }, boardRowCount(boardState), boardColCount(boardState));
     return Boolean(boardState.portalRule);
   }
@@ -11721,7 +11729,9 @@
   function applyFileSurgeSkipAction(boardState, action, aiColor) {
     const color = action.color || boardState.turn;
     const piece = get(boardState, action.from?.row, action.from?.col);
-    if (!piece || piece.color !== color || !piece.fileSurgeSecondMove && !piece.rookLiftSecondMove && !piece.ironMonarchExtraMove && !piece.madHorseSecondMove) return { ok: false, score: 0 };
+    if (piece?.thiefSecondMove && usesThiefRemake(boardState)) return { ok: false, score: 0 };
+    if (!piece || piece.color !== color || !piece.thiefSecondMove && !piece.fileSurgeSecondMove && !piece.rookLiftSecondMove && !piece.ironMonarchExtraMove && !piece.madHorseSecondMove) return { ok: false, score: 0 };
+    delete piece.thiefSecondMove;
     delete piece.fileSurgeSecondMove;
     delete piece.rookLiftSecondMove;
     delete piece.rookLiftChain;
@@ -12114,6 +12124,8 @@
     score += color === aiColor ? ultimatumRelief : -ultimatumRelief;
     const quantumCandidates = workerQuantumCandidateMovesForMove(boardState, piece, from, move);
     const movedPieceType = piece.type;
+    const internalThiefJump = pieceHasAbility(piece, "thief") && thiefJumpedPiece(from, usesThiefRemake(boardState) && portalEntry ? portalEntry : move, (row, col) => get(boardState, row, col));
+    delete piece.thiefSecondMove;
     const movedAsType = renderType(piece);
     const wasFileSurgeSecondMove = Boolean(piece.fileSurgeSecondMove);
     const wasRookLiftSecondMove = Boolean(piece.rookLiftSecondMove);
@@ -12133,6 +12145,7 @@
     const clearPieceExtraMoveFlags = () => {
       if (wasFrenzyExtraMove || wasFileSurgeSecondMove || wasRookLiftSecondMove || wasIronMonarchExtraMove || wasUnderpromotionSecondMove || wasCheckerChainCapture || wasMadHorseSecondMove || wasPlatformExtraMove || wasRepositionSecondMove && !wasRepositionFirstMove) {
         delete piece.frenzyExtraMove;
+        delete piece.thiefSecondMove;
         delete piece.fileSurgeSecondMove;
         delete piece.rookLiftSecondMove;
         delete piece.ironMonarchExtraMove;
@@ -12521,6 +12534,7 @@
     trackWorkerMovingProgress(boardState, piece);
     clearPieceExtraMoveFlags();
     noteWorkerUltimatumMovement(boardState, piece);
+    if (usesInternalSixFixes(boardState) && wasFileSurgeSecondMove && piece.twinBondId) piece.twinSwapPending = 1;
     delete piece.quantum;
     const squireCapturePromotion = captured.length > 0 && movedAbilityType === "squire" && piece.type !== "trickster" && isPromotionRow(piece, move.row, boardState);
     if (captured.length > 0 && movedAbilityType === "squire" && !squireCapturePromotion) {
@@ -12528,9 +12542,12 @@
       delete piece.tricksterMoveType;
       delete piece.tricksterPreviousAbilityForTurn;
     }
-    if (piece.chameleon && target && captured.includes(target) && !isWorkerRoyalIdentityPiece(boardState, target) && !["wall", "colossus", "bigRook", "bigBishop"].includes(target.type)) {
+    if (usesInternalSixFixes(boardState)) delete piece.promotionRushUntil;
+    const chameleonVictim = usesInternalSixFixes(boardState) ? captured.find((victim) => !isWorkerRoyalIdentityPiece(boardState, victim) && !["wall", "colossus", "bigRook", "bigBishop"].includes(victim.type)) : target && captured.includes(target) ? target : null;
+    const chameleonTransformed = Boolean(piece.chameleon && chameleonVictim && !isWorkerRoyalIdentityPiece(boardState, chameleonVictim) && !["wall", "colossus", "bigRook", "bigBishop"].includes(chameleonVictim.type));
+    if (chameleonTransformed) {
       if (isWorkerNativeKing(piece) || piece.editorRoyal) piece.crownRoyal = true;
-      piece.type = monochromePieceType(target.type, boardState.monochromeChess);
+      piece.type = monochromePieceType(chameleonVictim.type, boardState.monochromeChess);
     }
     if (wasDesperadoMove && ["pawn", "squire", "standardBearer"].includes(piece.type) && isPromotionRow(piece, move.row, boardState)) {
       piece.noPromotion = true;
@@ -12748,7 +12765,7 @@
       if (!keepsTurnByIronMonarch) delete piece.ironMonarchExtraMove;
     }
     let keepsTurnByChecker = false;
-    if (checkerJumpedAttack && isWorkerCheckerType(movedAsType) && move.checkerCapture && boardState.mode !== "gameover") {
+    if (!(usesInternalSixFixes(boardState) && chameleonTransformed) && checkerJumpedAttack && isWorkerCheckerType(movedAsType) && move.checkerCapture && boardState.mode !== "gameover") {
       piece.checkerChainCapture = true;
       keepsTurnByChecker = generateMovesForPiece(boardState, piece, move.row, move.col).some((candidate) => isWorkerMoveAllowed(boardState, piece, move.row, move.col, candidate));
       if (!keepsTurnByChecker) delete piece.checkerChainCapture;
@@ -12774,13 +12791,16 @@
         score += color === aiColor ? -pieceValue(piece) * 0.45 : pieceValue(piece) * 0.45;
       }
     }
-    const constrainedExtraMoveActive = keepsTurnByFileSurge || keepsTurnByRookLift || keepsTurnByIronMonarch || keepsTurnByChecker || keepsTurnByMadHorse || keepsTurnByReposition || keepsTurnByFrenzy || keepsTurnByPlatform || keepsTurnByDesperado;
+    if (internalThiefJump && captured.length === 0) resolveWorkerSubmergedPieces(boardState);
+    const keepsTurnByThief = internalThiefJump && captured.length === 0 && get(boardState, move.row, move.col) === piece && generateMovesForPiece(boardState, piece, move.row, move.col).some((candidate) => isWorkerMoveAllowed(boardState, piece, move.row, move.col, candidate));
+    if (keepsTurnByThief) piece.thiefSecondMove = true;
+    const constrainedExtraMoveActive = keepsTurnByThief || keepsTurnByFileSurge || keepsTurnByRookLift || keepsTurnByIronMonarch || keepsTurnByChecker || keepsTurnByMadHorse || keepsTurnByReposition || keepsTurnByFrenzy || keepsTurnByPlatform || keepsTurnByDesperado;
     if (keepsTurnByBackwardKnight && constrainedExtraMoveActive) {
       piece.queuedBackwardKnightTurn = true;
     } else {
       delete piece.queuedBackwardKnightTurn;
     }
-    if ((keepsTurnByBackwardKnight || keepsTurnByFileSurge || keepsTurnByRookLift || keepsTurnByIronMonarch || keepsTurnByChecker || keepsTurnByMadHorse || keepsTurnByReposition || keepsTurnByFrenzy || keepsTurnByPlatform || keepsTurnByDesperado) && boardState.mode !== "gameover") {
+    if ((keepsTurnByThief || keepsTurnByBackwardKnight || keepsTurnByFileSurge || keepsTurnByRookLift || keepsTurnByIronMonarch || keepsTurnByChecker || keepsTurnByMadHorse || keepsTurnByReposition || keepsTurnByFrenzy || keepsTurnByPlatform || keepsTurnByDesperado) && boardState.mode !== "gameover") {
       retainWorkerTurn(boardState, color);
       if (!keepsTurnByMadHorse) score += color === aiColor ? 420 : -420;
     } else {
@@ -14021,7 +14041,7 @@
     } else if (card.effect === "promotionRush") {
       if (!isPromotionRushEligiblePiece(target, color)) return { ok: false, score: 0 };
       target.promotionRushUntil = (Number(boardState.turnsTaken?.[color]) || 0) + 1;
-      markWorkerCardNoCaptureThisTurn(boardState, target);
+      if (!usesInternalSixFixes(boardState)) markWorkerCardNoCaptureThisTurn(boardState, target);
       score += (color === aiColor ? 1 : -1) * (210 + pieceValue(target) * 0.12);
     } else if (card.effect === "substitution") {
       if (!workerHasSubstitutionCandidate(boardState, color)) return { ok: false, score: 0 };
@@ -15320,7 +15340,7 @@
   function oscillationSafetyMultiplier(boardState, action, piece) {
     const from = action.from || {};
     if (workerUltimatumMoveReliefScore(boardState, piece) > 0) return 0.4;
-    if (piece?.fileSurgeSecondMove || piece?.rookLiftSecondMove || piece?.ironMonarchExtraMove || piece?.underpromotionSecondMove || piece?.checkerChainCapture || piece?.repositionSecondMove || piece?.desperado) return 0.45;
+    if (piece?.thiefSecondMove || piece?.fileSurgeSecondMove || piece?.rookLiftSecondMove || piece?.ironMonarchExtraMove || piece?.underpromotionSecondMove || piece?.checkerChainCapture || piece?.repositionSecondMove || piece?.desperado) return 0.45;
     if (!Number.isInteger(from.row) || !Number.isInteger(from.col)) return 1;
     const beforeThreat = workerBestCaptureThreat(boardState, piece, from.row, from.col);
     if (!beforeThreat) return 1;
