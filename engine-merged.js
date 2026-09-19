@@ -3751,7 +3751,28 @@
   // identical to what aiWorker-raw.js already had -- confirmed by diffing
   // the two versions line-by-line before this replacement, nothing
   // real-only is lost.
+  // Per-search memo of hangingMaterialRisk for states that are only READ during the
+  // search (every root action's tacticalSafetyAdjustment re-asks for the same
+  // "before" state). Entries die with the search and whenever applyAction touches
+  // the state (invalidateBoardCaches), so results are identical to recomputing.
+  let HANG_MEMO = null;
   function searchBestAction(boardState, rootActions, aiColor, depth, timeLimitMs = TIME_LIMIT_MS, options = {}) {
+    const outer = HANG_MEMO;
+    HANG_MEMO = /* @__PURE__ */ new WeakMap();
+    try {
+      return searchBestActionCore(boardState, rootActions, aiColor, depth, timeLimitMs, options);
+    } finally {
+      HANG_MEMO = outer;
+    }
+  }
+  function memoHangingMaterialRisk(boardState, color) {
+    if (!HANG_MEMO) return hangingMaterialRisk(boardState, color);
+    let entry = HANG_MEMO.get(boardState);
+    if (!entry) { entry = {}; HANG_MEMO.set(boardState, entry); }
+    if (entry[color] === undefined) entry[color] = hangingMaterialRisk(boardState, color);
+    return entry[color];
+  }
+  function searchBestActionCore(boardState, rootActions, aiColor, depth, timeLimitMs = TIME_LIMIT_MS, options = {}) {
     setWorkerBoardDimensions(boardState);
     // options.limits (2026-09-19) -- Stockfish-style "go" parameters. When absent
     // everything below behaves exactly as before.
@@ -9547,6 +9568,7 @@
     if (boardState.board) { THREE_CACHE.delete(boardState.board); PRINCESS_QUEEN_MOVEMENT_CACHE.delete(boardState.board); }
     STANDARD_BEARER_RANK_CACHE.delete(boardState);
     ALL_PIECES_LIST_CACHE.delete(boardState);
+    if (HANG_MEMO) HANG_MEMO.delete(boardState);
   }
   function applyAction(boardState, action, aiColor) {
     invalidateBoardCaches(boardState);
@@ -15672,9 +15694,9 @@
     if (!beforeState || !afterState || !action) return 0;
     if (afterState.mode === "gameover") return afterState.winner === aiColor ? 0 : -3e3;
     const enemy = opponent(aiColor);
-    const ownBefore = hangingMaterialRisk(beforeState, aiColor);
+    const ownBefore = memoHangingMaterialRisk(beforeState, aiColor);
     const ownAfter = hangingMaterialRisk(afterState, aiColor);
-    const enemyBefore = hangingMaterialRisk(beforeState, enemy);
+    const enemyBefore = memoHangingMaterialRisk(beforeState, enemy);
     const enemyAfter = hangingMaterialRisk(afterState, enemy);
     let score = (ownBefore - ownAfter) * 1.08 + (enemyAfter - enemyBefore) * 0.48;
     if (action.type === "move" && (action.color || beforeState.turn) === aiColor) {
@@ -15706,6 +15728,17 @@
     return score;
   }
   function hangingMaterialRisk(boardState, color) {
+    // Same per-call attack memo evaluateStateComponents uses: the board is not
+    // modified while this runs, so many pieces share one attacker list / attack cache.
+    if (ATTACK_MEMO !== null) return hangingMaterialRiskRaw(boardState, color);
+    ATTACK_MEMO = { board: boardState, map: /* @__PURE__ */ new Map(), pieces: null, cols: -1, encouraged: /* @__PURE__ */ new Map(), ranged: /* @__PURE__ */ new Map(), attackers: /* @__PURE__ */ new Map() };
+    try {
+      return hangingMaterialRiskRaw(boardState, color);
+    } finally {
+      ATTACK_MEMO = null;
+    }
+  }
+  function hangingMaterialRiskRaw(boardState, color) {
     let risk = 0;
     forEachPiece(boardState, (piece, row, col) => {
       if (piece.color !== color) return;
