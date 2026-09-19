@@ -42,3 +42,9 @@ Dependency: C (measure) first -> A (speed) -> B (evaluation) -> back to A.
 - A residual model may play worse than the hand-coded evaluator: gate = 55% of 100+ decisive games, else log only.
 - Data branch push conflicts / size: checkpoints retry with rebase; watch repo size when adding datasets.
 - Approval-needing actions (deletes) go last and alone; some are blocked by the auto-mode classifier -> leave them for the owner with the exact command.
+
+## Owner instructions (2026-09-19, late)
+- Decide small/medium-risk decisions myself and report them; on high-risk decisions, work on something else and leave it for the owner.
+- Parrot (F5): only re-verify that engine == site (no code change).
+- Residual model: selectable only (never default). Propose several display names (candidates: Riptide, Undertow, Gale, Monsoon, Cyclone) and pick one.
+- FINAL STEP (most important): after everything else -- repo-wide code refactor, deletions, push -- then a FINAL REPORT covering: harvest (what improved, numbers), threats caught (rule/parity risks, data contamination risks), bugs found and fixed, and everything else notable (decisions taken, leftovers, owner-only items).
