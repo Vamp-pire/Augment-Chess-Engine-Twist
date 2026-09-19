@@ -5,7 +5,7 @@
   "nnueVariant": "new",
   "ablatePlyFeature": "",
   "ablateDeepUnits": "",
-  "ablateWarmStart": "",
+  "ablateWarmStart": "0",
   "ablateOversample": "",
   "ablateBlend": "",
   "ablateBlunder": ""
