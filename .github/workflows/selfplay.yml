@@ -39,9 +39,20 @@ jobs:
           # was missed while other work (NNUE pipeline debugging, extension
           # UX) was in progress -- if a THIRD round is ever planned, update
           # this promptly when round 2 ends, don't let it slip again.
-          CUTOFF_ISO: "2026-09-18T05:30:00Z"
-          SELFPLAY_SEARCH_DEPTH: "5"
-          SELFPLAY_SEARCH_MS: "200"
+          #
+          # Round 3 (2026-09-19): started right after round 2 was aggregated.
+          # Why: (1) site rules changed 9/19 and the engine now matches them,
+          # (2) evaluation is ~3.4x / search ~1.5x faster, (3) the blend
+          # experiments showed search-score labels matter (blend 0.8 gave
+          # 70.6% vs 67.1% on the round-2 val split) but round 2's "depth 5"
+          # was nominal (~90% of moves finished only depth 1 in 200ms). So
+          # this gives each move a real budget for depth ~3-4.
+          # >>> CUTOFF: 2026-09-22T04:00:00Z. If this passes with no round 4
+          # planned, self-play goes idle on its own; if a round 4 IS planned,
+          # update it BEFORE the cutoff (see TODO.md). <<<
+          CUTOFF_ISO: "2026-09-22T04:00:00Z"
+          SELFPLAY_SEARCH_DEPTH: "4"
+          SELFPLAY_SEARCH_MS: "700"
         # GitHub Actions' default `bash` shell runs with -e (abort on first
         # non-zero exit), which silently killed the whole step the moment an
         # intentionally-allowed-to-fail command (fetching a not-yet-existing
