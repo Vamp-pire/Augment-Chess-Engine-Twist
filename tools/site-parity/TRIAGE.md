@@ -96,3 +96,8 @@ Minimal fix: define `function invalidateBoardCaches(boardState) { THREE_CACHE.de
 
 ## Unresolved
 3 playouts diverge after a plain white move where a mass capture event hits corner/back-rank pieces (decks: brutus/royalShield/freeze vs clockwork/gale/campfire). Not reproduced deterministically; likely RNG or a timed effect. Repro: `G=26 node` (scratch) seed 1 game 26; re-run `parity-playout.js - 60 1 40` and look for `state-differs after move` with `.board.5.6 ... submerged`.
+
+## Status (2026-09-19, end of day)
+Applied: F1 portalGun non-blocking, F2 thief second move, F4 six-fixes gate, F6 board-cache invalidation (invalidateBoardCaches around applyAction).
+Not applied: F3 (noteThiefMove in swap paths — minor, thief movement restrictions after a swap) and F5 (parrot memory guard — could change self-play behaviour; needs a decision).
+Playout (seed 4242, 60x40): 27 divergences before -> 11 after; the rest are locustSwarm (expected), random-target brutus/freeze, parrot (F5).

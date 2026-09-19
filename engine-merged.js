@@ -9424,7 +9424,28 @@
       });
     });
   }
+  // Board-keyed caches (THREE_CACHE paladin radiance, princess queen-movement,
+  // standard-bearer rank, piece list) assume a board is never mutated in
+  // place, but applyAction does mutate in place (card:paladin/thief convert a
+  // piece, swaps move pieces) -- so anything cached while generating this
+  // node's actions is stale afterwards. Found via tools/site-parity playout:
+  // extra substitutionSwap moves (paladin radiance missing) and princess
+  // divergences after card:thief.
+  function invalidateBoardCaches(boardState) {
+    if (!boardState) return;
+    if (boardState.board) { THREE_CACHE.delete(boardState.board); PRINCESS_QUEEN_MOVEMENT_CACHE.delete(boardState.board); }
+    STANDARD_BEARER_RANK_CACHE.delete(boardState);
+    ALL_PIECES_LIST_CACHE.delete(boardState);
+  }
   function applyAction(boardState, action, aiColor) {
+    invalidateBoardCaches(boardState);
+    try {
+      return applyActionInner(boardState, action, aiColor);
+    } finally {
+      invalidateBoardCaches(boardState);
+    }
+  }
+  function applyActionInner(boardState, action, aiColor) {
     if (!action) return { ok: false, score: 0 };
     septemberBeginBoardAction(boardState);
     const beforeTypes = workerPieceTypeSnapshot(boardState);
