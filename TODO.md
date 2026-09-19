@@ -33,6 +33,14 @@ Last updated: 2026-09-19. Project map: `PROJECT.md`. Background: `HANDOFF.md`, `
 - Draws dominate model-vs-model matches; judge by decisive games and never trust fewer than ~10 of them
 - The engine evaluation is ~3.4x and search ~1.5x faster with identical output (`tools/perf`)
 
+## In flight (2026-09-19, cloud)
+
+- Why NNUE is not stronger than the hand-coded evaluator: the trained nets barely react to material (start position minus a queen: Squall output -0.011 vs +0.078 even; hand-coded -1284; blend0.8 model 0.29 -> -0.16). Labels are mostly draws, so outputs stay near 0 and the engine's x100 mapping makes them tiny next to the hand-coded scale the safety rules are tuned to
+- Matches of Squall against handcoded with different output maps (`@hybrid1000`, `@hybrid3000`, `@atanh400`; `nnue/match-two-models.js` model specs) -- results decide whether the extension's `SCORE_SCALE = 100` should change
+- Data-mix training runs (7) on the shared validation set `datasets/val-mix1.jsonl.gz` (R2 tail + R3 tail): B0 (R2 only, control), M0 (R3), M1 (R3 + 0.3 R2), M2 (R3 + 0.3 R2 + 0.15 R1), depth-aware blend variants, blend 1.0; models saved as `models/mix1-*.json` on the data branch for `match.yml` (`data:models/<name>.json`)
+- Time-extension A/B (`match.yml` with `limits_a` / `limits_b`): handcoded with vs without extension at 1500 ms
+- `tools/review-calibration`: search score -> win probability. Deeper searches are clearly more predictive (k 3450 overall, ~2200 at depth 4-5); current review thresholds already sit at about 1/2.5/5/10% win-probability loss, so the values are fine; context and depth-based confidence are what is missing
+
 ## Training ideas
 
 - [ ] Blend labels by position: early plies trust search score, late plies trust game outcome (needs a train.js change; the global blend knob already exists)
