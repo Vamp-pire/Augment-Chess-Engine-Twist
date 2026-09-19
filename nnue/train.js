@@ -85,7 +85,19 @@ function searchBlendWeight(entry) {
   const d = Math.max(1, Math.floor(Number(entry.completedDepth) || 1));
   return BLEND_DEPTH_MAP[Math.min(BLEND_DEPTH_MAP.length - 1, d - 1)];
 }
+// RESIDUAL=1 (2026-09-19): train the net on what the hand-coded evaluator gets
+// WRONG -- target tanh((searchScore - evalBefore) / RESID_SCALE), evalBefore being
+// the hand-coded static score logged at self-play time. The engine then plays
+// with handcoded + K * output (match spec @hybrid<K>, K ~ RESID_SCALE), so
+// material/tactics stay with the hand-coded part. Positions without a search
+// score (exploration plies) get target 0 ("no correction known").
+const RESIDUAL = process.env.RESIDUAL === "1";
+const RESID_SCALE = Number(process.env.RESID_SCALE || 300);
 function blendedLabel(entry) {
+  if (RESIDUAL) {
+    if (entry.searchScore == null || entry.evalBefore == null) return 0;
+    return Math.tanh((entry.searchScore - entry.evalBefore) / RESID_SCALE);
+  }
   if (entry.searchScore == null) return entry.outcome;
   const searchSignal = Math.tanh(entry.searchScore / SEARCH_SCORE_SCALE);
   const w = searchBlendWeight(entry);
