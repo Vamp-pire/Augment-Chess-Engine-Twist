@@ -48,3 +48,10 @@ Dependency: C (measure) first -> A (speed) -> B (evaluation) -> back to A.
 - Parrot (F5): only re-verify that engine == site (no code change).
 - Residual model: selectable only (never default). Propose several display names (candidates: Riptide, Undertow, Gale, Monsoon, Cyclone) and pick one.
 - FINAL STEP (most important): after everything else -- repo-wide code refactor, deletions, push -- then a FINAL REPORT covering: harvest (what improved, numbers), threats caught (rule/parity risks, data contamination risks), bugs found and fixed, and everything else notable (decisions taken, leftovers, owner-only items).
+
+## Log (autonomous run, 2026-09-20)
+- A1 root immediate-loss prefilter (1.6x) + per-search hanging-risk memo + attack memo (1.16x): ~1.85x total on depth-2 positions, output identical (ab-time, search-equiv, eq-exotic, golden, smoke). Extension engine re-synced, CI sync check added.
+- Time extension (handcoded, 1500 ms): 22-21 in the 96-game re-match, 40-31 combined with the first 45 games (56%, not significant) -> keep it optional, unproven.
+- Residual model (RESIDUAL=1, resid300-r3p, 50k round-3 positions) @hybrid300 vs handcoded: 23-22 (51%) -> no gain yet; retrain on the full round 3.
+- Tactics set (nnue/tactics-set.json, 75 positions, reference depth>=3): handcoded 16.0%, Squall@atanh400 16.0%, blend0.8 17.3%, resid@hybrid150 17.3%, resid@hybrid300 18.7% (+-4 pts noise) -> too easy to miss, cannot separate models yet; needs faster search to build a deeper reference.
+- Parrot check: parity-actions 0/300 differ; playouts 5/60 diverge (locustSwarm x2 expected, promotionRush x1, brutus x1, plain move x1) -> none parrot-related; leftovers listed in TODO.
