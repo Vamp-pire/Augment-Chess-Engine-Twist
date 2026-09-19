@@ -79,3 +79,8 @@ import("./site-engine.mjs").then((mod) => {
   (`querySelector`/`parentElement`/`HTMLElement` 등).
 - 다시 받을 때: 위 5개 파일을 `https://augmentchess.org/assets/`에서 받고, 옛 `export { ... };` 줄을 끝에 붙임.
 - `verify1`/`verify2`의 실패 6건은 오라클 오류가 아니라 9/13 기준 기대값이 새 판정과 달라진 것(상인 왕 판정 등).
+
+## 2026-09-19: 자동 패리티 도구
+`tools/site-parity/`에 사이트 실제 AI 워커(`aiWorker.js`)와 `engine-merged.js`를 차분 비교하는 스크립트가 있음
+(generateActions / 단일 액션 적용 / 다중 수 플레이아웃, 사이트 업데이트 감지 `check-site-update.js`).
+사용법은 `tools/site-parity/README.md`, 발견된 차이의 분류와 수정 제안은 `tools/site-parity/TRIAGE.md`.
