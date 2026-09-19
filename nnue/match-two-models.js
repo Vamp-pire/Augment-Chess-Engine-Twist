@@ -44,7 +44,31 @@ const { playOneGame } = require(path.join(__dirname, "..", "selfplay-worker-merg
 const engine = require(path.join(__dirname, "..", "engine-merged.js"));
 const SCORE_SCALE = 100; // matches extension/nnue.js's evaluateForSearch / selfplay-worker-merged.js
 
-function makeEvalFn(weightsPathOrHandcoded) {
+// A model spec may end in "@<map>" to choose how the network output o in (-1,1) is
+// turned into an engine score (2026-09-19). The training labels squash search scores
+// with tanh(score/400), so the matching inverse is 400*atanh(o); the extension has
+// always used 100*o, far smaller than the hand-coded evaluator's scale (which the
+// engine's own safety rules are tuned to).
+//   lin<K>     o * K              e.g. lin100 (the old default), lin400, lin1000
+//   atanh<K>   K * atanh(o)       e.g. atanh400 (the inverse of the training squash)
+//   hybrid<K>  handcoded + K * o  the network as a correction on top of the hand-coded
+//                                 evaluator (measured: the raw output barely reacts to
+//                                 material, e.g. a whole queen down moves it by ~0.09)
+// The map receives (o, boardState, aiColor).
+function outputMap(name) {
+  if (!name) return (o) => o * SCORE_SCALE;
+  let m = /^lin(d+)$/.exec(name);
+  if (m) { const k = Number(m[1]); return (o) => o * k; }
+  m = /^atanh(d+)$/.exec(name);
+  if (m) { const k = Number(m[1]); return (o) => k * Math.atanh(Math.max(-0.995, Math.min(0.995, o))); }
+  m = /^hybrid(d+)$/.exec(name);
+  if (m) { const k = Number(m[1]); return (o, boardState, aiColor) => engine.evaluateState(boardState, aiColor) + k * o; }
+  throw new Error("unknown output map: " + name);
+}
+function makeEvalFn(spec) {
+  const at = spec.lastIndexOf("@");
+  const weightsPathOrHandcoded = at > 0 ? spec.slice(0, at) : spec;
+  const map = outputMap(at > 0 ? spec.slice(at + 1) : "");
   if (weightsPathOrHandcoded === "handcoded") {
     return function (boardState, aiColor) {
       return engine.evaluateState(boardState, aiColor);
@@ -54,7 +78,7 @@ function makeEvalFn(weightsPathOrHandcoded) {
   return function (boardState, aiColor) {
     const input = encodeBoard(boardState.board, aiColor, boardState.deckSlots);
     if (input === null) return engine.evaluateState(boardState, aiColor); // terminal position
-    return forward(weights, input) * SCORE_SCALE;
+    return map(forward(weights, input), boardState, aiColor);
   };
 }
 const evalA = makeEvalFn(weightsAPath);
