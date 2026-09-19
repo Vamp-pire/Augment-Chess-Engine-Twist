@@ -69,3 +69,6 @@ Rule for every item: (a) prove the search tree is unchanged -- ab-time/ab-cards 
 5. Remaining root safety checks: prefilter only where a violation count of 0 is shown over >= 10k cases (prefilter-check pattern).
 6. Eval features / card values / label changes: only through the train-and-match gate; never edit evaluateState without golden update + parity check.
 Order: 1 -> 2 -> 5 -> (3 if worth it) -> 4 as options.
+- 2026-09-20: speed total ~2.2x vs the pre-speed-up engine (ab-cards, 16 positions, cards on): identical action/score/NODES/CUTOFFS. One earlier 11/12 "diff" was load noise (time-dependent deadline checks in root safety, `rootSafetyDeadlineTight`), not a logic change: reruns on an idle machine were 12/12 and 16/16 identical. Rule: run equivalence checks with the machine idle.
+- Tried and dropped: hoisting the clonePiece key list (0% gain). cloneState sharing / incremental hanging risk / transposition table etc. still open but now optional (2.2x reached).
+- Running: residual retrains at scales 150/300/600 on 129k round-3 positions (models resid150-r3b, resid300-r3b, resid600-r3b) -> matches @hybrid<scale> vs handcoded.
