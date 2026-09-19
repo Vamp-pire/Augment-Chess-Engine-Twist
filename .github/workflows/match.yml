@@ -36,6 +36,14 @@ on:
         description: "Optional depth for B only (empty = depth)"
         required: false
         default: ""
+      limits_a:
+        description: 'Optional JSON options.limits for A (e.g. {"movetimeMs":1500,"extend":true}); overrides depth/time for A'
+        required: false
+        default: ""
+      limits_b:
+        description: "Optional JSON options.limits for B"
+        required: false
+        default: ""
       ms:
         description: "Base search time per move in ms"
         required: false
@@ -72,6 +80,8 @@ jobs:
           MATCH_SEARCH_DEPTH: ${{ inputs.depth }}
           MATCH_DEPTH_A: ${{ inputs.depth_a }}
           MATCH_DEPTH_B: ${{ inputs.depth_b }}
+          MATCH_LIMITS_A: ${{ inputs.limits_a }}
+          MATCH_LIMITS_B: ${{ inputs.limits_b }}
           MATCH_SEARCH_MS: ${{ inputs.ms }}
         run: |
           # A spec is "<weights path | handcoded | data:<path on gha-segments-16cards>>[@<output map>]".

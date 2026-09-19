@@ -35,6 +35,10 @@ const SEARCH_DEPTH = Number(process.env.MATCH_SEARCH_DEPTH) || 3;
 const DEPTH_A = Number(process.env.MATCH_DEPTH_A) || SEARCH_DEPTH;
 const DEPTH_B = Number(process.env.MATCH_DEPTH_B) || SEARCH_DEPTH;
 const SEARCH_TIME_MS = Number(process.env.MATCH_SEARCH_MS) || 80;
+// MATCH_LIMITS_A / MATCH_LIMITS_B: JSON for engine.searchBestAction's options.limits of that side,
+// e.g. {"movetimeMs":1500,"extend":false} vs {"movetimeMs":1500,"extend":true} to test the time extension.
+const LIMITS_A = process.env.MATCH_LIMITS_A ? JSON.parse(process.env.MATCH_LIMITS_A) : null;
+const LIMITS_B = process.env.MATCH_LIMITS_B ? JSON.parse(process.env.MATCH_LIMITS_B) : null;
 const MAX_PLIES = Number(process.env.MATCH_MAX_PLIES) || 300;
 
 // Requiring this (rather than spawning it as a worker_threads Worker) picks
@@ -100,6 +104,10 @@ function playAndScore(seed, evalFnByColor, label) {
     searchDepthByColor: {
       white: evalFnByColor.white === evalA ? DEPTH_A : DEPTH_B,
       black: evalFnByColor.black === evalA ? DEPTH_A : DEPTH_B
+    },
+    limitsByColor: {
+      white: evalFnByColor.white === evalA ? LIMITS_A : LIMITS_B,
+      black: evalFnByColor.black === evalA ? LIMITS_A : LIMITS_B
     }
   });
   const whoIsA = evalFnByColor.white === evalA ? "white" : "black";

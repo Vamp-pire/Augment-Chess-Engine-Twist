@@ -494,7 +494,7 @@ function explorationChance(plyIndex) {
   return plyIndex < EXPLORATION_OPENING_PLIES ? 0.15 : 0;
 }
 
-function playOneGame({ searchDepth, searchTimeMs, maxPlies, seed, flexibleBudget = true, evalFnByColor = null, searchDepthByColor = null }) {
+function playOneGame({ searchDepth, searchTimeMs, maxPlies, seed, flexibleBudget = true, evalFnByColor = null, searchDepthByColor = null, limitsByColor = null }) {
   const rng = makeRng(seed);
   const state = makeInitialState(rng);
   const record = [];
@@ -564,7 +564,7 @@ function playOneGame({ searchDepth, searchTimeMs, maxPlies, seed, flexibleBudget
         MAX_BASE_SEARCH_MS,
         searchTimeMs + Math.max(0, actions.length - CANDIDATE_BASELINE) * EXTRA_MS_PER_CANDIDATE
       );
-      let result = engine.searchBestAction(state, actions, color, (searchDepthByColor && searchDepthByColor[color]) || searchDepth, adaptiveSearchTimeMs, { flexibleBudget, evalFn: (evalFnByColor && evalFnByColor[color]) || nnueEvalFn || void 0 });
+      let result = engine.searchBestAction(state, actions, color, (searchDepthByColor && searchDepthByColor[color]) || searchDepth, adaptiveSearchTimeMs, { flexibleBudget, evalFn: (evalFnByColor && evalFnByColor[color]) || nnueEvalFn || void 0, limits: (limitsByColor && limitsByColor[color]) || void 0 });
       // Adaptive retry (added 2026-09-11): completedDepth 0 means
       // searchAtDepth never finished even once within the budget, so
       // searchBestAction's returned action is really just
@@ -580,7 +580,7 @@ function playOneGame({ searchDepth, searchTimeMs, maxPlies, seed, flexibleBudget
       // while still getting a real score for the plies that need it. One
       // retry only, no unbounded loop.
       if (!result.completedDepth) {
-        result = engine.searchBestAction(state, actions, color, (searchDepthByColor && searchDepthByColor[color]) || searchDepth, adaptiveSearchTimeMs * 4, { flexibleBudget, evalFn: (evalFnByColor && evalFnByColor[color]) || nnueEvalFn || void 0 });
+        result = engine.searchBestAction(state, actions, color, (searchDepthByColor && searchDepthByColor[color]) || searchDepth, adaptiveSearchTimeMs * 4, { flexibleBudget, evalFn: (evalFnByColor && evalFnByColor[color]) || nnueEvalFn || void 0, limits: (limitsByColor && limitsByColor[color]) || void 0 });
       }
       if (!result.action) break;
       chosenAction = result.action;
