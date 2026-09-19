@@ -24,18 +24,17 @@
   // (searchWorker.js -- window doesn't exist there at all).
   const engine = self.AugmentEngine;
 
-  const STANDARD_TYPES = ["pawn", "knight", "bishop", "rook", "queen", "king"];
-  const SPECIAL_TYPES = [
-    "amazon", "cardinal", "pegasus", "assassin", "dragon",
-    "cannon", "grasshopper", "hook", "herald", "camel", "alfil", "ferz", "eagle",
-    "berserker", "magicGirl", "windmill", "trickster", "merchant",
-    "knightmaster", "standardBearer", "idol", "siren", "reaper", "recruiter",
-    "guard", "colossus", "bigRook"
+  // 2026-09-19: mirrors nnue/encode.js ALL_TYPES exactly (40 planes).
+  const ALL_TYPES = [
+    "pawn", "knight", "bishop", "rook", "queen", "king", "amazon", "cardinal", "pegasus", "assassin",
+    "dragon", "cannon", "grasshopper", "hook", "herald", "camel", "alfil", "ferz", "eagle", "berserker",
+    "magicGirl", "windmill", "trickster", "merchant", "knightmaster", "standardBearer", "idol", "siren",
+    "reaper", "recruiter", "guard", "colossus", "bigRook", "hedgehog", "princess", "campfire", "paladin",
+    "octopus", "clockwork", "parrot"
   ];
-  const ALL_TYPES = [...STANDARD_TYPES, ...SPECIAL_TYPES];
   const PIECE_INDEX = {};
   ALL_TYPES.forEach((type, i) => { PIECE_INDEX[type] = i; });
-  const PLANE_COUNT = ALL_TYPES.length; // 33
+  const PLANE_COUNT = ALL_TYPES.length; // 40
 
   const FEATURE_NAMES = [
     "material", "exchange",
@@ -58,10 +57,31 @@
   // network per-card signal instead). MUST match encode.js's
   // CARD_POOL_TYPES (and selfplay-worker.js's SELFPLAY_CARD_POOL) exactly.
   const CARD_POOL_TYPES = [
-    "witchTrial", "vip", "disarm", "freeze", "poisonStun", "royalShield",
-    "portalGun", "desperado", "encouragement", "severance", "inertia",
-    "substitution", "switcheroo", "promotionRush", "charge", "bishopSnipe",
-    "enPassantBang", "freeCastling"
+    "alekhineMachineGun", "amazon", "apprenticeKnights", "armistice", "babyBear", "basicTraining", "bigRook",
+    "binaMate", "bishopSnipe", "blackBox", "blackMagic", "blueJeans", "breakthroughOrder", "callingCard",
+    "canceling", "chain", "chameleonMutation", "charge", "checker", "chimera", "cleanupPieces",
+    "cleanupSacrifice", "clonePassive", "conversion", "cornerKick", "coronation", "deathSquad", "democracy",
+    "desperado", "dice", "disarm", "dutch", "eagle", "emergencyEvacuation", "emptyLunchbox", "enPassantBang",
+    "encouragement", "evasion", "exhaustion", "exile", "fanaticalRitual", "feudalContract", "fianchetto",
+    "fieldPromotion", "fileSurge", "finalWeapon", "fleetingDream", "freeCastling", "freeMove", "freeze",
+    "frenzy", "frontlineResponse", "gale", "genevaConvention", "ghost", "gomoku", "guard", "hallucination",
+    "holdout", "homecoming", "hook", "horde", "horseRiding", "hypocrisy", "icbm", "iceSheet", "idol",
+    "imperialStudies", "inertia", "injury", "insight", "ironMonarch", "joker", "judgment", "kingOfTheHill",
+    "knightmate", "lastResistance", "lobster", "localConscription", "loyalist", "madHorse", "martyrdom",
+    "merchantGuild", "missionary", "mistakeCard", "mongolianGambit", "moving", "ordination", "othello",
+    "otherworld", "overwhelm", "palace", "panic", "parry", "pawnConversion", "pawnStorm", "poisonedPawn",
+    "portalGun", "promotionRush", "prophecy", "quantumMechanics", "queenAfterimage", "queenCavalry",
+    "queensGambit", "racingKing", "randomRoulette", "reaper", "reformation", "relay", "religiousVictory",
+    "replayMove", "reposition", "retreat", "reversePawns", "rookLift", "royalCommand", "royalShield",
+    "ruleTicket", "sacrifice", "severance", "shotgunKing", "socialism", "spy", "stake", "submerge",
+    "substitution", "suicideBomber", "summonColossus", "suspiciousPotion", "switcheroo", "taunt",
+    "timeClumsyAttack", "timeIsMine", "timePhaseShift", "traitor", "trickster", "trojanHorse", "trolley",
+    "twins", "ultimatum", "undergroundBunker", "underpromotion", "vanish", "vip", "vortex", "whiteBox",
+    "windmill", "witchTrial", "wizard", "zugzwang", "qxe1", "nullification", "recurrence", "outpost",
+    "killerKing", "majesty", "overtake", "leap", "vanguard", "infiltration", "reversal", "lastStand",
+    "fastGrowth", "earlyPromotion", "bribe", "conscription", "barricade", "collapse", "highlander", "thief",
+    "disassembly", "falseStart", "proficiency", "locustSwarm", "longEnPassant", "extinction", "symmetry",
+    "brutus", "clockwork", "mutation", "parrot", "paladin", "octopus", "metal"
   ];
   const CARD_POOL_INDEX = {};
   CARD_POOL_TYPES.forEach((effect, i) => { CARD_POOL_INDEX[effect] = i; });
@@ -153,22 +173,67 @@
     return Math.tanh(deepOut + wideOut);
   }
 
-  let weightsPromise = null;
-  function ensureLoaded() {
-    if (!weightsPromise) {
-      // chrome.runtime unavailable in this file's MAIN-world context -- see
-      // ext-bridge.js/content.js's comments on the isolated/main world fix.
-      weightsPromise = fetch((document.documentElement.dataset.augExtBase || "") + "model/nnue-weights.json")
+  // Selectable models (2026-09-19). Both were trained on the same 5509-wide
+  // input this file encodes; they differ only in weights. "squall" is the
+  // one deployed by default (round-2 retrain), "tornado" the round-1 retrain.
+  const MODELS = {
+    squall: { label: "Squall", file: "model/nnue-squall.json" },
+    tornado: { label: "Tornado", file: "model/nnue-tornado.json" }
+  };
+  const DEFAULT_MODEL = "squall";
+  const MODEL_STORAGE_KEY = "augEngineNnueModel";
+
+  // Base URL of the extension's files. In a page context that's the
+  // data-attribute ext-bridge.js sets (chrome.runtime unavailable in this
+  // file's MAIN-world context -- see ext-bridge.js/content.js's comments).
+  // A Worker has no `document`, so derive it from the worker script's own
+  // URL instead (searchWorker.js sits next to model/).
+  function extBase() {
+    if (typeof document !== "undefined") return document.documentElement.dataset.augExtBase || "";
+    return self.location.href.replace(/[^/]*$/, "");
+  }
+
+  function readStoredModel() {
+    try {
+      const v = typeof localStorage !== "undefined" ? localStorage.getItem(MODEL_STORAGE_KEY) : null;
+      if (v && MODELS[v]) return v;
+    } catch (e) { /* storage blocked -- fall through to default */ }
+    return DEFAULT_MODEL;
+  }
+
+  let currentModel = readStoredModel();
+  const weightsPromises = {};
+  function ensureLoaded(name = currentModel) {
+    if (!MODELS[name]) return Promise.reject(new Error("nnue.js: unknown model " + name));
+    if (!weightsPromises[name]) {
+      weightsPromises[name] = fetch(extBase() + MODELS[name].file)
         .then((r) => r.json())
         .then(parseWeights);
     }
-    return weightsPromise;
+    return weightsPromises[name];
   }
 
-  let cachedWeights = null;
-  ensureLoaded().then((w) => { cachedWeights = w; }).catch((err) => {
-    console.warn("[증강체스엔진] NNUE weights failed to load, evaluate() will return null until fixed:", err);
-  });
+  const loadedWeights = {};
+  function loadModel(name) {
+    return ensureLoaded(name).then((w) => { loadedWeights[name] = w; }).catch((err) => {
+      console.warn("[증강체스엔진] NNUE weights (" + name + ") failed to load, evaluate() will fall back to evaluateState() until fixed:", err);
+    });
+  }
+  loadModel(currentModel);
+
+  // Switch the active model. Unknown names are ignored. Persisted (page
+  // context only) so the choice survives reloads; the previous model keeps
+  // answering until the new one finishes loading, so a switch never leaves
+  // evaluate() returning null mid-game.
+  function setModel(name, { persist = true } = {}) {
+    if (!MODELS[name]) return currentModel;
+    currentModel = name;
+    if (persist) { try { localStorage.setItem(MODEL_STORAGE_KEY, name); } catch (e) { /* ignore */ } }
+    if (!loadedWeights[name]) loadModel(name);
+    return currentModel;
+  }
+  function getModel() { return currentModel; }
+  function activeWeights() { return loadedWeights[currentModel] || null; }
 
   // Returns a tanh-squashed score in [-1, 1] from `mover`'s perspective
   // (positive = good for mover), or null if weights aren't loaded yet or
@@ -176,10 +241,11 @@
   // engine.evaluateState()'s own terminal handling in that case -- this
   // never tries to score a checkmate/no-survivor position itself).
   function evaluate(boardState, mover) {
-    if (!cachedWeights) return null;
+    const weights = activeWeights();
+    if (!weights) return null;
     const input = encodeFromState(boardState, mover);
     if (input === null) return null;
-    return forward(cachedWeights, input);
+    return forward(weights, input);
   }
 
   // Rough, unvalidated calibration constant to bring evaluate()'s tanh
@@ -205,5 +271,5 @@
     return nnueScore * SCORE_SCALE;
   }
 
-  self.__augNNUE = { ensureLoaded, evaluate, evaluateForSearch, INPUT_SIZE, FEATURE_NAMES };
+  self.__augNNUE = { ensureLoaded, evaluate, evaluateForSearch, INPUT_SIZE, FEATURE_NAMES, MODELS, setModel, getModel, forwardWith: forward, parseWeights, encodeFromState };
 })();

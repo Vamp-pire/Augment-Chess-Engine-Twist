@@ -312,7 +312,7 @@
     let responses;
     try {
       responses = await Promise.all(
-        chunks.map((chunk) => (chunk.length ? askWorkerPool({ state, actionSubset: chunk, color, depth, timeMs, useNnue: useNnueForReview }) : Promise.resolve(null)))
+        chunks.map((chunk) => (chunk.length ? askWorkerPool({ state, actionSubset: chunk, color, depth, timeMs, useNnue: useNnueForReview, nnueModel: self.__augNNUE?.getModel?.() }) : Promise.resolve(null)))
       );
     } catch (err) {
       return fallback();

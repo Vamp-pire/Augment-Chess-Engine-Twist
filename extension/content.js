@@ -291,8 +291,29 @@
       nnueToggle.appendChild(nnueCheckbox);
       nnueToggle.appendChild(nnueText);
 
+      // Model picker (2026-09-19): which trained NNUE to use, for both this
+      // review and live bot play. nnue.js persists the choice itself.
+      const modelPicker = document.createElement("label");
+      modelPicker.className = "aug-engine-review-nnue-toggle aug-engine-model-picker";
+      const modelLabel = document.createElement("span");
+      modelLabel.textContent = "NNUE 모델";
+      const modelSelect = document.createElement("select");
+      const nnueApi = window.__augNNUE;
+      for (const [key, info] of Object.entries(nnueApi?.MODELS || {})) {
+        const opt = document.createElement("option");
+        opt.value = key;
+        opt.textContent = info.label;
+        modelSelect.appendChild(opt);
+      }
+      modelSelect.value = nnueApi?.getModel?.() || "";
+      modelSelect.disabled = !nnueApi?.setModel;
+      modelSelect.addEventListener("change", () => nnueApi?.setModel(modelSelect.value));
+      modelPicker.appendChild(modelLabel);
+      modelPicker.appendChild(modelSelect);
+
       box.appendChild(btn);
       box.appendChild(nnueToggle);
+      box.appendChild(modelPicker);
 
       // Anchored right under the board itself -- see repositionReviewButton
       // above for why placement has to be recomputed live rather than fixed

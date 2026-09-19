@@ -35,7 +35,7 @@ if (process.env.SELFPLAY_NNUE_EVAL === "1") {
   const path = require("path");
   const { encodeBoard } = require("./nnue/encode.js");
   const { loadWeights, forward } = require("./nnue/forward.js");
-  const weightsPath = process.env.SELFPLAY_NNUE_WEIGHTS || path.join(__dirname, "extension", "model", "nnue-weights.json");
+  const weightsPath = process.env.SELFPLAY_NNUE_WEIGHTS || path.join(__dirname, "extension", "model", "nnue-squall.json");
   const nnueWeights = loadWeights(weightsPath);
   const SCORE_SCALE = 100; // matches extension/nnue.js's evaluateForSearch
   nnueEvalFn = function (boardState, aiColor) {

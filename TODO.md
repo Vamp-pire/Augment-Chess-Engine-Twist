@@ -12,7 +12,7 @@ Last updated: 2026-09-19. Background and findings: `D:\HANDOFF-모음\증강체�
 - [ ] Build a frozen external benchmark (`nnue/eval-benchmark-fixed.json`)
   - Positions labelled by objective material balance (`PIECE_VALUES`, engine-merged.js:3339), only large imbalances
   - Plus the 38 real-game ACG positions; commit once, never regenerate
-- [ ] Decide deployed model: Squall (current master) vs Typhoon. No significant difference in deep matches, so no rush
+- [ ] Decide default model in extension: Squall (default now) vs Tornado. Both selectable; no significant difference in deep matches
 
 ## Training ideas (from the ceiling analysis)
 
@@ -52,6 +52,9 @@ Last updated: 2026-09-19. Background and findings: `D:\HANDOFF-모음\증강체�
 | Squall | `weights.round2-full-112981.json` (= deployed `weights.json`) | Round 2, 67.1% on round-2 split |
 
 ## Done (recent)
+
+- [x] 2026-09-19: engine-merged.js synced to site 9/19 patch (generateActions identical on 600 random boards vs live worker); site-oracle bundle refreshed
+- [x] 2026-09-19: extension now ships engine-merged.js + 184-card/40-plane NNUE encoder; Tornado/Squall selectable in the review box (Node-vs-extension score diff 0 on 300 positions)
 
 - [x] Round-2 dataset assembled (112,981 positions) and cloud retrain merged (4d2a1c9)
 - [x] Cloud encode cache reused locally (skip re-encode)

@@ -404,6 +404,17 @@
   cursor: pointer;
 }
 
+.aug-engine-model-picker select {
+  margin-left: auto;
+  background: var(--aug-surface);
+  color: var(--aug-text);
+  border: 1px solid var(--aug-accent);
+  border-radius: 6px;
+  padding: 2px 6px;
+  font: inherit;
+  cursor: pointer;
+}
+
 .aug-engine-review-panel {
   max-width: 440px;
   text-align: left;
