@@ -48,6 +48,10 @@ on:
         description: "Store a newly built encode cache on the data branch (true/false)"
         required: false
         default: "true"
+      save_model:
+        description: "Optional name: also store the trained weights on the data branch as models/<name>.json so match.yml can use them as data:models/<name>.json (no commit to master)"
+        required: false
+        default: ""
       promote:
         description: "Commit the trained weights to master (true/false)"
         required: false
@@ -245,6 +249,32 @@ jobs:
             done
             git push -q "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:gha-segments-16cards
           fi
+
+      - name: Save trained model on the data branch (optional)
+        if: ${{ inputs.save_model != '' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MODEL_NAME: ${{ inputs.save_model }}
+        shell: bash --noprofile --norc -uo pipefail {0}
+        run: |
+          cp nnue/model/weights.json /tmp/saved-model.json
+          rm -rf /tmp/mwt
+          git fetch origin gha-segments-16cards
+          git worktree add -B gha-segments-16cards /tmp/mwt origin/gha-segments-16cards
+          mkdir -p /tmp/mwt/models
+          cp /tmp/saved-model.json "/tmp/mwt/models/${MODEL_NAME}.json"
+          cd /tmp/mwt
+          git config user.email "actions@github.com"
+          git config user.name "gha-selfplay-bot"
+          git add models
+          git commit -q -m "model ${MODEL_NAME} from train run ${{ github.run_id }}"
+          for i in 1 2 3; do
+            git fetch origin gha-segments-16cards -q
+            git rebase origin/gha-segments-16cards -q && break
+            git rebase --abort 2>/dev/null
+            sleep 5
+          done
+          git push -q "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:gha-segments-16cards
 
       - name: Promote trained weights to master
         if: ${{ inputs.promote == 'true' }}
