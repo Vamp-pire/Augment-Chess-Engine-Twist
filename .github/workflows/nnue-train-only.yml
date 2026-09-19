@@ -21,6 +21,14 @@ on:
         description: "Cache key (filename without extension) to fetch from gha-segments-16cards:nnue-cache/"
         required: false
         default: "77bdef0056169d85.1767225600000"
+      overrides:
+        description: 'Optional JSON overriding nnue/pipeline-config.json keys for this run only, e.g. {"ablateDeepUnits":"8","ablateBlend":"0.5"}'
+        required: false
+        default: ""
+      merge:
+        description: "Merge trained weights into master (false = artifact only, safe for parallel experiments)"
+        required: false
+        default: "true"
 
 permissions:
   contents: write
@@ -43,9 +51,12 @@ jobs:
 
       - name: Read pipeline config
         id: cfg
+        env:
+          OVERRIDES: ${{ inputs.overrides }}
         run: |
           node -e "
             const c = require('./nnue/pipeline-config.json');
+            if (process.env.OVERRIDES) Object.assign(c, JSON.parse(process.env.OVERRIDES));
             const fs = require('fs');
             fs.appendFileSync(process.env.GITHUB_OUTPUT, 'datasetPath=' + c.datasetPath + '\n');
             const envNames = {
@@ -110,6 +121,7 @@ jobs:
           retention-days: 14
 
       - name: Merge trained weights into master
+        if: ${{ inputs.merge != 'false' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         # Confirmed live 2026-09-17: a plain push here failed outright
