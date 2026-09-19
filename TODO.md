@@ -2,6 +2,12 @@
 
 Last updated: 2026-09-19. Project map: `PROJECT.md`. Background: `HANDOFF.md`, `D:\HANDOFF-모음\증강체스엔진-HANDOFF.md`.
 
+## Reminders (owner: on hold, remind periodically)
+
+- [ ] Verify the extension in Chrome (reload the unpacked extension): model dropdown + load status, new icons, review, live bot, settings ("우리 엔진" block), perf panel evaluator label
+- [ ] Save proof of the site operator's consent (screenshot / message link) -- NOTICE.md cites it (Discord, 2026-09-19)
+- [ ] Round 4: decide after round 3 (round 3 target 150k, ETA ~2026-09-20 10:00-12:00 KST)
+
 ## Now / next
 
 - [ ] **Round 3 self-play is RUNNING** (8 parallel shards, depth 6, 1500ms/move, started 2026-09-19T03:54Z)
@@ -9,7 +15,6 @@ Last updated: 2026-09-19. Project map: `PROJECT.md`. Background: `HANDOFF.md`, `
   - It **stops itself at 150,000 positions** (`SELFPLAY_TARGET`; checked every 15 min by the runs that started after the guard was added: 2026-09-19 ~04:40Z). Backstop cutoff **2026-09-22T04:00:00Z**. Stop manually: `gh variable set SELFPLAY_CUTOFF_ISO --body 2000-01-01T00:00:00Z`
   - Early rate (4 shards) was ~1.4k positions/h, so 8 shards ~3k/h -> 150k in ~2 days
   - When done: `dataset-build.yml` (since `20260919T035300Z`, push=false first to check the count, then push=true) -> `nnue-train.yml` on the new dataset (encodes with the current engine automatically)
-- [ ] Verify the extension in Chrome (reload the unpacked extension): model dropdown + load status, review, live-bot NNUE inside the worker, perf panel evaluator label
 - [ ] Depth 2 vs 4 (handcoded) running in the cloud (`match.yml`, run 35421988904): decides whether more speed work is worth it
 - [ ] After round 3: train with blend ~0.5-0.8 on the new dataset, then `match.yml` against Squall (10+ pairs per shard); only ship a model that wins in play, not just on val accuracy
 - [ ] Remaining engine parity: F5 parrot memory guard (may change self-play behaviour; needs a decision) -- `tools/site-parity/TRIAGE.md`
@@ -68,15 +73,11 @@ Order of value (measure first, then evaluation, then data): 4 -> 1 -> 3.
 - [ ] Root cause of the round-1 "regression": moving validation split, label ceiling, game-count-limited samples (see handoff)
 - [ ] Why does higher val accuracy not translate into play strength? (label noise, draws, evaluation vs search interaction)
 
-## Feedback / distribution
-
-- [ ] Collect friends' feedback (KakaoTalk/Discord): NNUE toggle on vs off feel, odd moves, difficulty, draw/dragging games, card usage
-
 ## Cleanup
 
-- [ ] `data/` (git-ignored, ~1.9 GB of archived local self-play data), `nnue/snapshots/` (9.4 GB) and `nnue/cache/` (6.1 GB) are regenerable/archival: delete when disk space matters
-- [ ] Prune 9/6-9/12 experiment weight files in `nnue/model/` if no longer needed
-- [ ] Delete the earlier project-overview Artifact if not wanted (https://claude.ai/artifact/JdBrU2SBPTp5hr4AUc5nFe)
+- [x] 2026-09-19: deleted `nnue/cache/*` (6.0 GB) and `data/backups/*` (1.2 GB); kept `data/experiments` and `data/archive`; deleted the old project-overview Artifact; merged the 3 Dependabot PRs after testing them
+- [ ] `nnue/snapshots/` (9.2 GB, 53 files but only 10 distinct contents): owner to decide what to delete (audit in the 2026-09-19 chat)
+- Decision: keep the local experiment weight files in `nnue/model/` (untracked)
 
 ## Model lineup
 
