@@ -8,6 +8,10 @@ function stubEl() {
       if (prop === "style") return new Proxy({ setProperty: noop, removeProperty: noop, getPropertyValue: () => "" }, { get: (t, p) => (p in t ? t[p] : ""), set: () => true });
       if (prop === "classList") return { add: noop, remove: noop, toggle: noop, contains: () => false };
       if (prop === "addEventListener" || prop === "removeEventListener") return noop;
+      if (prop === "parentElement" || prop === "parentNode" || prop === "firstElementChild" || prop === "lastElementChild") return stubEl();
+      if (prop === "children" || prop === "childNodes") return [];
+      if (prop === "querySelector") return () => stubEl();
+      if (prop === "querySelectorAll") return () => [];
       if (prop === "appendChild" || prop === "removeChild" || prop === "setAttribute" || prop === "getAttribute") return noop;
       if (typeof prop === "symbol") return undefined;
       return noop;
@@ -70,6 +74,9 @@ globalThis.Worker = class Worker { constructor() {} postMessage() {} terminate()
 globalThis.fetch = globalThis.fetch || (async () => ({ ok: false, json: async () => ({}), text: async () => "" }));
 globalThis.Image = class Image { constructor() {} set src(v) {} addEventListener() {} };
 globalThis.HTMLCanvasElement = class HTMLCanvasElement {};
+for (const name of ["Node", "Element", "HTMLElement", "SVGElement", "HTMLInputElement", "HTMLButtonElement", "HTMLSelectElement"]) {
+  if (!globalThis[name]) globalThis[name] = class {};
+}
 globalThis.MutationObserver = class MutationObserver { constructor() {} observe() {} disconnect() {} };
 globalThis.ResizeObserver = class ResizeObserver { constructor() {} observe() {} disconnect() {} };
 globalThis.IntersectionObserver = class IntersectionObserver { constructor() {} observe() {} disconnect() {} };

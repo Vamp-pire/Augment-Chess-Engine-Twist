@@ -68,3 +68,14 @@ import("./site-engine.mjs").then((mod) => {
    여러 개 생성해서 자동으로 반복 비교하는 스크립트로 확장할 것
    (지금은 이 README를 쓴 시점 기준 수동 시나리오 1건만 검증됨: leap
    카드의 직선 케이스, 완전 일치 확인됨).
+
+## 2026-09-19 갱신: 번들 통째로 교체
+사이트 최신 업데이트(2026.09.19 03:50 "balance-remakes-v1")에 맞춰 옛 스냅샷을 지우고 새로 받음.
+- 원본 보관: `site-bundle-20260919.js`(= `main-DYyN_QDn.js`), `aiWorker-fresh-20260919.js`(= `aiWorker.js`),
+  청크 `zugzwang-C0ejyPig.js`, `betaSupabaseAuth-BM9hgzr_.js`, `modulepreload-polyfill-COaX8i6R.js`
+- `site-engine.mjs`는 `site-bundle-20260919.js` 끝에 `export { ... };` 한 줄만 붙인 것. 예전처럼 부팅 구간을
+  `try {}`로 감싸지 않음 — 새 번들은 부팅 뒤에도 함수 선언이 2,800줄 섞여 있어서, 블록으로 감싸면 함수가
+  블록 스코프에 갇혀 `addInternalPawnMoves is not defined`가 남. 대신 `init.mjs`의 DOM 흉내를 보강함
+  (`querySelector`/`parentElement`/`HTMLElement` 등).
+- 다시 받을 때: 위 5개 파일을 `https://augmentchess.org/assets/`에서 받고, 옛 `export { ... };` 줄을 끝에 붙임.
+- `verify1`/`verify2`의 실패 6건은 오라클 오류가 아니라 9/13 기준 기대값이 새 판정과 달라진 것(상인 왕 판정 등).
