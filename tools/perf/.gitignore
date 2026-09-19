@@ -1,0 +1,3 @@
+tools/perf/engine-orig.js
+tools/perf/orig-results.json
+*.cpuprofile

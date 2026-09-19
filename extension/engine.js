@@ -1,5 +1,6 @@
 (function() {
   "use strict";
+  let ATTACK_MEMO = null;
   function cloneGameData(value, options) {
     const fail = () => {
       throw new DOMException("Value cannot be cloned", "DataCloneError");
@@ -8246,6 +8247,15 @@
     return piecesMatching(boardState, (piece) => piece.color === color && isWorkerKingRole(boardState, piece) && !isWorkerUndergroundBunkerKing(piece))[0] || null;
   }
   function workerRangedPieceOptions(boardState, piece) {
+    const memo = ATTACK_MEMO;
+    if (memo !== null && memo.board === boardState && piece && typeof piece === "object") {
+      let v = memo.ranged.get(piece);
+      if (v === void 0) { v = workerRangedPieceOptionsRaw(boardState, piece); memo.ranged.set(piece, v); }
+      return v;
+    }
+    return workerRangedPieceOptionsRaw(boardState, piece);
+  }
+  function workerRangedPieceOptionsRaw(boardState, piece) {
     return {
       princessQueenMovement: pieceAbilityType(piece) === "princess" && septemberPrincessHasQueenMovementCached(boardState?.board, piece.color),
       magicGirlAwakened: Boolean(boardState?.magicGirlSurge?.[piece?.color]),
@@ -15399,6 +15409,15 @@
   // aiWorker-raw.js's own evaluateState above -- this changes nothing about
   // what evaluateState returns, only how the computation is organized.
   function evaluateStateComponents(boardState, aiColor) {
+    if (ATTACK_MEMO !== null) return evaluateStateComponentsRaw(boardState, aiColor);
+    ATTACK_MEMO = { board: boardState, map: /* @__PURE__ */ new Map(), pieces: null, cols: -1, encouraged: /* @__PURE__ */ new Map(), ranged: /* @__PURE__ */ new Map(), attackers: /* @__PURE__ */ new Map() };
+    try {
+      return evaluateStateComponentsRaw(boardState, aiColor);
+    } finally {
+      ATTACK_MEMO = null;
+    }
+  }
+  function evaluateStateComponentsRaw(boardState, aiColor) {
     const terminal = scoreTerminalOutcome({
       mode: boardState?.mode,
       winner: boardState?.winner,
@@ -15529,6 +15548,28 @@
   function workerBestCaptureThreat(boardState, targetPiece, targetRow2, targetCol2) {
     const byColor = opponent(targetPiece?.color);
     const cells = workerThreatTargetCells(boardState, targetPiece, targetRow2, targetCol2);
+    const memo = ATTACK_MEMO;
+    if (memo !== null && memo.board === boardState) {
+      // Same result as the scan below: the first (in scan order) attacker with the minimal pieceValue.
+      let sorted = memo.attackers.get(byColor);
+      if (sorted === void 0) {
+        sorted = [];
+        forEachPiece(boardState, (piece, row, col) => {
+          if (piece.color !== byColor || piece.type === "wall" || isFrozenPiece(piece) || isWorkerStakedPiece(piece)) return;
+          sorted.push({ piece, row, col, value: pieceValue(piece), order: sorted.length });
+        });
+        if (sorted.some((e) => e.value !== e.value)) sorted = null;
+        else sorted.sort((a, b) => a.value - b.value || a.order - b.order);
+        memo.attackers.set(byColor, sorted);
+      }
+      if (sorted !== null) {
+        for (let i = 0; i < sorted.length; i += 1) {
+          const e = sorted[i];
+          if (cells.some((cell) => attacksSquare(boardState, e.piece, e.row, e.col, cell.row, cell.col))) return { piece: e.piece, row: e.row, col: e.col };
+        }
+        return null;
+      }
+    }
     let best = null;
     forEachPiece(boardState, (piece, row, col) => {
       if (piece.color !== byColor || piece.type === "wall" || isFrozenPiece(piece) || isWorkerStakedPiece(piece)) return;
@@ -16199,7 +16240,18 @@
     if (ammo >= SHOTGUN_BLAST_AMMO_COST && queenDirections().some((direction) => shotgunBlastCells(row, col, direction).some((cell) => cell.row === targetRow2 && cell.col === targetCol2))) return true;
     return ammo >= SHOTGUN_SNIPE_AMMO_COST && (targetRow2 === row || targetCol2 === col || Math.abs(targetRow2 - row) === Math.abs(targetCol2 - col)) && clearRay(boardState, row, col, targetRow2, targetCol2);
   }
+  // Perf: per-evaluateStateComponents-call memo of attacksSquare (pure w.r.t. an unmutated board).
   function attacksSquare(boardState, piece, row, col, targetRow2, targetCol2) {
+    const memo = ATTACK_MEMO;
+    if (memo === null || memo.board !== boardState || !(row >= 0 && row < 64 && col >= 0 && col < 64 && targetRow2 >= 0 && targetRow2 < 64 && targetCol2 >= 0 && targetCol2 < 64) || (row | 0) !== row || (col | 0) !== col || (targetRow2 | 0) !== targetRow2 || (targetCol2 | 0) !== targetCol2) return attacksSquareRaw(boardState, piece, row, col, targetRow2, targetCol2);
+    let m = memo.map.get(piece);
+    if (m === void 0) { m = /* @__PURE__ */ new Map(); memo.map.set(piece, m); }
+    const key = ((row * 64 + col) * 64 + targetRow2) * 64 + targetCol2;
+    let v = m.get(key);
+    if (v === void 0) { v = attacksSquareRaw(boardState, piece, row, col, targetRow2, targetCol2); m.set(key, v); }
+    return v;
+  }
+  function attacksSquareRaw(boardState, piece, row, col, targetRow2, targetCol2) {
     if (piece.type === "hedgehog" && Number(boardState.turnsTaken?.[piece.color]) < Number(piece.bearMoveLockedUntilTurn)) return false;
     if (pieceHasAbility(piece, "campfire")) return false;
     const basicTrainingCapture = isWorkerBasicTrainingPawnCapture(boardState, piece, row, col, targetRow2, targetCol2);
@@ -17128,6 +17180,15 @@
     );
   }
   function isWorkerEncouragedTarget(boardState, target) {
+    const memo = ATTACK_MEMO;
+    if (memo !== null && memo.board === boardState && target && typeof target === "object") {
+      let v = memo.encouraged.get(target);
+      if (v === void 0) { v = isWorkerEncouragedTargetRaw(boardState, target); memo.encouraged.set(target, v); }
+      return v;
+    }
+    return isWorkerEncouragedTargetRaw(boardState, target);
+  }
+  function isWorkerEncouragedTargetRaw(boardState, target) {
     if (target?.type === "scarecrow") return false;
     if (target?.outpostProtected) return true;
     if (boardState && !target?.editorRoyal && !isWorkerKingRole(boardState, target) && septemberBoardCampfireProtects(boardState.board, target)) return true;
@@ -17506,6 +17567,19 @@
     return Array.from({ length: rows }, () => Array.from({ length: cols }, () => null));
   }
   function forEachPiece(boardState, callback) {
+    const memo = ATTACK_MEMO;
+    if (memo !== null && memo.board === boardState) {
+      let list = memo.pieces;
+      if (list === null) {
+        list = memo.pieces = [];
+        forEachPieceRaw(boardState, (piece, row, col) => list.push({ piece, row, col }));
+      }
+      for (let i = 0; i < list.length; i += 1) callback(list[i].piece, list[i].row, list[i].col);
+      return;
+    }
+    forEachPieceRaw(boardState, callback);
+  }
+  function forEachPieceRaw(boardState, callback) {
     const seen = /* @__PURE__ */ new Set();
     for (let row = 0; row < boardRowCount(boardState); row += 1) {
       for (let col = 0; col < boardColCount(boardState); col += 1) {
@@ -17599,6 +17673,14 @@
     return Array.isArray(boardState?.board) && boardState.board.length ? boardState.board.length : workerBoardRows;
   }
   function boardColCount(boardState) {
+    const memo = ATTACK_MEMO;
+    if (memo !== null && memo.board === boardState) {
+      if (memo.cols === -1) memo.cols = boardColCountRaw(boardState);
+      return memo.cols;
+    }
+    return boardColCountRaw(boardState);
+  }
+  function boardColCountRaw(boardState) {
     if (!Array.isArray(boardState?.board) || !boardState.board.length) return workerBoardCols;
     return Math.max(1, ...boardState.board.map((row) => Array.isArray(row) ? row.length : 0));
   }
