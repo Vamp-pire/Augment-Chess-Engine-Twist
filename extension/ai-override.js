@@ -56,6 +56,32 @@
     return raw > 0 && raw <= 30000 ? raw : 0; // 0 = no cap, depth alone decides
   }
 
+
+  // Own-engine search limits (2026-09-19), player-adjustable in content.js's
+  // "세부 설정" block. Read fresh on every search. The same keys/clamps are read
+  // in analysis.js and ai-override.js (separate content-script closures, no
+  // shared module). Returns options.limits for engine.searchBestAction:
+  // time is the soft budget, depth is unlimited (12) unless set, and the
+  // engine may extend past the soft time when a depth is almost finished.
+  function readOwnEngineLimits(defaultTimeMs, hardCapMs) {
+    const num = (key) => { try { return Number(localStorage.getItem(key)); } catch (e) { return 0; } };
+    let extend = true;
+    try { extend = localStorage.getItem("augEngineOwnExtend") !== "0"; } catch (e) { /* default on */ }
+    const maxDepth = num("augEngineOwnMaxDepth");
+    const think = num("augEngineOwnThinkTimeMs");
+    const minDepth = num("augEngineOwnMinDepth");
+    const soft = think > 0 ? Math.min(think, 60000) : defaultTimeMs;
+    const limits = {
+      depth: maxDepth >= 1 ? Math.min(12, Math.floor(maxDepth)) : 12,
+      movetimeMs: soft,
+      minDepth: minDepth >= 1 ? Math.min(8, Math.floor(minDepth)) : 0,
+      extend,
+      extendFactor: 2
+    };
+    if (hardCapMs) limits.hardTimeMs = Math.max(soft, hardCapMs);
+    return limits;
+  }
+
   const AI_WORKER_URL_PATTERN = /aiWorker\.js/;
   const OriginalWorker = window.Worker;
 
@@ -142,6 +168,10 @@
             // deadline under the site's real margin, not just this file's
             // guess at one.
             const searchOptions = nnue ? { evalFn: nnue.evaluateForSearch } : {};
+            // Time is the limit (see readOwnEngineLimits). The site kills the worker at
+            // its own failsafe (~2x timeLimitMs, see the flexibleBudget note above), so
+            // the extension may only stretch to 1.5x unless the player asked for more.
+            const ownLimits = readOwnEngineLimits(data.timeLimitMs, Math.round((data.timeLimitMs || 3500) * 1.5));
 
             // Same hybrid split the review feature uses (analysis.js's
             // classifyPlyMixedLines): standard-piece lines to Stockfish
@@ -220,14 +250,14 @@
                 // involved at all. Once Stockfish's real analysis of the
                 // actual position is available, it should never get
                 // silently swapped out for that heuristic.
-                const ownOptions = sfSuggestion ? Object.assign({ skipOpeningBook: true }, searchOptions) : searchOptions;
+                const ownOptions = Object.assign(sfSuggestion ? { skipOpeningBook: true } : {}, searchOptions, { limits: ownLimits });
                 ourBest = engine.searchBestAction(state, ourCandidates, color, depth, data.timeLimitMs, ownOptions);
               }
             } else {
               // Stockfish/hybrid not ready yet (shouldn't really happen by
               // the time a real game move is requested, but fail back to
               // the pre-hybrid all-own-engine behavior rather than error).
-              ourBest = engine.searchBestAction(state, rootActions, color, depth, data.timeLimitMs, searchOptions);
+              ourBest = engine.searchBestAction(state, rootActions, color, depth, data.timeLimitMs, Object.assign({}, searchOptions, { limits: ownLimits }));
             }
 
             const best = ourBest;

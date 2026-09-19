@@ -3753,21 +3753,67 @@
   // real-only is lost.
   function searchBestAction(boardState, rootActions, aiColor, depth, timeLimitMs = TIME_LIMIT_MS, options = {}) {
     setWorkerBoardDimensions(boardState);
-    const maxDepth = Math.max(1, Math.min(MAX_DEPTH, Number(depth) || DEFAULT_DEPTH));
+    // options.limits (2026-09-19) -- Stockfish-style "go" parameters. When absent
+    // everything below behaves exactly as before.
+    //   depth              max depth (overrides the depth argument)
+    //   movetimeMs         soft time budget per move (overrides timeLimitMs)
+    //   infinite           no time limit (stops on depth / nodes only)
+    //   nodes              stop after about this many nodes
+    //   minDepth           always finish at least this depth (may run to hardTimeMs)
+    //   extend             (default true) when the soft time is up but the current
+    //                      depth is mostly done (extendMinProgress of the root moves,
+    //                      default 0.6) or the best move is still changing, keep
+    //                      going until hardTimeMs instead of throwing the work away
+    //   extendFactor       hardTimeMs default = movetimeMs * extendFactor (default 2)
+    //   hardTimeMs         absolute cap incl. extension
+    //   predictiveStop     (default true) do not start a depth that, judging by the
+    //                      previous depth's cost, cannot finish in the time left
+    const limits = options.limits && typeof options.limits === "object" ? options.limits : null;
+    const maxDepth = Math.max(1, Math.min(MAX_DEPTH, Number(limits?.depth ?? depth) || DEFAULT_DEPTH));
     const startedAt = performance.now();
-    const boundedTimeLimitMs = normalizeAiWorkerTimeLimit(timeLimitMs, timeLimitMs ?? TIME_LIMIT_MS);
+    const requestedTimeMs = limits ? (limits.infinite ? Infinity : limits.movetimeMs) : timeLimitMs;
+    const boundedTimeLimitMs = limits
+      ? (requestedTimeMs === Infinity || Number.isFinite(Number(requestedTimeMs)) ? Math.max(0, Number(requestedTimeMs)) : nonNegativeMs(timeLimitMs, TIME_LIMIT_MS))
+      : normalizeAiWorkerTimeLimit(timeLimitMs, timeLimitMs ?? TIME_LIMIT_MS);
     const flexibleBudget = Boolean(options.flexibleBudget);
-    const effectiveTimeLimitMs = flexibleBudget
-      ? Math.min(HARD_TIME_LIMIT_MS, boundedTimeLimitMs * FLEXIBLE_BUDGET_MULTIPLIER)
-      : boundedTimeLimitMs;
+    let tm = null;
+    if (limits) {
+      const extendOn = limits.extend !== false;
+      const minDepth = Math.max(0, Math.min(maxDepth, Math.floor(Number(limits.minDepth) || 0)));
+      const factor = Math.max(1, Number(limits.extendFactor) || 2);
+      const hardMs = Number.isFinite(Number(limits.hardTimeMs))
+        ? Math.max(boundedTimeLimitMs, Number(limits.hardTimeMs))
+        : (extendOn || minDepth > 0 ? boundedTimeLimitMs * factor : boundedTimeLimitMs);
+      tm = {
+        softMs: boundedTimeLimitMs,
+        hardMs,
+        extendOn,
+        minDepth,
+        extendMinProgress: Math.min(1, Math.max(0.05, Number(limits.extendMinProgress) || 0.6)),
+        predictiveStop: limits.predictiveStop !== false,
+        maxNodes: Math.max(0, Number(limits.nodes) || 0),
+        extended: false
+      };
+    }
+    const effectiveTimeLimitMs = limits
+      ? boundedTimeLimitMs
+      : flexibleBudget
+        ? Math.min(HARD_TIME_LIMIT_MS, boundedTimeLimitMs * FLEXIBLE_BUDGET_MULTIPLIER)
+        : boundedTimeLimitMs;
     const evalFn = typeof options.evalFn === "function" ? options.evalFn : null;
     const context = {
       aiColor,
       evalFn,
       nodes: 0,
       cutoffs: 0,
+      startedAt,
       deadline: startedAt + effectiveTimeLimitMs,
-      hardDeadline: startedAt + Math.min(HARD_TIME_LIMIT_MS, effectiveTimeLimitMs),
+      hardDeadline: startedAt + (tm ? tm.hardMs : Math.min(HARD_TIME_LIMIT_MS, effectiveTimeLimitMs)),
+      tm,
+      rootDone: 0,
+      rootTotal: 0,
+      currentDepth: 0,
+      bestChanged: false,
       timedOut: false,
       // Root applications are deterministic. Reuse their full end-turn result,
       // including monster movement, across safety checks and iterative depths.
@@ -3802,7 +3848,23 @@
     // depth N" marker. Purely additive bookkeeping, never affects a decision.
     // `self` may not exist (plain Node) -- everything is best-effort.
     const depthProfile = [];
+    const iterHistory = [];
     for (let currentDepth = 1; currentDepth <= maxDepth; currentDepth += 1) {
+      if (tm && currentDepth > 1) {
+        const elapsedMs = performance.now() - startedAt;
+        if (currentDepth > tm.minDepth) {
+          const remainingMs = tm.softMs - elapsedMs;
+          if (remainingMs <= 0) break;
+          if (tm.predictiveStop && iterHistory.length) {
+            const last = iterHistory[iterHistory.length - 1];
+            const prev = iterHistory.length > 1 ? iterHistory[iterHistory.length - 2] : 0;
+            const ratio = prev > 0 ? Math.min(8, Math.max(1.5, last / prev)) : 3;
+            if (remainingMs < last * ratio * 0.5) break;
+          }
+        } else if (elapsedMs >= tm.hardMs) {
+          break;
+        }
+      }
       if (hasRuleMonster && completedDepth >= 2 && !monsterSearchHasTimeForNextDepth(context.deadline - performance.now(), previousCompletedDepthMs)) {
         break;
       }
@@ -3811,6 +3873,7 @@
       try { self.__augSearchLive = { aiColor, depth: currentDepth, maxDepth, startedAt: Date.now() }; } catch (e) {}
       const nodesBeforeDepth = context.nodes;
       const depthStartedAt = performance.now();
+      context.currentDepth = currentDepth;
       const depthResult = searchAtDepth(boardState, orderedRoot, aiColor, currentDepth, context);
       depthProfile.push({
         depth: currentDepth,
@@ -3825,6 +3888,7 @@
         completedDepth = currentDepth;
         lastCandidates = depthResult.candidates || lastCandidates;
         previousCompletedDepthMs = performance.now() - depthStartedAt;
+        iterHistory.push(previousCompletedDepthMs);
         orderedRoot = [bestAction, ...orderedRoot.filter((action) => !sameAction(action, bestAction))];
       }
       if (context.timedOut) break;
@@ -3844,7 +3908,7 @@
     } catch (e) {
       // profiling is best-effort, never worth failing the actual search over
     }
-    return { action: bestAction, score: bestScore, nodes: context.nodes, cutoffs: context.cutoffs, completedDepth, candidates: lastCandidates };
+    return { action: bestAction, score: bestScore, nodes: context.nodes, cutoffs: context.cutoffs, completedDepth, candidates: lastCandidates, timeMs: performance.now() - startedAt, extended: Boolean(tm?.extended) };
   }
   function pickRootHardSafetyFallback(boardState, orderedRoot, aiColor, context = null) {
     let firstLegal = null;
@@ -3893,6 +3957,10 @@
     let alpha = -INF;
     const beta = INF;
     context.timedOut = false;
+    context.rootTotal = orderedRoot.length;
+    context.rootDone = 0;
+    context.bestChanged = false;
+    const rootPrevBest = orderedRoot[0];
     const nonCardActions = orderedRoot.filter((action) => action?.type !== "card");
     const cardActions = orderedRoot.filter((action) => action?.type === "card");
     const scoredCandidates = [];
@@ -3938,16 +4006,19 @@
       if (score > bestScore) {
         bestScore = score;
         bestAction = action;
+        if (action !== rootPrevBest) context.bestChanged = true;
       }
       alpha = Math.max(alpha, bestScore);
       return true;
     };
     for (const action of nonCardActions) {
       if (!evaluateRootAction(action)) break;
+      context.rootDone += 1;
     }
     if (!context.timedOut) {
       for (const action of cardActions) {
         if (!evaluateRootAction(action)) break;
+        context.rootDone += 1;
       }
     }
     // Grafted from engine.optimized.js (our-only addition): degenerate
@@ -4907,8 +4978,32 @@
     });
     return keys;
   }
+  // Decides, once, whether to keep searching past the soft deadline: only when
+  // the depth in progress is mostly done or its best move is still changing
+  // (throwing that work away is the expensive mistake), or when minDepth has not
+  // been reached yet. Never extends past tm.hardMs.
+  function canExtendSearch(context) {
+    const tm = context.tm;
+    if (!tm || tm.extended || !(tm.hardMs > tm.softMs)) return false;
+    if (context.currentDepth < tm.minDepth) return true;
+    if (!tm.extendOn) return false;
+    const progress = context.rootTotal > 0 ? context.rootDone / context.rootTotal : 0;
+    if (progress >= tm.extendMinProgress) return true;
+    return context.bestChanged && progress >= 0.3;
+  }
   function isTimedOut(context) {
-    if (performance.now() <= context.deadline) return false;
+    const tm = context.tm;
+    if (tm && tm.maxNodes && context.nodes >= tm.maxNodes) {
+      context.timedOut = true;
+      return true;
+    }
+    const now = performance.now();
+    if (now <= context.deadline) return false;
+    if (tm && canExtendSearch(context)) {
+      tm.extended = true;
+      context.deadline = context.startedAt + tm.hardMs;
+      if (now <= context.deadline) return false;
+    }
     context.timedOut = true;
     return true;
   }

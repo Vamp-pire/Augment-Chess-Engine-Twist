@@ -35,6 +35,12 @@
     // localStorage (it can't call these getters -- different file/closure).
     liveStockfishDepth: "augEngineLiveStockfishDepth",
     liveStockfishThinkTimeMs: "augEngineLiveStockfishThinkTimeMs",
+    // Own engine (special pieces / cards) search limits, Stockfish-style:
+    // read by analysis.js (review) and ai-override.js (live bot).
+    ownMaxDepth: "augEngineOwnMaxDepth",
+    ownThinkTimeMs: "augEngineOwnThinkTimeMs",
+    ownMinDepth: "augEngineOwnMinDepth",
+    ownExtend: "augEngineOwnExtend",
     showLiveInsights: "augEngineShowLiveInsights"
   };
 
@@ -731,6 +737,12 @@
         '<p class="aug-engine-hint">지정한 시간 안에 탐색 깊이에 못 미치면 그때까지 찾은 최선수를 씁니다. 0이면 시간 제한 없이 깊이까지 다 계산합니다.</p>' +
         '<label class="aug-engine-settings-row">스톡피시 인스턴스 수 <select class="aug-engine-live-instance-select"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></label>' +
         '<p class="aug-engine-hint">인스턴스가 많을수록 메모리를 더 쓰지만(인스턴스당 약 7MB) 여러 계산을 동시에 처리할 수 있습니다.</p>' +
+        '<p class="aug-engine-hint aug-engine-settings-title">우리 엔진 (특수 기물·카드 담당)</p>' +
+        '<label class="aug-engine-settings-row">최대 깊이 (0=제한 없음) <input type="number" class="aug-engine-own-depth" min="0" max="12" step="1"></label>' +
+        '<label class="aug-engine-settings-row">생각 시간 (ms, 0=기본) <input type="number" class="aug-engine-own-thinktime" min="0" max="60000" step="500"></label>' +
+        '<label class="aug-engine-settings-row">최소 깊이 (0=사용 안 함) <input type="number" class="aug-engine-own-mindepth" min="0" max="8" step="1"></label>' +
+        '<label class="aug-engine-settings-row aug-engine-settings-checkbox"><input type="checkbox" class="aug-engine-own-extend"> 깊이가 거의 끝났으면 시간 연장</label>' +
+        '<p class="aug-engine-hint">깊이는 제한하지 않고 시간만 기준으로 합니다. 시간이 다 됐어도 지금 깊이의 후보 수를 60% 이상 봤거나 최선수가 바뀌는 중이면 최대 2배(실전 봇은 1.5배)까지 마저 계산합니다. 최소 깊이를 주면 그 깊이까지는 시간을 넘겨서라도 계산합니다. 사이트의 제한 시간보다 길게 잡으면 사이트가 대신 수를 둘 수 있습니다.</p>' +
         '<label class="aug-engine-settings-row aug-engine-settings-checkbox"><input type="checkbox" class="aug-engine-live-insights-toggle"> 평가 바·생각중 표시</label>';
       toggle.appendChild(settings);
       document.body.appendChild(toggle);
@@ -764,6 +776,18 @@
         event.target.value = v;
       });
       settings.querySelector(".aug-engine-live-instance-select").addEventListener("change", (event) => applyInstanceCount(Number(event.target.value)));
+
+      const bindOwnNumber = (selector, key, lo, hi) => settings.querySelector(selector).addEventListener("change", (event) => {
+        const v = Math.max(lo, Math.min(hi, Math.floor(Number(event.target.value)) || 0));
+        localStorage.setItem(key, String(v));
+        event.target.value = v;
+      });
+      bindOwnNumber(".aug-engine-own-depth", SETTINGS_KEYS.ownMaxDepth, 0, 12);
+      bindOwnNumber(".aug-engine-own-thinktime", SETTINGS_KEYS.ownThinkTimeMs, 0, 60000);
+      bindOwnNumber(".aug-engine-own-mindepth", SETTINGS_KEYS.ownMinDepth, 0, 8);
+      settings.querySelector(".aug-engine-own-extend").addEventListener("change", (event) => {
+        localStorage.setItem(SETTINGS_KEYS.ownExtend, event.target.checked ? "1" : "0");
+      });
 
       // Performance panel (2026-09-16): shows engine.js's own
       // self.__augLastSearchProfile (set at the end of every
@@ -880,6 +904,12 @@
     if (document.activeElement !== thinkTimeInput) thinkTimeInput.value = getStoredLiveThinkTimeMs();
     const instanceSelect = toggle.querySelector(".aug-engine-live-instance-select");
     if (document.activeElement !== instanceSelect) instanceSelect.value = String(getStoredInstanceCount());
+    for (const [selector, key] of [[".aug-engine-own-depth", SETTINGS_KEYS.ownMaxDepth], [".aug-engine-own-thinktime", SETTINGS_KEYS.ownThinkTimeMs], [".aug-engine-own-mindepth", SETTINGS_KEYS.ownMinDepth]]) {
+      const input = toggle.querySelector(selector);
+      if (input && document.activeElement !== input) input.value = Number(localStorage.getItem(key)) || 0;
+    }
+    const ownExtendBox = toggle.querySelector(".aug-engine-own-extend");
+    if (ownExtendBox) ownExtendBox.checked = localStorage.getItem(SETTINGS_KEYS.ownExtend) !== "0";
 
     if (midGameAnchor) {
       // Found live (2026-09-12): unlike .ai-setup-stack's pre-game screen

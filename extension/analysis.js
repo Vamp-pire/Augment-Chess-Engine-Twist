@@ -299,8 +299,35 @@
     });
   }
 
-  async function parallelSearchBestAction(engine, state, actions, color, depth, timeMs) {
+
+  // Own-engine search limits (2026-09-19), player-adjustable in content.js's
+  // "세부 설정" block. Read fresh on every search. The same keys/clamps are read
+  // in analysis.js and ai-override.js (separate content-script closures, no
+  // shared module). Returns options.limits for engine.searchBestAction:
+  // time is the soft budget, depth is unlimited (12) unless set, and the
+  // engine may extend past the soft time when a depth is almost finished.
+  function readOwnEngineLimits(defaultTimeMs, hardCapMs) {
+    const num = (key) => { try { return Number(localStorage.getItem(key)); } catch (e) { return 0; } };
+    let extend = true;
+    try { extend = localStorage.getItem("augEngineOwnExtend") !== "0"; } catch (e) { /* default on */ }
+    const maxDepth = num("augEngineOwnMaxDepth");
+    const think = num("augEngineOwnThinkTimeMs");
+    const minDepth = num("augEngineOwnMinDepth");
+    const soft = think > 0 ? Math.min(think, 60000) : defaultTimeMs;
+    const limits = {
+      depth: maxDepth >= 1 ? Math.min(12, Math.floor(maxDepth)) : 12,
+      movetimeMs: soft,
+      minDepth: minDepth >= 1 ? Math.min(8, Math.floor(minDepth)) : 0,
+      extend,
+      extendFactor: 2
+    };
+    if (hardCapMs) limits.hardTimeMs = Math.max(soft, hardCapMs);
+    return limits;
+  }
+
+  async function parallelSearchBestAction(engine, state, actions, color, depth, timeMs, limits) {
     const nnueOptions = useNnueForReview && self.__augNNUE ? { evalFn: self.__augNNUE.evaluateForSearch } : {};
+    if (limits) nnueOptions.limits = limits;
     const fallback = () => engine.searchBestAction(state, actions, color, depth, timeMs, nnueOptions);
     if (typeof Worker === "undefined" || actions.length < 4) return fallback();
     ensureSearchPoolSize();
@@ -312,7 +339,7 @@
     let responses;
     try {
       responses = await Promise.all(
-        chunks.map((chunk) => (chunk.length ? askWorkerPool({ state, actionSubset: chunk, color, depth, timeMs, useNnue: useNnueForReview, nnueModel: self.__augNNUE?.getModel?.() }) : Promise.resolve(null)))
+        chunks.map((chunk) => (chunk.length ? askWorkerPool({ state, actionSubset: chunk, color, depth, timeMs, limits, useNnue: useNnueForReview, nnueModel: self.__augNNUE?.getModel?.() }) : Promise.resolve(null)))
       );
     } catch (err) {
       return fallback();
@@ -370,7 +397,7 @@
     const gap = ranked.length >= 2 ? ranked[0].score - ranked[1].score : Infinity;
     const topActions = ranked.slice(0, TACTICAL_SIGNAL_TOP_N).map((c) => c.action);
     if (gap < AMBIGUOUS_SCORE_GAP || hasTacticalSignal(state, topActions)) {
-      return parallelSearchBestAction(engine, state, actions, color, budget.fullDepth, budget.fullTimeMs);
+      return parallelSearchBestAction(engine, state, actions, color, budget.fullDepth, budget.fullTimeMs, readOwnEngineLimits(budget.fullTimeMs));
     }
     return quick;
   }
@@ -575,7 +602,7 @@
         // fast review taking 10+ minutes). Routed through the same worker
         // pool as every other search here.
         const fallbackBudget = currentSearchBudget();
-        const opponentBest = await parallelSearchBestAction(engine, afterState, afterActions, opponentColor, fallbackBudget.fullDepth, fallbackBudget.fullTimeMs);
+        const opponentBest = await parallelSearchBestAction(engine, afterState, afterActions, opponentColor, fallbackBudget.fullDepth, fallbackBudget.fullTimeMs, readOwnEngineLimits(fallbackBudget.fullTimeMs));
         actualEval = -opponentBest.score;
       }
     }

@@ -18,13 +18,14 @@ const engine = self.AugmentEngine;
 // position), so passing it as evalFn is always safe even before NNUE
 // finishes loading.
 self.onmessage = (event) => {
-  const { requestId, state, actionSubset, color, depth, timeMs, useNnue, nnueModel } = event.data;
+  const { requestId, state, actionSubset, color, depth, timeMs, useNnue, nnueModel, limits } = event.data;
   try {
     // Model choice lives in the page (localStorage); the page tells each
     // worker which one to use per request, since workers can't read it.
     if (nnueModel && self.__augNNUE) self.__augNNUE.setModel(nnueModel, { persist: false });
     engine.setWorkerBoardDimensions(state);
     const options = useNnue && self.__augNNUE ? { evalFn: self.__augNNUE.evaluateForSearch } : {};
+    if (limits) options.limits = limits;
     const result = engine.searchBestAction(state, actionSubset, color, depth, timeMs, options);
     self.postMessage({ requestId, ok: true, result });
   } catch (err) {

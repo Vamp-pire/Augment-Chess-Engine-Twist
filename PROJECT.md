@@ -53,6 +53,23 @@ node nnue/match-two-models.js <A> <B> 10   # 모델 대전 (A/B는 가중치 경
 `gh`는 `C:\Program Files\GitHub CLI\gh.exe`(로그인 완료). 워크플로 입력이 JSON이면 PowerShell이 따옴표를 깨뜨리므로
 **Bash에서 표준입력으로**: `printf '{"overrides":"{\"ablateBlend\":\"0.7\"}"}' | gh workflow run nnue-train.yml --json`.
 
+## 엔진 검색 제한 (Stockfish의 go 옵션처럼)
+
+`engine.searchBestAction(state, actions, color, depth, timeMs, { limits })` — `limits`를 주지 않으면 예전 동작 그대로입니다(자기대국은 주지 않음).
+
+| 키 | 뜻 |
+|---|---|
+| `depth` | 최대 깊이(기본 12, 사실상 제한 없음) |
+| `movetimeMs` | 소프트 생각 시간 |
+| `infinite` | 시간 제한 없음(깊이나 `nodes`로만 멈춤) |
+| `nodes` | 대략 이 노드 수에서 멈춤 |
+| `minDepth` | 이 깊이까지는 시간을 넘겨서라도 끝냄(`hardTimeMs`까지) |
+| `extend` | 시간이 다 됐어도 현재 깊이를 60% 이상 봤거나 최선수가 바뀌는 중이면 연장(기본 켜짐) |
+| `extendFactor` / `hardTimeMs` | 연장 상한(기본 시간의 2배) |
+| `predictiveStop` | 남은 시간에 못 끝낼 다음 깊이는 시작하지 않음(기본 켜짐) |
+
+검증: `node tools/perf/limits-test.js`(로컬 데이터 필요). 확장에서는 "세부 설정"의 값이 `localStorage`(`augEngineOwn*`)를 거쳐 리뷰와 봇에 전달됩니다.
+
 ## 반드시 지킬 규칙
 
 - **엔진 출력은 학습 모델과 맞물려 있습니다.** `evaluateStateComponents`가 NNUE 입력 21개 특징을 만들기 때문에, 의도치 않게
