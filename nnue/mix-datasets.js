@@ -63,9 +63,11 @@ const summary = [];
 for (const spec of sources) {
   const eq = spec.indexOf("=");
   const name = spec.slice(0, eq);
-  const [file, trainFracStr, valFracStr] = spec.slice(eq + 1).split(":");
-  const trainFrac = trainFracStr === undefined ? 1 : Number(trainFracStr);
-  const valFrac = valFracStr === undefined ? 0 : Number(valFracStr);
+  // split from the right: the file path itself may contain ":" (Windows drive letters)
+  const parts = spec.slice(eq + 1).split(":");
+  const valFrac = parts.length >= 3 ? Number(parts.pop()) : 0;
+  const trainFrac = parts.length >= 2 ? Number(parts.pop()) : 1;
+  const file = parts.join(":");
   const lines = fs.readFileSync(file, "utf8").split("\n").filter(Boolean);
   const games = splitGames(lines);
   const valCount = Math.floor(games.length * valFrac);

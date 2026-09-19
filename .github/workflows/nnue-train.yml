@@ -36,6 +36,10 @@ on:
         description: 'Optional JSON overriding pipeline-config keys for this run, e.g. {"ablateBlend":"0.7"}'
         required: false
         default: ""
+      val_dataset:
+        description: "Optional validation dataset path on gha-segments-16cards. Lets several data mixes be scored on the SAME positions (make it with nnue/mix-datasets.js; its games must not be in the training dataset)"
+        required: false
+        default: ""
       cache:
         description: "auto = salted with the engine hash (default), legacy = old unsalted key"
         required: false
@@ -93,7 +97,8 @@ jobs:
               nnueVariant: 'NNUE_VARIANT', ablatePlyFeature: 'ABLATE_PLY_FEATURE',
               ablateDeepUnits: 'ABLATE_DEEP_UNITS', ablateWarmStart: 'ABLATE_WARM_START',
               ablateOversample: 'ABLATE_OVERSAMPLE', ablateBlend: 'ABLATE_BLEND',
-              ablateBlunder: 'ABLATE_BLUNDER'
+              ablateBlunder: 'ABLATE_BLUNDER',
+              blendByDepth: 'BLEND_BY_DEPTH', blendDepthMap: 'BLEND_DEPTH_MAP'
             };
             const exportLines = Object.entries(envNames)
               .filter(([k]) => c[k] !== undefined && c[k] !== null && c[k] !== '')
@@ -109,6 +114,15 @@ jobs:
           git show "origin/gha-segments-16cards:${{ steps.cfg.outputs.datasetPath }}" > selfplay-data.jsonl.gz
           gunzip -f selfplay-data.jsonl.gz
           wc -l selfplay-data.jsonl
+
+      - name: Fetch validation dataset (optional)
+        if: ${{ inputs.val_dataset != '' }}
+        env:
+          VAL_PATH: ${{ inputs.val_dataset }}
+        run: |
+          git show "origin/gha-segments-16cards:${VAL_PATH}" > selfplay-val.jsonl.gz
+          gunzip -f selfplay-val.jsonl.gz
+          wc -l selfplay-val.jsonl
 
       - name: Pin encode.js mtime
         # Part of the cache key; must equal the mtime the caches were built
@@ -162,6 +176,7 @@ jobs:
         shell: bash --noprofile --norc -o pipefail {0}
         run: |
           source train-env.sh
+          if [ -f "$GITHUB_WORKSPACE/selfplay-val.jsonl" ]; then export VAL_DATA_FILE="$GITHUB_WORKSPACE/selfplay-val.jsonl"; fi
           cd nnue
           node train.js 2>&1 | tee ../train.log
 
