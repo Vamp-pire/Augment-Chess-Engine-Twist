@@ -1,0 +1,9 @@
+# Line endings: store LF in the repository regardless of the platform, so
+# Windows checkouts stop printing "LF will be replaced by CRLF" warnings and
+# diffs are not polluted by whitespace changes. Binary files are left alone.
+* text=auto eol=lf
+*.wasm binary
+*.png binary
+*.webp binary
+*.zip binary
+*.gz binary
