@@ -1,5 +1,5 @@
 const fs=require("fs"),path=require("path");const root=path.join(__dirname,"..","..");
-const lines=fs.readFileSync(path.join(root,"selfplay-data.merged-engine-16cards-local-2026-09-15.jsonl"),"utf8").split("\n").filter(Boolean);
+const lines=fs.readFileSync(path.join(root,"data","experiments","selfplay-data.merged-engine-16cards-local-2026-09-15.jsonl"),"utf8").split("\n").filter(Boolean);
 const rec=JSON.parse(lines[+process.argv[2]||10092]);const out={};
 for(const [nm,e] of [["orig",require("./engine-orig.js")],["new",require(path.join(root,process.env.ENG||"engine-merged.js"))]]){
  const s=e.cloneState({});s.board=rec.board.map(r=>r.map(p=>p?{type:p.t,color:p.c,moved:true}:null));s.mode="play";s.turn=rec.turn;

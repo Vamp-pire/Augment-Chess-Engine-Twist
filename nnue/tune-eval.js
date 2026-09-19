@@ -8,7 +8,7 @@
 const fs = require("fs");
 const path = require("path");
 const tf = require("@tensorflow/tfjs");
-const engine = require("../engine.optimized.js");
+const engine = require("../legacy/engine.optimized.js");
 
 const DATA_FILE = path.join(__dirname, "..", "selfplay-data.jsonl");
 

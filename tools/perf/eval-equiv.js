@@ -5,7 +5,7 @@ const root = path.join(__dirname, "..", "..");
 const N = +process.argv[2] || 3200;
 const orig = require("./engine-orig.js");
 const cur = require(path.join(root, "engine-merged.js"));
-const lines = fs.readFileSync(path.join(root, "selfplay-data.merged-engine-16cards-local-2026-09-15.jsonl"), "utf8").split("\n").filter(Boolean);
+const lines = fs.readFileSync(path.join(root, "data","experiments","selfplay-data.merged-engine-16cards-local-2026-09-15.jsonl"), "utf8").split("\n").filter(Boolean);
 const step = Math.max(1, Math.floor(lines.length / N));
 const recs = [];
 for (let i = 0; i < lines.length && recs.length < N; i += step) { try { recs.push(JSON.parse(lines[i])); } catch (e) {} }

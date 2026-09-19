@@ -12,3 +12,6 @@ scratch_*.json
 scratch_*.jsonl
 *.pid
 .claude/scheduled_tasks.lock
+
+# archived/experimental local data moved here on 2026-09-19 (see PROJECT.md)
+data/

@@ -1,7 +1,7 @@
 // node tools/perf/trace-many.js [N=60] [depth=2] : compare every evaluateStateComponents result seen during searches (old vs new)
 const fs=require("fs"),path=require("path");const root=path.join(__dirname,"..","..");
 const N=+process.argv[2]||60,D=+process.argv[3]||2,START=+process.argv[4]||0;
-const lines=fs.readFileSync(path.join(root,"selfplay-data.merged-engine-16cards-local-2026-09-15.jsonl"),"utf8").split("\n").filter(Boolean);
+const lines=fs.readFileSync(path.join(root,"data","experiments","selfplay-data.merged-engine-16cards-local-2026-09-15.jsonl"),"utf8").split("\n").filter(Boolean);
 const engs=[require("./engine-orig.js"),require(path.join(root,process.env.ENG||"engine-merged.js"))];
 const step=Math.floor(lines.length/N);let evals=0,bad=0,searchDiff=0;
 for(let n=0;n<N;n++){const idx=START+n*step+7;if(idx>=lines.length)break;const rec=JSON.parse(lines[idx]);const logs=[],res=[];

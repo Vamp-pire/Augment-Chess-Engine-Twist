@@ -9,7 +9,7 @@
 globalThis.self = globalThis;
 globalThis.addEventListener = () => {};
 
-const merged = require("./engine-merged.js");
+const merged = require("../engine-merged.js");
 const old = require("./engine.optimized.js");
 
 function makeState(engine) {

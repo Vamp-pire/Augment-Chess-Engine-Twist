@@ -5,7 +5,14 @@
 // data generation wants speed over per-move perfection, so it uses a much
 // smaller search depth/time budget per move.
 const { parentPort, workerData } = require("worker_threads");
-const engine = require("./engine.optimized.js");
+// Uses the REAL site aiWorker.js logic directly (site-oracle/real-ai-engine.js,
+// a patched-to-export copy fetched live from https://augmentchess.org/assets/aiWorker.js)
+// instead of our own reimplemented engine.optimized.js -- this makes self-play data
+// generation immune to any card/piece porting bugs the audit is still finding,
+// since the rules themselves are now the real site logic, not a reimplementation.
+globalThis.self = globalThis;
+globalThis.addEventListener = () => {};
+const engine = require("../site-oracle/real-ai-engine.js");
 
 // NNUE-in-the-loop self-play (2026-09-12 experiment, opt-in via
 // SELFPLAY_NNUE_EVAL=1): normal self-play always searches with the hand-
@@ -26,9 +33,9 @@ const engine = require("./engine.optimized.js");
 let nnueEvalFn = null;
 if (process.env.SELFPLAY_NNUE_EVAL === "1") {
   const path = require("path");
-  const { encodeBoard } = require("./nnue/encode.js");
-  const { loadWeights, forward } = require("./nnue/forward.js");
-  const weightsPath = process.env.SELFPLAY_NNUE_WEIGHTS || path.join(__dirname, "extension", "model", "nnue-squall.json");
+  const { encodeBoard } = require("../nnue/encode.js");
+  const { loadWeights, forward } = require("../nnue/forward.js");
+  const weightsPath = process.env.SELFPLAY_NNUE_WEIGHTS || path.join(__dirname, "..", "extension", "model", "nnue-squall.json");
   const nnueWeights = loadWeights(weightsPath);
   const SCORE_SCALE = 100; // matches extension/nnue.js's evaluateForSearch
   nnueEvalFn = function (boardState, aiColor) {
