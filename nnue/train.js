@@ -72,10 +72,24 @@ function countPieces(board) {
 // individual effect without hand-editing this file between runs.
 const SEARCH_SCORE_BLEND_WEIGHT = process.env.ABLATE_BLEND !== undefined ? Number(process.env.ABLATE_BLEND) : 0.15;
 const SEARCH_SCORE_SCALE = 400;
+// BLEND_BY_DEPTH=1 (2026-09-19): trust the search score more where the search
+// actually went deeper. Rounds 1-2 were ~90% depth-1 (the "search score" there is
+// barely more than the hand-coded evaluation), round 3 reaches depth 2-6, so a
+// single global weight either wastes the deep scores or over-trusts the shallow
+// ones. BLEND_DEPTH_MAP = weights for completedDepth 1,2,3,>=4 (default
+// 0.25,0.45,0.65,0.8); ABLATE_BLEND is ignored while this is on.
+const BLEND_BY_DEPTH = process.env.BLEND_BY_DEPTH === "1";
+const BLEND_DEPTH_MAP = (process.env.BLEND_DEPTH_MAP || "0.25,0.45,0.65,0.8").split(",").map(Number);
+function searchBlendWeight(entry) {
+  if (!BLEND_BY_DEPTH) return SEARCH_SCORE_BLEND_WEIGHT;
+  const d = Math.max(1, Math.floor(Number(entry.completedDepth) || 1));
+  return BLEND_DEPTH_MAP[Math.min(BLEND_DEPTH_MAP.length - 1, d - 1)];
+}
 function blendedLabel(entry) {
   if (entry.searchScore == null) return entry.outcome;
   const searchSignal = Math.tanh(entry.searchScore / SEARCH_SCORE_SCALE);
-  return (1 - SEARCH_SCORE_BLEND_WEIGHT) * entry.outcome + SEARCH_SCORE_BLEND_WEIGHT * searchSignal;
+  const w = searchBlendWeight(entry);
+  return (1 - w) * entry.outcome + w * searchSignal;
 }
 
 // Geometric decay applied to a position's sample weight based on how many
@@ -574,6 +588,25 @@ async function main() {
     console.log("too little data for a meaningful sanity run, but proceeding anyway to verify the pipeline.");
   }
 
+  // VAL_DATA_FILE (2026-09-19): validate on an external file instead of the last
+  // 10% of games of the training data. Lets several data mixes (different rounds,
+  // sampling fractions) be compared on exactly the same held-out positions. The
+  // file's games must not be in the training data (nnue/mix-datasets.js makes
+  // sure of that). Training then uses every position of the main file.
+  let externalValStart = null;
+  if (process.env.VAL_DATA_FILE) {
+    const val = await loadData(process.env.VAL_DATA_FILE);
+    externalValStart = inputs.length;
+    for (let i = 0; i < val.inputs.length; i += 1) {
+      inputs.push(val.inputs[i]);
+      labels.push(val.labels[i]);
+      trainingLabels.push(val.trainingLabels[i]);
+      pieceCounts.push(val.pieceCounts[i]);
+      sampleWeights.push(val.sampleWeights[i]);
+    }
+    console.log("external validation file:", process.env.VAL_DATA_FILE, "->", val.inputs.length, "positions (train", externalValStart + ")");
+  }
+
   // Split by GAME, not by raw position index (2026-09-07): a game's ~20-90
   // plies are all highly correlated (same evolving board), and get written
   // to the file back-to-back. A plain "first 90% of lines" cut can leave
@@ -587,8 +620,8 @@ async function main() {
   const totalGames = gameIds.length ? gameIds[gameIds.length - 1] + 1 : 0;
   const valGameStart = Math.floor(totalGames * 0.9);
   const gameBoundaryIndex = gameIds.findIndex((id) => id >= valGameStart);
-  const splitAt = gameBoundaryIndex === -1 ? gameIds.length : gameBoundaryIndex;
-  console.log("train/val split: game", valGameStart, "of", totalGames, "-> position index", splitAt, "of", inputs.length);
+  const splitAt = externalValStart !== null ? externalValStart : (gameBoundaryIndex === -1 ? gameIds.length : gameBoundaryIndex);
+  console.log("train/val split: game", valGameStart, "of", totalGames, "-> position index", splitAt, "of", inputs.length, externalValStart !== null ? "(external validation file)" : "");
 
   // tfjs.js's LayersModel.fit doesn't support the `sampleWeight` option yet
   // (throws "sample weight is not supported yet" -- confirmed 2026-09-06,

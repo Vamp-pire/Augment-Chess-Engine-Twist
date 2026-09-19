@@ -57,11 +57,11 @@ const SCORE_SCALE = 100; // matches extension/nnue.js's evaluateForSearch / self
 // The map receives (o, boardState, aiColor).
 function outputMap(name) {
   if (!name) return (o) => o * SCORE_SCALE;
-  let m = /^lin(d+)$/.exec(name);
+  let m = /^lin([0-9]+)$/.exec(name);
   if (m) { const k = Number(m[1]); return (o) => o * k; }
-  m = /^atanh(d+)$/.exec(name);
+  m = /^atanh([0-9]+)$/.exec(name);
   if (m) { const k = Number(m[1]); return (o) => k * Math.atanh(Math.max(-0.995, Math.min(0.995, o))); }
-  m = /^hybrid(d+)$/.exec(name);
+  m = /^hybrid([0-9]+)$/.exec(name);
   if (m) { const k = Number(m[1]); return (o, boardState, aiColor) => engine.evaluateState(boardState, aiColor) + k * o; }
   throw new Error("unknown output map: " + name);
 }
