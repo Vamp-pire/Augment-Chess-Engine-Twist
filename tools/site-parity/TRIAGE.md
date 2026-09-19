@@ -100,5 +100,6 @@ Minimal fix: define `function invalidateBoardCaches(boardState) { THREE_CACHE.de
 ## Status (2026-09-19, end of day)
 Applied: F1 portalGun non-blocking, F2 thief second move, F4 six-fixes gate, F6 board-cache invalidation (invalidateBoardCaches around applyAction).
 Applied later: F3 (noteThiefMove + disassembleMovedQueen in swap paths, 2026-09-19).
-Not applied: F5 (parrot memory guard — could change self-play behaviour; needs a decision).
+F5 (parrot memory guard) is NOT a bug: the site's real game state always starts with `parrotMovement: { white: null, black: null }` (main bundle), so real games record from the first move exactly like the engine. The divergence came from test states that lacked the field; `common.js` now adds it and the parrot divergences disappear. Do NOT add the guard: self-play states are built without the field and parrots would never move.
+Original note: F5 (parrot memory guard — could change self-play behaviour; needs a decision).
 Playout (seed 4242, 60x40): 27 divergences before -> 11 after; the rest are locustSwarm (expected), random-target brutus/freeze, parrot (F5).

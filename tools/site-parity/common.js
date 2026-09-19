@@ -15,6 +15,10 @@ function makeState(engine, board, decks, color) {
   const st = engine.cloneState({});
   st.board = JSON.parse(JSON.stringify(board)); st.mode = "play"; st.turn = color; st.actionsRemaining = 1;
   st.deckSlots = JSON.parse(JSON.stringify(decks)); st.captures = { white: [], black: [] }; st.aiSearchNoCards = false;
+  // The site's real game state always has this field from the first move (main bundle:
+  // `parrotMovement: { white: null, black: null }` in the initial state). Without it the
+  // site's rememberLocalMovement never records, which real games never see.
+  st.parrotMovement = { white: null, black: null };
   if (st.board.some((row) => row.some((p) => p?.type === "campfire"))) st.hasCampfire = true;
   engine.setWorkerBoardDimensions(st); return st;
 }
