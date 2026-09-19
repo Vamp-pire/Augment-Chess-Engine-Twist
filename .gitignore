@@ -23,3 +23,4 @@ nnue/model/*
 !nnue/model/weights.baseline-current.json
 !nnue/model/weights.round1-candidate.json
 !nnue/model/weights.round2-full-112981.json
+tools/perf/engine-head.js
