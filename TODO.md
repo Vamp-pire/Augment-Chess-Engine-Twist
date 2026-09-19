@@ -26,6 +26,10 @@ Last updated: 2026-09-19. Project map: `PROJECT.md`. Background: `HANDOFF.md`, `
 | blend 0.8 re-encoded with the NEW engine features | 70.6% (same as old features -> the 9/19 rule changes do not force a retrain) |
 
 - More search-score weight helps val accuracy (+2-4 pts), but **in play blend-0.8 did not beat Squall** (local match, 42 games: 5 wins / 9 losses / 27 draws / 1 unfinished; 5 of 14 decisive = 36%, within noise but not better) -> accuracy != strength
+- Cloud matches (`match.yml`, depth 3, 300ms; A vs B, decisive games only; all within noise, |z| < 1):
+  - Tornado vs Squall: 13 - 17 (30 draws) | Typhoon vs Squall: 20 - 15 (23 draws) | handcoded eval vs Squall: 19 - 15 (29 draws)
+  - handcoded depth 2 vs depth 4 (1500ms): 6 - 8 (16 draws) -> no measurable gain from depth 4 at this budget
+  - So no NNUE model is measurably stronger than the hand-coded evaluator yet; the evaluator is not the bottleneck at these budgets (search speed / label quality are the open questions)
 - Draws dominate model-vs-model matches; judge by decisive games and never trust fewer than ~10 of them
 - The engine evaluation is ~3.4x and search ~1.5x faster with identical output (`tools/perf`)
 
