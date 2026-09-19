@@ -209,7 +209,7 @@ jobs:
 
       - name: Upload weights (artifact)
         # Runs before any promote step so a lost merge race never loses the model.
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: nnue-trained-weights
           path: nnue/model/
