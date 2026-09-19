@@ -3792,12 +3792,28 @@
     let lastCandidates = [];
     let previousCompletedDepthMs = 0;
     const hasRuleMonster = workerHasRuleMonster(boardState);
+    // Perf-visibility for the extension UI (ported from the old extension
+    // engine.js): per-depth timing/node breakdown plus a live "searching
+    // depth N" marker. Purely additive bookkeeping, never affects a decision.
+    // `self` may not exist (plain Node) -- everything is best-effort.
+    const depthProfile = [];
     for (let currentDepth = 1; currentDepth <= maxDepth; currentDepth += 1) {
       if (hasRuleMonster && completedDepth >= 2 && !monsterSearchHasTimeForNextDepth(context.deadline - performance.now(), previousCompletedDepthMs)) {
         break;
       }
+      // Set BEFORE this depth's (possibly multi-second) work so the UI can show
+      // it while it happens; cleared after the loop (a stale indicator is worse than none).
+      try { self.__augSearchLive = { aiColor, depth: currentDepth, maxDepth, startedAt: Date.now() }; } catch (e) {}
+      const nodesBeforeDepth = context.nodes;
       const depthStartedAt = performance.now();
       const depthResult = searchAtDepth(boardState, orderedRoot, aiColor, currentDepth, context);
+      depthProfile.push({
+        depth: currentDepth,
+        ms: performance.now() - depthStartedAt,
+        nodes: context.nodes - nodesBeforeDepth,
+        completed: Boolean(depthResult.completed),
+        score: typeof depthResult.score === "number" ? depthResult.score : null
+      });
       if (depthResult.action && (depthResult.completed || flexibleBudget)) {
         bestAction = depthResult.action;
         bestScore = depthResult.score;
@@ -3807,6 +3823,21 @@
         orderedRoot = [bestAction, ...orderedRoot.filter((action) => !sameAction(action, bestAction))];
       }
       if (context.timedOut) break;
+    }
+    try { self.__augSearchLive = null; } catch (e) {}
+    try {
+      self.__augLastSearchProfile = {
+        timestamp: Date.now(),
+        aiColor,
+        totalMs: performance.now() - startedAt,
+        totalNodes: context.nodes,
+        cutoffs: context.cutoffs,
+        completedDepth,
+        maxDepth,
+        depthProfile
+      };
+    } catch (e) {
+      // profiling is best-effort, never worth failing the actual search over
     }
     return { action: bestAction, score: bestScore, nodes: context.nodes, cutoffs: context.cutoffs, completedDepth, candidates: lastCandidates };
   }
