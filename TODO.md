@@ -42,7 +42,7 @@ Order of value (measure first, then evaluation, then data): 4 -> 1 -> 3.
 - [ ] 4. Measurement (under review): far more games per comparison (64 is too few), position sets with fewer draws, a tactics test set (find the best move) instead of win/loss only, frozen benchmark
 - [ ] 5. Rule fidelity (under review): finish the remaining site-parity differences, automatic parity check whenever the site updates
 - [ ] 2. Search (lower priority for now): measure the time extension in play (match running), more speed (card threats, state cloning, move generation). Depth 4 showed no gain over depth 2 at 1.5 s
-- [ ] 6. Review: in progress, see CHANGELOG (context, depth confidence, brilliant/great/miss)
+- [ ] 6. Review (ON HOLD until engine strength improves): rate moves with context (already-decided positions), depth-based confidence, and use the brilliant/great/miss icons. Notes: `tools/review-calibration/README.md`. Owner decision 2026-09-19: improve the engine first, then polish the review
 
 ## In flight (2026-09-19, cloud)
 
