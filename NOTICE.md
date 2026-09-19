@@ -9,7 +9,7 @@
 |---|---|
 | `tools/` | CI 검사, 사이트 대조, 속도 검증 도구 |
 | `nnue/` | 학습·평가·대전 스크립트, 설정, 모델 가중치 |
-| `extension/` 중 `content.js`, `analysis.js`, `hybrid.js`, `ai-override.js`, `ext-bridge.js`, `nnue.js`, `searchWorker.js`, `style.css`, `manifest.json` 등 확장 프로그램 코드 | 확장의 화면·연동 코드 |
+| `extension/` 중 `content.js`, `analysis.js`, `hybrid.js`, `ai-override.js`, `ext-bridge.js`, `nnue.js`, `searchWorker.js`, `style.css`, `manifest.json`, `icons/` 등 확장 프로그램 코드 | 확장의 화면·연동 코드와 직접 만든 분석 아이콘 |
 | `.github/` | 워크플로 |
 | `selfplay-run-merged.js`, `selfplay-worker-merged.js`, `smoke-merged.js` | 자기대국 실행기와 테스트 |
 | 문서 (`README.md`, `PROJECT.md`, `TODO.md`, `HANDOFF.md`, `NOTICE.md`) | 설명 문서 |
@@ -41,9 +41,6 @@
 ### 체스 기물 아이콘
 사이트가 쓰는 대부분의 기물 아이콘은 Colin M.L. Burnett의 작품(CC BY-SA 3.0)이며 일부는 CC BY-SA 4.0입니다
 ([사이트의 아이콘 라이선스 안내](https://augmentchess.org/iconlicense/)). `site-oracle/`의 번들 사본에 이 아이콘이 포함되어 있고, 각 아이콘은 위 라이선스를 따릅니다.
-
-### 확인이 필요한 항목
-- `extension/icons/*.svg`(분석 결과 표시 아이콘)의 출처는 아직 확인하지 못했습니다. 출처가 확인되기 전에는 `LICENSE`로 허락하지 않은 것으로 봅니다.
 
 ### 의존 패키지
 `package.json`의 패키지(TensorFlow.js 등)는 각자의 라이선스를 따릅니다.
