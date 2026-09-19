@@ -74,8 +74,8 @@ if (mode === "build") {
     const s = stateFromRecord(rec);
     const quick = search(s, rec.turn, { depth: 2, ms: Number(shortMs) });
     if (!quick || !quick.action) continue;
-    const ref = search(stateFromRecord(rec), rec.turn, { depth: 6, ms: Number(refMs), limits: { movetimeMs: Number(refMs), minDepth: 4, extend: true } });
-    if (!ref || !ref.action || (ref.completedDepth || 0) < 4) continue;
+    const ref = search(stateFromRecord(rec), rec.turn, { depth: 4, ms: Number(refMs), limits: { movetimeMs: Number(refMs), minDepth: 3, extend: true } });
+    if (!ref || !ref.action || (ref.completedDepth || 0) < 3) continue;
     if (key(ref.action) === key(quick.action)) continue;
     kept.push({ board: rec.board, deckSlots: rec.deckSlots, turn: rec.turn, refAction: ref.action, refScore: ref.score, refDepth: ref.completedDepth });
     console.log(`kept ${kept.length}/${count} (tried ${tried}) ref depth ${ref.completedDepth} score ${Math.round(ref.score)}`);
