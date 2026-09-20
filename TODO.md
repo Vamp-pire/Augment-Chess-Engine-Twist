@@ -45,7 +45,7 @@ nuesnapshots' -File | Where-Object { $_.Name -ne 'selfplay-data.2026-09-17T06-03
 - [x] 2라운드 데이터셋(112,981), 깊이 대전, 상한 분석
 
 ## 진행 중 / 이어받기 (2026-09-20 저녁, 세션 마무리 시점)
-- 클라우드 자가대국(정책 + 국면 기록, 목표 2만 국면, 라운드 시작 `20260920T122511Z`)이 돌고 있다. 끝나면: 저장소 변수 `SELFPLAY_TARGET`=150000, `SELFPLAY_RECORD_POLICY`=0, `SELFPLAY_RECORD_STATE`=0으로 되돌리고, `tools/policy/ordering-eval.js`로 현재 정렬의 기준선을 잰다.
+- 클라우드 자가대국(정책 + 국면 기록, 목표 2만 국면, 라운드 시작 (재시작, 아래 변수 참고))이 돌고 있다. 끝나면: 저장소 변수 `SELFPLAY_TARGET`=150000, `SELFPLAY_RECORD_POLICY`=0, `SELFPLAY_RECORD_STATE`=0으로 되돌리고, `tools/policy/ordering-eval.js`로 현재 정렬의 기준선을 잰다.
 - 서브에이전트 3개가 로컬에서 작업 중(코어 1개씩): 수 점수 학습 도구(`tools/policy/`), 카드 9종 정답지(`tools/fixtures/special-cards.js`), 안전 검사 정답지(`rootSafetyReport`와 `generate-fixtures.js --safety`). 각자 master에 커밋하므로 결과와 `git log`를 확인하고, 안전 검사 쪽은 엔진 파일을 바꾸므로 CI(동기화, 골든)가 통과했는지 본다.
 - 팀 저장소 PR #5(정답지)는 열려 있고 리뷰 대기. 안전 검사 정답지와 카드 9종 정답지가 끝나면 팀 저장소에도 별도 PR로 올릴지 정한다.
 - 사이트 종료 규칙 대조 결과는 `docs/GAME-END-RULES.md`. 자가대국의 사이트 규칙 옵션은 아직 미구현.
