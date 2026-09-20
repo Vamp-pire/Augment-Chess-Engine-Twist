@@ -619,7 +619,9 @@ function playOneGame({ searchDepth, searchTimeMs, maxPlies, seed, flexibleBudget
         policyInfo.nLegal = ordered.length;
         policyInfo.chosenRank = ordered.findIndex((x) => policyKey(x) === chosenKey) + 1; // 1-based, 0 = not found
         // SELFPLAY_RECORD_STATE=1: also keep the full position (JSON) so a move-scoring model can be trained on it
-        if (process.env.SELFPLAY_RECORD_STATE === "1") policyInfo.state = JSON.parse(JSON.stringify(state));
+        // N = keep the state on every N-th ply (1 = every ply); keeps the data branch small on long runs
+        const stateEvery = Number(process.env.SELFPLAY_RECORD_STATE) || 0;
+        if (stateEvery > 0 && plies % stateEvery === 0) policyInfo.state = JSON.parse(JSON.stringify(state));
       }
     }
 
