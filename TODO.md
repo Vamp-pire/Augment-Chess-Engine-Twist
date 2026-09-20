@@ -14,8 +14,8 @@ nuesnapshots' -File | Where-Object { $_.Name -ne 'selfplay-data.2026-09-17T06-03
 
 ## 지금 진행 중
 
-- [ ] `blenddepth-r3f`(깊이별 가중, `atanh400`) 독립 재확인 대전(핸디캡 0/1, seed_offset 1000): 결과에 따라 확장 선택 모델 추가와 라운드 4 결정
-- [ ] 재학습 3종(resid300-du8, blend08, blenddepth-du8) 대전 결과 수집
+- [x] `blenddepth` 독립 재확인 완료: 재현 안 됨(50.8%, 53.7%, 합산 56.2% unproven). 재학습 3종도 전부 unproven
+- [ ] 전술 세트 재구축(완전한 상태로, 약 240문제) 후 모델 5종 평가
 - [ ] `site-watch.yml` 첫 실행 확인(매일 자동, 수동 실행도 가능)
 
 ## 다음

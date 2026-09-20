@@ -103,6 +103,6 @@ node nnue/match-two-models.js <A> <B> 10   # 모델 대전 (A/B는 가중치 경
 | Tornado | `nnue/model/weights.round1-candidate.json` | 확장에서 선택 가능 |
 | Squall | `nnue/model/weights.round2-full-112981.json` (= `weights.json`) | 확장 기본값 |
 | Blend0.8 | `nnue/model/weights.blend0.8-round2.json` (로컬 전용) | 검색 점수 비중 0.8 실험 모델, 실전에서 Squall보다 낫지 않음 |
-| Hurricane (실험) | `extension/model/nnue-hurricane.json` | 3라운드, 깊이별 라벨 가중, 출력 `atanh400`. 실험실에서 수제 평가 상대 66%(win), 독립 재확인 중. 드롭다운에서 선택 가능 |
+| Hurricane (실험) | `extension/model/nnue-hurricane.json` | 3라운드, 깊이별 라벨 가중, 출력 `atanh400`. 첫 실험 66%였으나 독립 재확인에서 재현 안 됨(합산 56%, unproven). 드롭다운에서 선택 가능 |
 | Gale (실험) | `extension/model/nnue-gale.json` | 3라운드, 잔차 학습(계수 300), 출력 `hybrid300`. 실험실 unproven |
 | Cyclone (실험) | `extension/model/nnue-cyclone.json` | 3라운드, 검색 점수 비중 0.8, 출력 `atanh400`. 대전 결과 대기 |

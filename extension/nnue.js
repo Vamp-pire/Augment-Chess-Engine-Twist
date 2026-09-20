@@ -192,7 +192,7 @@
     },
     hurricane: {
       label: "Hurricane (실험)", file: "model/nnue-hurricane.json", map: "atanh400",
-      desc: "깊이 읽은 대국일수록 더 믿고 학습한 실험 모델입니다. 테스트에서 기본 평가보다 앞선 유일한 모델이지만 아직 재확인 중입니다."
+      desc: "깊이 읽은 대국일수록 더 믿고 학습한 실험 모델입니다. 처음 테스트에서는 기본 평가보다 앞섰지만 재확인에서는 차이가 없었습니다."
     },
     gale: {
       label: "Gale (실험)", file: "model/nnue-gale.json", map: "hybrid300",
