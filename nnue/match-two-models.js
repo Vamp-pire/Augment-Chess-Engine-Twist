@@ -95,6 +95,7 @@ let unfinished = 0;
 
 function playAndScore(seed, evalFnByColor, label) {
   const result = playOneGame({
+    handicap: Number(process.env.MATCH_HANDICAP || 0),
     searchDepth: SEARCH_DEPTH,
     searchTimeMs: SEARCH_TIME_MS,
     maxPlies: MAX_PLIES,

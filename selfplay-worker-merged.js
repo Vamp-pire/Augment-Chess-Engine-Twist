@@ -494,9 +494,24 @@ function explorationChance(plyIndex) {
   return plyIndex < EXPLORATION_OPENING_PLIES ? 0.15 : 0;
 }
 
-function playOneGame({ searchDepth, searchTimeMs, maxPlies, seed, flexibleBudget = true, evalFnByColor = null, searchDepthByColor = null, limitsByColor = null }) {
+function playOneGame({ searchDepth, searchTimeMs, maxPlies, seed, flexibleBudget = true, evalFnByColor = null, searchDepthByColor = null, limitsByColor = null, handicap = 0 }) {
   const rng = makeRng(seed);
   const state = makeInitialState(rng);
+  // handicap (matches only): remove N minor/major pieces (not queen/king) from a
+  // seed-chosen side, using a SEPARATE rng so handicap 0 leaves the game stream
+  // untouched. Colour-swapped pairs share the seed, so the same side is short in
+  // both games of a pair and the comparison stays fair -- it just makes far fewer draws.
+  if (handicap > 0) {
+    const hrng = makeRng(seed + 99991);
+    const shortColor = hrng() < 0.5 ? "white" : "black";
+    for (let k = 0; k < handicap; k += 1) {
+      const cells = [];
+      state.board.forEach((row, r) => row.forEach((p, c) => { if (p && p.color === shortColor && ["knight", "bishop", "rook"].includes(p.type)) cells.push([r, c]); }));
+      if (!cells.length) break;
+      const [r, c] = cells[Math.floor(hrng() * cells.length)];
+      state.board[r][c] = null;
+    }
+  }
   const record = [];
   let plies = 0;
 
