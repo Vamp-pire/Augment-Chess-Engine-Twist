@@ -52,6 +52,10 @@ on:
         description: "Optional JSON search params for B"
         required: false
         default: ""
+      seed_offset:
+        description: "Added to every pair index (use a different value for an independent re-run of the same comparison)"
+        required: false
+        default: "0"
       handicap:
         description: "Remove N minor/major pieces from a seed-chosen side in every pair (fewer draws; colour-swapped pairs stay fair). 0 = normal"
         required: false
@@ -96,6 +100,7 @@ jobs:
           MATCH_LIMITS_B: ${{ inputs.limits_b }}
           MATCH_SEARCH_MS: ${{ inputs.ms }}
           MATCH_HANDICAP: ${{ inputs.handicap }}
+          SEED_OFFSET: ${{ inputs.seed_offset }}
           MATCH_PARAMS_A: ${{ inputs.params_a }}
           MATCH_PARAMS_B: ${{ inputs.params_b }}
         run: |
@@ -118,7 +123,7 @@ jobs:
           }
           MODEL_A="$(resolve "$MODEL_A")"
           MODEL_B="$(resolve "$MODEL_B")"
-          export MATCH_PAIR_START=$(( ${{ matrix.shard }} * PAIRS ))
+          export MATCH_PAIR_START=$(( ${{ matrix.shard }} * PAIRS + ${SEED_OFFSET:-0} ))
           node nnue/match-two-models.js "$MODEL_A" "$MODEL_B" "$PAIRS" | tee "shard-${{ matrix.shard }}.log"
 
       - name: Upload shard log
