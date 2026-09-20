@@ -72,3 +72,11 @@ Order: 1 -> 2 -> 5 -> (3 if worth it) -> 4 as options.
 - 2026-09-20: speed total ~2.2x vs the pre-speed-up engine (ab-cards, 16 positions, cards on): identical action/score/NODES/CUTOFFS. One earlier 11/12 "diff" was load noise (time-dependent deadline checks in root safety, `rootSafetyDeadlineTight`), not a logic change: reruns on an idle machine were 12/12 and 16/16 identical. Rule: run equivalence checks with the machine idle.
 - Tried and dropped: hoisting the clonePiece key list (0% gain). cloneState sharing / incremental hanging risk / transposition table etc. still open but now optional (2.2x reached).
 - Running: residual retrains at scales 150/300/600 on 129k round-3 positions (models resid150-r3b, resid300-r3b, resid600-r3b) -> matches @hybrid<scale> vs handcoded.
+
+## Strength plan (approved 2026-09-20): order 2 -> 1 -> 4 -> 3 -> 5 -> 6
+2 measurement: `match.yml` has `handicap` (remove N pieces from a seed-chosen side per pair; swapped pairs stay fair) -> fewer draws; 200-400 games; wider tactics set later. (handicap implemented; probe of draw rate next)
+1 spend the speed: re-measure depth 2 vs 3 vs 4 (handcoded, 1500 ms) with the 2.2x engine, then raise self-play/extension default depth/time accordingly.
+4 residual retrain verdict: 3 matches running (resid150/300/600-r3b @hybrid vs handcoded, 128 games each); then full round 3 retrain. Ship only >=55% of 100+ decisive games.
+3 hand-coded weight tuning (SPSA/regression on self-play data via tune-eval.js), card values from win rates; golden update + gate required.
+5 search options (TT, killers/history, LMR): default OFF, enable only after a match win.
+6 bootstrap self-play (round 4) with a gated model.
