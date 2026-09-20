@@ -51,3 +51,8 @@ nuesnapshots' -File | Where-Object { $_.Name -ne 'selfplay-data.2026-09-17T06-03
 - 사이트 종료 규칙 대조 결과는 `docs/GAME-END-RULES.md`. 자가대국의 사이트 규칙 옵션은 아직 미구현.
 - 규칙 차이 미확인 2건(평범한 수 1건, 브루투스 상태 차이), MCTS는 러스트가 생긴 뒤 평가(자바스크립트 시제품은 초당 약 7회 시뮬레이션).
 - 로컬 부하 규칙: 코어 4개 이내(서브에이전트 포함), 무거운 작업은 클라우드, 프로세스는 `taskkill`로 종료.
+
+## 클라우드 자가대국 대량 실행 (2026-09-20 밤 설정)
+- 16샤드, 깊이 6/1500ms, `SELFPLAY_CUTOFF_ISO=2026-09-22T08:00:00Z`(화요일 17:00 KST), `SELFPLAY_TARGET=600000`, `SELFPLAY_RECORD_POLICY=1`, `SELFPLAY_RECORD_STATE=5`(5수마다 국면 저장), 라운드 시작 `20260920T124334Z`.
+- 화요일 17시 이후 원복: `gh variable set SELFPLAY_SHARDS --body "[1,2,3,4,5,6,7,8]"`, `SELFPLAY_TARGET`=150000, `SELFPLAY_RECORD_POLICY`=0, `SELFPLAY_RECORD_STATE`=0. 그다음 `dataset-build.yml`(since `20260920T124334Z`)로 데이터셋을 만들고 `tools/policy/ordering-eval.js`로 기준선을 잰다.
+- 데이터 브랜치(`gha-segments-16cards`) 용량이 크게 늘 수 있으니 저장소 크기를 확인한다.
