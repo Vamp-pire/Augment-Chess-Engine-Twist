@@ -11,6 +11,11 @@ node check-site-update.js [--save]           # CHANGED/UNCHANGED vs last-seen.js
 `engine` defaults to `../../engine-merged.js` (`-` = default). Actions are matched between engines by normalized content
 (random ids stripped), never by list index. Run `fetch-real-worker.js --force` first whenever `check-site-update.js` says CHANGED.
 
+Automation: `.github/workflows/site-watch.yml` runs daily (and on demand). It runs `check-site-update.js`; on CHANGED it runs
+`fetch-real-worker.js --force` and the three parity scripts (200/150/15), writing a report to the step summary and a 30-day artifact
+`site-watch-report`. Read-only: it never commits, opens issues, or updates `last-seen.json` (do `check-site-update.js --save` yourself after
+reviewing). Network errors only produce a warning.
+
 Caveats when reading multi-ply diffs:
 - The site's worker does NOT model some cards. Example: `locustSwarm` is an OPENING card; the worker only honours it via its
   opening-setup path, so playing it as an in-game card has no effect there, while our engine applies it. Diffs after such cards are expected.

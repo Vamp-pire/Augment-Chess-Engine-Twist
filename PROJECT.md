@@ -49,6 +49,7 @@ node nnue/match-two-models.js <A> <B> 10   # 모델 대전 (A/B는 가중치 경
 | `dataset-build.yml` | 자기대국 조각 → `datasets/<이름>.jsonl.gz` | 시작 시각 창(since/until)으로 라운드 지정, `push=false`로 먼저 개수 확인 |
 | `nnue-train.yml` | (필요하면 인코딩) + 학습 + 선택적 승격 | `overrides`로 실험 설정, 기본은 master에 안 올림(`promote=false`) |
 | `match.yml` | 모델 대 모델 대결, 4샤드 병렬 | 결과는 실행 요약에 표시 |
+| `site-watch.yml` | 하루 1회 사이트(augmentchess.org) 패치 감시 | 변경 감지 시 실제 워커를 받아 parity 테스트, 리포트는 실행 요약+아티팩트(30일). 커밋/푸시/이슈/last-seen.json 수정 없음. 확인 후 로컬에서 `check-site-update.js --save` |
 
 `gh`는 `C:\Program Files\GitHub CLI\gh.exe`(로그인 완료). 워크플로 입력이 JSON이면 PowerShell이 따옴표를 깨뜨리므로
 **Bash에서 표준입력으로**: `printf '{"overrides":"{\"ablateBlend\":\"0.7\"}"}' | gh workflow run nnue-train.yml --json`.
