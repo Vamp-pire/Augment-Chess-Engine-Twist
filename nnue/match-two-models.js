@@ -89,8 +89,19 @@ function makeEvalFn(spec) {
     return map(forward(weights, input), boardState, aiColor);
   };
 }
-const evalA = makeEvalFn(weightsAPath);
-const evalB = makeEvalFn(weightsBPath);
+// Spec "mcts:<sims>" = experimental MCTS (tools/mcts/mcts.js) with the hand-coded eval and <sims> simulations.
+function mctsSims(spec) { const m = /^mcts:([0-9]+)$/.exec(spec); return m ? Number(m[1]) : 0; }
+function makeSearchFn(spec) {
+  const sims = mctsSims(spec);
+  if (!sims) return null;
+  const { createMctsSearch } = require(path.join(__dirname, "..", "tools", "mcts", "mcts.js"));
+  return createMctsSearch({ sims }).search;
+}
+// distinct function objects per side: playAndScore tells the sides apart by identity
+const evalA = mctsSims(weightsAPath) ? (s, c) => engine.evaluateState(s, c) : makeEvalFn(weightsAPath);
+const evalB = mctsSims(weightsBPath) ? (s, c) => engine.evaluateState(s, c) : makeEvalFn(weightsBPath);
+const SEARCH_FN_A = makeSearchFn(weightsAPath);
+const SEARCH_FN_B = makeSearchFn(weightsBPath);
 
 let aWins = 0;
 let bWins = 0;
@@ -110,6 +121,10 @@ function playAndScore(seed, evalFnByColor, label) {
     seed,
     flexibleBudget: true,
     evalFnByColor,
+    searchFnByColor: (SEARCH_FN_A || SEARCH_FN_B) ? {
+      white: evalFnByColor.white === evalA ? SEARCH_FN_A : SEARCH_FN_B,
+      black: evalFnByColor.black === evalA ? SEARCH_FN_A : SEARCH_FN_B
+    } : null,
     searchDepthByColor: {
       white: evalFnByColor.white === evalA ? DEPTH_A : DEPTH_B,
       black: evalFnByColor.black === evalA ? DEPTH_A : DEPTH_B

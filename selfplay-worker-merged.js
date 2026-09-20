@@ -501,7 +501,7 @@ const POLICY_TOP_K = 8;
 function policyKey(action) {
   return JSON.stringify(action, (k, v) => (k === "id" || k === "instanceId" || k === "pieceId" ? undefined : v));
 }
-function playOneGame({ searchDepth, searchTimeMs, maxPlies, seed, flexibleBudget = true, evalFnByColor = null, searchDepthByColor = null, limitsByColor = null, paramsByColor = null, handicap = 0, recordPolicy = process.env.SELFPLAY_RECORD_POLICY === "1" }) {
+function playOneGame({ searchDepth, searchTimeMs, maxPlies, seed, flexibleBudget = true, evalFnByColor = null, searchDepthByColor = null, limitsByColor = null, paramsByColor = null, searchFnByColor = null, handicap = 0, recordPolicy = process.env.SELFPLAY_RECORD_POLICY === "1" }) {
   const rng = makeRng(seed);
   const state = makeInitialState(rng);
   // handicap (matches only): remove N minor/major pieces (not queen/king) from a
@@ -587,7 +587,8 @@ function playOneGame({ searchDepth, searchTimeMs, maxPlies, seed, flexibleBudget
         MAX_BASE_SEARCH_MS,
         searchTimeMs + Math.max(0, actions.length - CANDIDATE_BASELINE) * EXTRA_MS_PER_CANDIDATE
       );
-      let result = engine.searchBestAction(state, actions, color, (searchDepthByColor && searchDepthByColor[color]) || searchDepth, adaptiveSearchTimeMs, { flexibleBudget, evalFn: (evalFnByColor && evalFnByColor[color]) || nnueEvalFn || void 0, limits: (limitsByColor && limitsByColor[color]) || void 0, params: (paramsByColor && paramsByColor[color]) || void 0 });
+      const customSearch = searchFnByColor && searchFnByColor[color];
+      let result = customSearch ? customSearch(state, actions, color, { budgetMs: adaptiveSearchTimeMs }) : engine.searchBestAction(state, actions, color, (searchDepthByColor && searchDepthByColor[color]) || searchDepth, adaptiveSearchTimeMs, { flexibleBudget, evalFn: (evalFnByColor && evalFnByColor[color]) || nnueEvalFn || void 0, limits: (limitsByColor && limitsByColor[color]) || void 0, params: (paramsByColor && paramsByColor[color]) || void 0 });
       // Adaptive retry (added 2026-09-11): completedDepth 0 means
       // searchAtDepth never finished even once within the budget, so
       // searchBestAction's returned action is really just
@@ -602,7 +603,7 @@ function playOneGame({ searchDepth, searchTimeMs, maxPlies, seed, flexibleBudget
       // actually failed, with more room -- keeps self-play fast on average
       // while still getting a real score for the plies that need it. One
       // retry only, no unbounded loop.
-      if (!result.completedDepth) {
+      if (!customSearch && !result.completedDepth) {
         result = engine.searchBestAction(state, actions, color, (searchDepthByColor && searchDepthByColor[color]) || searchDepth, adaptiveSearchTimeMs * 4, { flexibleBudget, evalFn: (evalFnByColor && evalFnByColor[color]) || nnueEvalFn || void 0, limits: (limitsByColor && limitsByColor[color]) || void 0, params: (paramsByColor && paramsByColor[color]) || void 0 });
       }
       if (!result.action) break;
