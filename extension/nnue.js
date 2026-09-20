@@ -179,14 +179,14 @@
   // 2026-09-20: experimental round-3 models. `map` says how the tanh output becomes a search
   // score (same specs as nnue/match-two-models.js): "atanh<K>" = K * atanh(out), "hybrid<K>" =
   // engine.evaluateState + K * out (residual net). No map = out * SCORE_SCALE (Squall/Tornado).
-  //   undertow = depth-weighted labels (first "win" vs the hand-coded evaluator in the lab, re-check pending)
-  //   riptide  = residual net (search score minus hand-coded score); monsoon = search-score weight 0.8
+  //   hurricane = depth-weighted labels (first "win" vs the hand-coded evaluator in the lab, re-check pending)
+  //   gale     = residual net (search score minus hand-coded score); cyclone = search-score weight 0.8
   const MODELS = {
     squall: { label: "Squall", file: "model/nnue-squall.json" },
     tornado: { label: "Tornado", file: "model/nnue-tornado.json" },
-    undertow: { label: "Undertow (실험)", file: "model/nnue-undertow.json", map: "atanh400" },
-    riptide: { label: "Riptide (실험)", file: "model/nnue-riptide.json", map: "hybrid300" },
-    monsoon: { label: "Monsoon (실험)", file: "model/nnue-monsoon.json", map: "atanh400" }
+    hurricane: { label: "Hurricane (실험)", file: "model/nnue-hurricane.json", map: "atanh400" },
+    gale: { label: "Gale (실험)", file: "model/nnue-gale.json", map: "hybrid300" },
+    cyclone: { label: "Cyclone (실험)", file: "model/nnue-cyclone.json", map: "atanh400" }
   };
   const DEFAULT_MODEL = "squall";
   const MODEL_STORAGE_KEY = "augEngineNnueModel";

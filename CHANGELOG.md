@@ -13,7 +13,7 @@
 - 실험실 실행 도구(`tools/lab/lab.js`)와 결과 기록(`docs/results/`)
 
 ### 확장
-- 모델 드롭다운에 실험 모델 3개 추가: Undertow(깊이별 라벨), Riptide(잔차), Monsoon(검색 점수 0.8). 모델별 출력 매핑(`atanh400`, `hybrid300`)을 `nnue.js`가 처리. 기본값은 Squall 그대로
+- 모델 드롭다운에 실험 모델 3개 추가: Hurricane(깊이별 라벨), Gale(잔차), Cyclone(검색 점수 0.8). 모델별 출력 매핑(`atanh400`, `hybrid300`)을 `nnue.js`가 처리. 기본값은 Squall 그대로
 
 ### 인프라
 - CI: 확장 엔진 사본 동기화 검사(`tools/ci/engine-sync.js`), 사이트 패치 감시 워크플로(`site-watch.yml`)
