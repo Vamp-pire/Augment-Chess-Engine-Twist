@@ -176,9 +176,17 @@
   // Selectable models (2026-09-19). Both were trained on the same 5509-wide
   // input this file encodes; they differ only in weights. "squall" is the
   // one deployed by default (round-2 retrain), "tornado" the round-1 retrain.
+  // 2026-09-20: experimental round-3 models. `map` says how the tanh output becomes a search
+  // score (same specs as nnue/match-two-models.js): "atanh<K>" = K * atanh(out), "hybrid<K>" =
+  // engine.evaluateState + K * out (residual net). No map = out * SCORE_SCALE (Squall/Tornado).
+  //   undertow = depth-weighted labels (first "win" vs the hand-coded evaluator in the lab, re-check pending)
+  //   riptide  = residual net (search score minus hand-coded score); monsoon = search-score weight 0.8
   const MODELS = {
     squall: { label: "Squall", file: "model/nnue-squall.json" },
-    tornado: { label: "Tornado", file: "model/nnue-tornado.json" }
+    tornado: { label: "Tornado", file: "model/nnue-tornado.json" },
+    undertow: { label: "Undertow (실험)", file: "model/nnue-undertow.json", map: "atanh400" },
+    riptide: { label: "Riptide (실험)", file: "model/nnue-riptide.json", map: "hybrid300" },
+    monsoon: { label: "Monsoon (실험)", file: "model/nnue-monsoon.json", map: "atanh400" }
   };
   const DEFAULT_MODEL = "squall";
   const MODEL_STORAGE_KEY = "augEngineNnueModel";
@@ -276,10 +284,19 @@
   // loading, or a terminal position -- evaluate() deliberately punts on
   // both rather than guessing), so this is always safe to plug in even
   // before ensureLoaded() resolves.
+  function scoreFromOutput(out, boardState, aiColor) {
+    const spec = MODELS[currentModel] && MODELS[currentModel].map;
+    if (!spec) return out * SCORE_SCALE;
+    let m = /^atanh([0-9]+)$/.exec(spec);
+    if (m) return Number(m[1]) * Math.atanh(Math.max(-0.995, Math.min(0.995, out)));
+    m = /^hybrid([0-9]+)$/.exec(spec);
+    if (m) return engine.evaluateState(boardState, aiColor) + Number(m[1]) * out;
+    return out * SCORE_SCALE;
+  }
   function evaluateForSearch(boardState, aiColor) {
     const nnueScore = evaluate(boardState, aiColor);
     if (nnueScore === null) return engine.evaluateState(boardState, aiColor);
-    return nnueScore * SCORE_SCALE;
+    return scoreFromOutput(nnueScore, boardState, aiColor);
   }
 
   self.__augNNUE = { ensureLoaded, evaluate, evaluateForSearch, INPUT_SIZE, FEATURE_NAMES, MODELS, setModel, getModel, getStatus, forwardWith: forward, parseWeights, encodeFromState };

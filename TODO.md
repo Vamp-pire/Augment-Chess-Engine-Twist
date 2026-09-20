@@ -20,7 +20,7 @@
 
 - [ ] 무승부 원인 확인(자가대국의 반복/50수 규칙), 고정 오프닝 세트, 조기 종료
 - [ ] 속도: `cloneState` 공유, 나머지 루트 안전 검사 필터 (`PLAN.md` A)
-- [ ] 확장: 통과한 모델을 선택지로 추가(이름 후보: Riptide, Undertow, Gale, Monsoon, Cyclone), 기본값은 바꾸지 않음
+- [x] 확장 드롭다운에 실험 모델 추가(Undertow, Riptide, Monsoon, 통과 여부와 무관), 기본값은 Squall 그대로. 이름을 바꾸고 싶으면 `extension/nnue.js`의 `MODELS` 라벨만 수정 (후보: Gale, Cyclone, Squall급 폭풍 이름들)
 - [ ] 전술 세트 재구축, 수 품질 점수
 - [ ] 규칙 차이 남은 것: `promotionRush`, 브루터스 상태, 평범한 수 1건 (`tools/site-parity/TRIAGE.md`), 패럿 안전장치는 넣지 않기로 함
 - [ ] 리뷰 개선(맥락, 깊이 기반 신뢰도, 아이콘 활용)은 엔진이 강해질 때까지 보류 (`tools/review-calibration/README.md`)

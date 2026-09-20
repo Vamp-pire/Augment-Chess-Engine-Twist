@@ -12,6 +12,9 @@
 - 잔차 학습 옵션(`RESIDUAL=1`), 전술 테스트 도구(`nnue/tactics.js`), 대전 핸디캡/시드 오프셋/파라미터 옵션, 신뢰구간과 구분 가능한 차이 표시, `verdict.json` 자동 판정
 - 실험실 실행 도구(`tools/lab/lab.js`)와 결과 기록(`docs/results/`)
 
+### 확장
+- 모델 드롭다운에 실험 모델 3개 추가: Undertow(깊이별 라벨), Riptide(잔차), Monsoon(검색 점수 0.8). 모델별 출력 매핑(`atanh400`, `hybrid300`)을 `nnue.js`가 처리. 기본값은 Squall 그대로
+
 ### 인프라
 - CI: 확장 엔진 사본 동기화 검사(`tools/ci/engine-sync.js`), 사이트 패치 감시 워크플로(`site-watch.yml`)
 - 모델 저장 단계의 브랜치 충돌 버그 수정, 문서 재정리(`PLAN.md`, `TODO.md`, `ExperimentNote.md`)
