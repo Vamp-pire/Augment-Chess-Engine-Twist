@@ -81,3 +81,7 @@ Order: 1 -> 2 -> 5 -> (3 if worth it) -> 4 as options.
 5 search options (TT, killers/history, LMR): default OFF, enable only after a match win.
 6 bootstrap self-play (round 4) with a gated model.
 - Item 3 probe (2026-09-20): regressing the static evaluateState terms onto the logged searchScore does NOT work as a tuning method: searchScore includes per-move heuristic scores (applied.score, tactical adjustments) on top of the minimax eval, so it is not in static-eval units (current weights R2 = -2.3 on 1.4k held-out positions; the "fitted" weights e.g. material 0.135 are just mimicking move bonuses). Would need the deep PV-leaf static eval or outcome-based fitting (noisy). Dropped; item 3 stays open only via outcome-based tuning + match gate.
+
+## Measurement finding (2026-09-20) -- gates revised
+Match summary now prints a Wilson 95% interval and the detectable gap: with 45 decisive games only gaps of about +-21 points are reliably detectable; +-5 points needs ~784 decisive games (~1,800 games at a 57% draw rate). So the old gate ">= 55% of 100 decisive games" cannot distinguish 55% from 50%.
+Revised gates: SHIP only if the 95% interval's lower bound is > 50% (or, for a speed/no-regression change, the interval excludes a loss of more than ~10 points); otherwise "unproven", keep optional. To get there: handicap matches (fewer draws), 400+ games per candidate, per-move quality score and the tactics set as cheaper second signals.
