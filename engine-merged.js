@@ -3759,10 +3759,22 @@
   function searchBestAction(boardState, rootActions, aiColor, depth, timeLimitMs = TIME_LIMIT_MS, options = {}) {
     const outer = HANG_MEMO;
     HANG_MEMO = /* @__PURE__ */ new WeakMap();
+    // options.params (experiments): {nullMoveMinDepth, nullMoveReduction, lmrMinDepth, lmrMoveThreshold, quiescenceMaxPlies}
+    const saved = [NULL_MOVE_MIN_DEPTH, NULL_MOVE_REDUCTION, LMR_MIN_DEPTH, LMR_MOVE_THRESHOLD, QUIESCENCE_MAX_PLIES];
+    const p = options && options.params;
+    if (p) {
+      const num = (v, d) => (Number.isFinite(Number(v)) && v !== null && v !== "" ? Number(v) : d);
+      NULL_MOVE_MIN_DEPTH = num(p.nullMoveMinDepth, NULL_MOVE_MIN_DEPTH);
+      NULL_MOVE_REDUCTION = num(p.nullMoveReduction, NULL_MOVE_REDUCTION);
+      LMR_MIN_DEPTH = num(p.lmrMinDepth, LMR_MIN_DEPTH);
+      LMR_MOVE_THRESHOLD = num(p.lmrMoveThreshold, LMR_MOVE_THRESHOLD);
+      QUIESCENCE_MAX_PLIES = num(p.quiescenceMaxPlies, QUIESCENCE_MAX_PLIES);
+    }
     try {
       return searchBestActionCore(boardState, rootActions, aiColor, depth, timeLimitMs, options);
     } finally {
       HANG_MEMO = outer;
+      [NULL_MOVE_MIN_DEPTH, NULL_MOVE_REDUCTION, LMR_MIN_DEPTH, LMR_MOVE_THRESHOLD, QUIESCENCE_MAX_PLIES] = saved;
     }
   }
   function memoHangingMaterialRisk(boardState, color) {
@@ -4729,10 +4741,12 @@
   // minimax and searchBestAction are replaced wholesale with our enhanced
   // versions (see the graft-progress log for why that step comes last: it
   // needs every one of these already in place first).
-  const NULL_MOVE_MIN_DEPTH = 3;
-  const NULL_MOVE_REDUCTION = 2;
-  const LMR_MIN_DEPTH = 3;
-  const LMR_MOVE_THRESHOLD = 4;
+  // let (not const): options.params can override them for one search call (experiments);
+  // searchBestAction restores the defaults afterwards, so the default behaviour is unchanged.
+  let NULL_MOVE_MIN_DEPTH = 3;
+  let NULL_MOVE_REDUCTION = 2;
+  let LMR_MIN_DEPTH = 3;
+  let LMR_MOVE_THRESHOLD = 4;
   function nullMoveOk(boardState, color) {
     const king = criticalPieces(boardState, color)[0];
     if (king && isSquareAttacked(boardState, king.row, king.col, opponent(color))) return false;
@@ -4752,7 +4766,7 @@
     if (!action || action.type !== "card") return false;
     return singleCardThreatValue(boardState, findCard(boardState, action), color) >= CARD_TACTICAL_RELEVANCE_THRESHOLD;
   }
-  const QUIESCENCE_MAX_PLIES = 6;
+  let QUIESCENCE_MAX_PLIES = 6;
   function quiescence(boardState, alpha, beta, isMaximizingPlayer, context, qDepth) {
     context.nodes += 1;
     if ((context.nodes & 255) === 0 && isTimedOut(context)) return (context.evalFn || evaluateState)(boardState, context.aiColor);

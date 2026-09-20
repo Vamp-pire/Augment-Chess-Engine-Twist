@@ -44,6 +44,14 @@ on:
         description: "Optional JSON options.limits for B"
         required: false
         default: ""
+      params_a:
+        description: 'Optional JSON search params for A (nullMoveMinDepth, nullMoveReduction, lmrMinDepth, lmrMoveThreshold, quiescenceMaxPlies)'
+        required: false
+        default: ""
+      params_b:
+        description: "Optional JSON search params for B"
+        required: false
+        default: ""
       handicap:
         description: "Remove N minor/major pieces from a seed-chosen side in every pair (fewer draws; colour-swapped pairs stay fair). 0 = normal"
         required: false
@@ -88,6 +96,8 @@ jobs:
           MATCH_LIMITS_B: ${{ inputs.limits_b }}
           MATCH_SEARCH_MS: ${{ inputs.ms }}
           MATCH_HANDICAP: ${{ inputs.handicap }}
+          MATCH_PARAMS_A: ${{ inputs.params_a }}
+          MATCH_PARAMS_B: ${{ inputs.params_b }}
         run: |
           # A spec is "<weights path | handcoded | data:<path on gha-segments-16cards>>[@<output map>]".
           # data:models/x.json pulls an experiment model from the data branch, so

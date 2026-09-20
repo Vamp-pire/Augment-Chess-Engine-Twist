@@ -39,6 +39,10 @@ const SEARCH_TIME_MS = Number(process.env.MATCH_SEARCH_MS) || 80;
 // e.g. {"movetimeMs":1500,"extend":false} vs {"movetimeMs":1500,"extend":true} to test the time extension.
 const LIMITS_A = process.env.MATCH_LIMITS_A ? JSON.parse(process.env.MATCH_LIMITS_A) : null;
 const LIMITS_B = process.env.MATCH_LIMITS_B ? JSON.parse(process.env.MATCH_LIMITS_B) : null;
+// MATCH_PARAMS_A / MATCH_PARAMS_B: JSON for options.params (search tuning: nullMoveMinDepth, nullMoveReduction,
+// lmrMinDepth, lmrMoveThreshold, quiescenceMaxPlies); empty = engine defaults.
+const PARAMS_A = process.env.MATCH_PARAMS_A ? JSON.parse(process.env.MATCH_PARAMS_A) : null;
+const PARAMS_B = process.env.MATCH_PARAMS_B ? JSON.parse(process.env.MATCH_PARAMS_B) : null;
 const MAX_PLIES = Number(process.env.MATCH_MAX_PLIES) || 300;
 
 // Requiring this (rather than spawning it as a worker_threads Worker) picks
@@ -96,6 +100,10 @@ let unfinished = 0;
 function playAndScore(seed, evalFnByColor, label) {
   const result = playOneGame({
     handicap: Number(process.env.MATCH_HANDICAP || 0),
+    paramsByColor: {
+      white: evalFnByColor.white === evalA ? PARAMS_A : PARAMS_B,
+      black: evalFnByColor.black === evalA ? PARAMS_A : PARAMS_B
+    },
     searchDepth: SEARCH_DEPTH,
     searchTimeMs: SEARCH_TIME_MS,
     maxPlies: MAX_PLIES,
