@@ -85,3 +85,22 @@ Order: 1 -> 2 -> 5 -> (3 if worth it) -> 4 as options.
 ## Measurement finding (2026-09-20) -- gates revised
 Match summary now prints a Wilson 95% interval and the detectable gap: with 45 decisive games only gaps of about +-21 points are reliably detectable; +-5 points needs ~784 decisive games (~1,800 games at a 57% draw rate). So the old gate ">= 55% of 100 decisive games" cannot distinguish 55% from 50%.
 Revised gates: SHIP only if the 95% interval's lower bound is > 50% (or, for a speed/no-regression change, the interval excludes a loss of more than ~10 points); otherwise "unproven", keep optional. To get there: handicap matches (fewer draws), 400+ games per candidate, per-move quality score and the tactics set as cheaper second signals.
+
+## Experiment factory (approved to plan 2026-09-20)
+Goal: replace "human reads results and decides" with a machine that tries candidates, judges them by matches, and keeps only proven winners.
+Order rule: when round-3 self-play ends, its follow-ups go FIRST (or in parallel): dataset-build round3-full -> retrain (residual 150/300/600 + a non-residual control) -> matches. The factory is built in parallel/after, never blocking these.
+
+L0 outcome: an unattended loop candidate -> match -> verdict -> promote, with hard stop rules.
+L1 blocks
+  F  Lab (judge): a reusable judging workflow. Input: candidate spec vs baseline spec. Runs fixed balanced openings + handicap pairs, sequential test (SPRT-like) until the interval excludes/settles, prints a verdict file (win / lose / unproven, interval, games, draw rate) and stops early.
+  C  Candidate generators: (1) residual retrains at several scales, (2) search options behind flags (TT, killers/history, LMR, time management), (3) depth/time presets.
+  L  Loop (autopilot): scheduled/dispatched cycle selfplay(best) -> dataset -> train -> lab -> promote if verdict = win. Round 4+ run through it.
+  W  Watchdog: site-patch detector -> parity run -> diff report.
+L2 steps (first block F)
+  F1 fixed opening set: choose N balanced seeds from a probe (handicap 0/1/2 draw-rate probe; keep the setting that gives the most decisive games without a one-sided result)
+  F2 verdict logic: Wilson interval + stop rules (max games, min games, decisive target); machine-readable verdict.json artifact
+  F3 batch runner: one dispatch runs several candidates against the baseline and collects verdicts into one summary
+  F4 result log in the repo (docs/results/*.json: spec, games, interval, date) -- reproducible
+L3 details (F1): match-two-models gets MATCH_OPENINGS (seed list file); match.yml input `openings`; probe = handcoded vs handcoded and depth3 vs depth2 at handicap 0/1/2.
+Stop rules for anything unattended: hard cap on jobs per cycle (<= 12 concurrent), max cycles per day, abort a cycle on any failed step, never touch master engine/extension files without a `win` verdict + CI green, data-branch size check before pushing datasets.
+Owner involvement: approve the rules once; read the final summary.
