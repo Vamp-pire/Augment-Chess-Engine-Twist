@@ -47,6 +47,11 @@ function stateFromRecord(rec) {
   s.deckSlots = { white: rec.deckSlots?.white || [], black: rec.deckSlots?.black || [] };
   s.captures = { white: [], black: [] };
   s.aiSearchNoCards = true;
+  // a hand-built state must carry these too, otherwise root safety rejects every candidate (score 250000000, 0 nodes)
+  s.turnsTaken = { white: 10, black: 10 };
+  s.actionsRemaining = 1;
+  s.moveCount = 20;
+  s.castlingCanceled = { white: true, black: true };
   engine.setWorkerBoardDimensions(s);
   return s;
 }

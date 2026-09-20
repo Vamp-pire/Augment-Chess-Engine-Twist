@@ -3,7 +3,7 @@ const fs=require("fs"),path=require("path");const root=path.join(__dirname,"..",
 const e=require(path.join(root,"engine-merged.js"));
 const lines=fs.readFileSync(path.join(root,"data","experiments","selfplay-data.merged-engine-16cards-local-2026-09-15.jsonl"),"utf8").split("\n").filter(Boolean);
 const N=+process.argv[2]||40;const step=Math.floor(lines.length/N);
-function mk(rec){const s=e.cloneState({});s.board=rec.board.map(r=>r.map(p=>p?{type:p.t,color:p.c,moved:true}:null));s.mode="play";s.turn=rec.turn;s.deckSlots={white:rec.deckSlots?.white||[],black:rec.deckSlots?.black||[]};s.captures={white:[],black:[]};s.aiSearchNoCards=true;e.setWorkerBoardDimensions(s);return s;}
+function mk(rec){const s=e.cloneState({});s.board=rec.board.map(r=>r.map(p=>p?{type:p.t,color:p.c,moved:true}:null));s.mode="play";s.turn=rec.turn;s.deckSlots={white:rec.deckSlots?.white||[],black:rec.deckSlots?.black||[]};s.captures={white:[],black:[]};s.aiSearchNoCards=true;s.turnsTaken={white:10,black:10};s.actionsRemaining=1;s.moveCount=20;s.castlingCanceled={white:true,black:true};e.setWorkerBoardDimensions(s);return s;}
 const kings=(s,c)=>{let n=0;for(const r of s.board)for(const p of r)if(p&&p.color===c&&p.type==="king")n++;return n;};
 let replies=0,wins=0,viol=0,types={},shown=0;
 for(let i=0,k=0;k<N;i+=step,k++){const rec=JSON.parse(lines[i]);const ai=rec.turn,en=ai==="white"?"black":"white";const s=mk(rec);
