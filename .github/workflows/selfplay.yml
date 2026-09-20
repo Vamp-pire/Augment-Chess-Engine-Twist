@@ -88,6 +88,8 @@ jobs:
           #   SELFPLAY_TARGET       positions wanted, e.g. 150000
           ROUND_START: ${{ vars.SELFPLAY_ROUND_START || '20260919T035300Z' }}
           TARGET: ${{ vars.SELFPLAY_TARGET || '150000' }}
+          # 1 = also record the search's chosen move and top root candidates (`policy` field, ~1 KB/position)
+          SELFPLAY_RECORD_POLICY: ${{ vars.SELFPLAY_RECORD_POLICY || '0' }}
         # GitHub Actions' default `bash` shell runs with -e (abort on first
         # non-zero exit), which silently killed the whole step the moment an
         # intentionally-allowed-to-fail command (fetching a not-yet-existing
