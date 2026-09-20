@@ -6,7 +6,9 @@
 ## 사용자 몫 (제가 대신할 수 없거나 승인이 필요한 것)
 
 - [ ] `nnue/snapshots/` 정리(9.6GB, 내용은 10종뿐): 아래 명령을 직접 실행하면 1라운드 복사본 1개만 남습니다 (자동 모드가 삭제를 막음)
-  `cd /d/증강체스엔진/nnue/snapshots && find . -type f ! -name 'selfplay-data.2026-09-17T06-03-48-630Z.jsonl' -delete`
+  PowerShell(Windows 기본)에서는 `&&`와 `/d/...` 경로가 안 되므로 이 명령을 씁니다:
+  `Get-ChildItem 'D:증강체스엔진
+nuesnapshots' -File | Where-Object { $_.Name -ne 'selfplay-data.2026-09-17T06-03-48-630Z.jsonl' } | Remove-Item`
 - [ ] 크롬에서 확장 확인(압축 해제된 확장 새로고침): 모델 드롭다운과 로드 상태, 새 아이콘, 리뷰, 실시간 봇, 설정("우리 엔진" 블록), 성능 패널 평가기 표시
 - [ ] 사이트 운영자 동의 증빙 저장(스크린샷/메시지 링크): NOTICE.md가 인용함(Discord, 2026-09-19)
 

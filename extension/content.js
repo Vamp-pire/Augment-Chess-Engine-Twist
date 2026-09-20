@@ -366,7 +366,7 @@
         }
         const foot = document.createElement("div");
         foot.className = "aug-engine-model-info-foot";
-        foot.textContent = "비교 기준: 수제 평가와의 대전(핸디캡 1, 수당 300ms). 결정된 게임이 적어서 큰 차이만 확인됩니다.";
+        foot.textContent = "기준: 기본(수제) 평가와 대전해 비교했습니다. 실험 모델은 아직 검증 중입니다.";
         infoPop.appendChild(foot);
         document.body.appendChild(infoPop);
         const r = infoBtn.getBoundingClientRect();
