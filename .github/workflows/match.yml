@@ -145,6 +145,10 @@ jobs:
             const dec = a + b;
             const rate = dec ? a / dec : 0;
             const z = dec ? (rate - 0.5) / Math.sqrt(0.25 / dec) : 0;
+            const wilson = (k, n) => { if (!n) return [0, 1]; const p = k / n, zz = 1.96, den = 1 + zz * zz / n, c = p + zz * zz / (2 * n), h = zz * Math.sqrt(p * (1 - p) / n + zz * zz / (4 * n * n)); return [(c - h) / den, (c + h) / den]; };
+            const ci = wilson(a, dec);
+            const total = a + b + d + u;
+            const mde = dec ? 140 / Math.sqrt(dec) : 0; // smallest win-rate gap (in points) detectable with ~80% power
             const lines = [
               '## Match result',
               '',
@@ -155,7 +159,10 @@ jobs:
               '|---|---|---|---|',
               '| ' + a + ' | ' + b + ' | ' + d + ' | ' + u + ' |',
               '',
-              dec ? 'A win rate (decisive only): **' + (rate * 100).toFixed(1) + '%** (' + a + '/' + dec + '), z = ' + z.toFixed(2) + (Math.abs(z) >= 1.96 ? ' -> likely real difference' : ' -> within noise') : 'no decisive games'
+              dec ? 'A win rate (decisive only): **' + (rate * 100).toFixed(1) + '%** (' + a + '/' + dec + '), z = ' + z.toFixed(2) + (Math.abs(z) >= 1.96 ? ' -> likely real difference' : ' -> within noise') : 'no decisive games',
+              '',
+              dec ? '95% interval (Wilson): **' + (ci[0] * 100).toFixed(1) + '% - ' + (ci[1] * 100).toFixed(1) + '%**; draws ' + (total ? (100 * d / total).toFixed(0) : 0) + '% of ' + total + ' games' : '',
+              dec ? 'With ' + dec + ' decisive games only gaps of about +-' + mde.toFixed(0) + ' points are reliably detectable (80% power); need about ' + Math.ceil(Math.pow(140 / 5, 2)) + ' decisive games to see +-5 points.' : ''
             ];
             fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join('\n') + '\n');
             console.log(lines.join('\n'));
