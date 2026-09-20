@@ -1,4 +1,4 @@
-# ExprimentNote (실험 세팅과 비율 기록)
+# ExperimentNote (실험 세팅과 비율 기록)
 
 마지막 갱신: 2026-09-20. 결과 원본은 `docs/results/results.jsonl`, 계획은 `PLAN.md`.
 
