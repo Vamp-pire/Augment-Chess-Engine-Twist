@@ -182,11 +182,26 @@
   //   hurricane = depth-weighted labels (first "win" vs the hand-coded evaluator in the lab, re-check pending)
   //   gale     = residual net (search score minus hand-coded score); cyclone = search-score weight 0.8
   const MODELS = {
-    squall: { label: "Squall", file: "model/nnue-squall.json" },
-    tornado: { label: "Tornado", file: "model/nnue-tornado.json" },
-    hurricane: { label: "Hurricane (실험)", file: "model/nnue-hurricane.json", map: "atanh400" },
-    gale: { label: "Gale (실험)", file: "model/nnue-gale.json", map: "hybrid300" },
-    cyclone: { label: "Cyclone (실험)", file: "model/nnue-cyclone.json", map: "atanh400" }
+    squall: {
+      label: "Squall", file: "model/nnue-squall.json",
+      desc: "기본 모델. 2라운드 자가대국(약 11.3만 국면)으로 학습했고, 승패 결과를 중심으로(검색 점수 비중 0.15) 배웠습니다. 수제 평가와 비교한 대전에서 차이를 찾지 못했습니다(오차 범위). 가장 오래 쓰여 안정적입니다."
+    },
+    tornado: {
+      label: "Tornado", file: "model/nnue-tornado.json",
+      desc: "1라운드 자가대국(약 21.8만 국면, 대부분 깊이 1)으로 학습한 옛 모델입니다. Squall과의 대전에서 차이가 없었습니다. 비교용으로 남겨 두었습니다."
+    },
+    hurricane: {
+      label: "Hurricane (실험)", file: "model/nnue-hurricane.json", map: "atanh400",
+      desc: "3라운드(약 15만 국면, 깊이 2~6)로 학습했습니다. 깊이가 깊을수록 검색 점수를 더 믿도록(깊이 1/2/3/4+ = 25/45/65/80%) 라벨을 섞었습니다. 실험실에서 수제 평가를 상대로 66%(결정된 53판, 신뢰구간 52.6~77.3%)를 기록해 유일하게 우세 판정을 받았지만, 독립 재확인이 진행 중입니다."
+    },
+    gale: {
+      label: "Gale (실험)", file: "model/nnue-gale.json", map: "hybrid300",
+      desc: "3라운드로 학습한 잔차 모델입니다. 수제 평가가 이미 잘하는 부분은 그대로 두고, 깊은 검색과 수제 평가의 차이만 배웁니다. 실제 점수는 수제 평가 + 300 x 출력입니다. 실험실 결과는 53%(구간 39~66%)로 차이가 확인되지 않았습니다."
+    },
+    cyclone: {
+      label: "Cyclone (실험)", file: "model/nnue-cyclone.json", map: "atanh400",
+      desc: "3라운드로 학습했고 검색 점수 비중을 0.8로 고정했습니다(깊이별 가중 없음). Hurricane과 비교하기 위한 모델입니다. 대전 결과를 기다리는 중입니다."
+    }
   };
   const DEFAULT_MODEL = "squall";
   const MODEL_STORAGE_KEY = "augEngineNnueModel";

@@ -326,8 +326,60 @@
       };
       renderModelStatus();
       window.addEventListener("aug-nnue-status", renderModelStatus);
+      // "i" button: what each model is (descriptions live next to the models in nnue.js).
+      const infoBtn = document.createElement("button");
+      infoBtn.type = "button";
+      infoBtn.className = "aug-engine-model-info-btn";
+      infoBtn.textContent = "i";
+      infoBtn.title = "모델 설명";
+      infoBtn.setAttribute("aria-label", "NNUE 모델 설명");
+      let infoPop = null;
+      const closeInfo = () => {
+        if (infoPop) { infoPop.remove(); infoPop = null; }
+        document.removeEventListener("mousedown", onInfoOutside, true);
+        document.removeEventListener("keydown", onInfoKey, true);
+      };
+      const onInfoOutside = (ev) => { if (infoPop && !infoPop.contains(ev.target) && ev.target !== infoBtn) closeInfo(); };
+      const onInfoKey = (ev) => { if (ev.key === "Escape") closeInfo(); };
+      infoBtn.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (infoPop) { closeInfo(); return; }
+        infoPop = document.createElement("div");
+        infoPop.className = "aug-engine-model-info-pop";
+        const title = document.createElement("div");
+        title.className = "aug-engine-model-info-title";
+        title.textContent = "NNUE 모델 설명";
+        infoPop.appendChild(title);
+        const current = nnueApi?.getModel?.();
+        for (const [key, info] of Object.entries(nnueApi?.MODELS || {})) {
+          const item = document.createElement("div");
+          item.className = "aug-engine-model-info-item";
+          if (key === current) item.dataset.current = "true";
+          const name = document.createElement("strong");
+          name.textContent = info.label + (key === current ? " (선택됨)" : "");
+          const body = document.createElement("div");
+          body.textContent = info.desc || "";
+          item.appendChild(name);
+          item.appendChild(body);
+          infoPop.appendChild(item);
+        }
+        const foot = document.createElement("div");
+        foot.className = "aug-engine-model-info-foot";
+        foot.textContent = "비교 기준: 수제 평가와의 대전(핸디캡 1, 수당 300ms). 결정된 게임이 적어서 큰 차이만 확인됩니다.";
+        infoPop.appendChild(foot);
+        document.body.appendChild(infoPop);
+        const r = infoBtn.getBoundingClientRect();
+        const width = Math.min(360, window.innerWidth - 16);
+        infoPop.style.width = width + "px";
+        infoPop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - width - 8)) + "px";
+        infoPop.style.top = Math.min(r.bottom + 6, window.innerHeight - 120) + "px";
+        document.addEventListener("mousedown", onInfoOutside, true);
+        document.addEventListener("keydown", onInfoKey, true);
+      });
       modelPicker.appendChild(modelLabel);
       modelPicker.appendChild(modelSelect);
+      modelPicker.appendChild(infoBtn);
       modelPicker.appendChild(modelStatus);
 
       box.appendChild(btn);

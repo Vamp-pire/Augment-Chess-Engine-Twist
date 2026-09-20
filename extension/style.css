@@ -427,6 +427,61 @@
   cursor: pointer;
 }
 
+.aug-engine-model-info-btn {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--aug-accent);
+  background: var(--aug-surface);
+  color: var(--aug-text);
+  font: 700 11px/16px serif;
+  font-style: italic;
+  text-align: center;
+  cursor: pointer;
+}
+
+.aug-engine-model-info-btn:hover {
+  border-color: var(--aug-accent-2);
+}
+
+.aug-engine-model-info-pop {
+  position: fixed;
+  z-index: 1000000;
+  max-height: 60vh;
+  overflow: auto;
+  padding: 10px 12px;
+  background: var(--aug-surface);
+  color: var(--aug-text);
+  border: 1px solid var(--aug-accent);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.aug-engine-model-info-title {
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.aug-engine-model-info-item {
+  padding: 6px 0;
+  border-top: 1px solid rgba(128, 128, 128, 0.25);
+}
+
+.aug-engine-model-info-item[data-current="true"] strong {
+  color: var(--aug-accent-2);
+}
+
+.aug-engine-model-info-foot {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(128, 128, 128, 0.25);
+  font-size: 11px;
+  opacity: 0.75;
+}
+
 .aug-engine-review-panel {
   max-width: 440px;
   text-align: left;

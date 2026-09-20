@@ -13,6 +13,7 @@
 - 실험실 실행 도구(`tools/lab/lab.js`)와 결과 기록(`docs/results/`)
 
 ### 확장
+- 모델 드롭다운 옆 "i" 버튼: 모델별 특징 설명(팝업, 설명은 `nnue.js`의 `desc`)
 - 모델 드롭다운에 실험 모델 3개 추가: Hurricane(깊이별 라벨), Gale(잔차), Cyclone(검색 점수 0.8). 모델별 출력 매핑(`atanh400`, `hybrid300`)을 `nnue.js`가 처리. 기본값은 Squall 그대로
 
 ### 인프라
