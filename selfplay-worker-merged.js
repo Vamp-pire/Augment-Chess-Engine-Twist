@@ -611,7 +611,14 @@ function playOneGame({ searchDepth, searchTimeMs, maxPlies, seed, flexibleBudget
       completedDepth = result.completedDepth ?? null;
       if (recordPolicy && Array.isArray(result.candidates) && result.candidates.length) {
         const ranked = result.candidates.filter((c) => c && c.action && Number.isFinite(c.score)).sort((a, b) => b.score - a.score);
-        policyInfo = { chosen: policyKey(chosenAction), n: ranked.length, top: ranked.slice(0, POLICY_TOP_K).map((c) => ({ a: policyKey(c.action), s: Math.round(c.score) })) };
+        policyInfo = { chosen: policyKey(chosenAction), n: ranked.length, top: ranked.slice(0, POLICY_TOP_K).map((c) => ({ a: policyKey(c.action), s: Math.round(c.score), o: Math.round(engine.actionOrderingScore(c.action, state, color)) })) };
+        // where does the CURRENT hand-written ordering (orderActions) put the move the search chose?
+        const chosenKey = policyInfo.chosen;
+        const ordered = engine.orderActions(actions, state, color);
+        policyInfo.nLegal = ordered.length;
+        policyInfo.chosenRank = ordered.findIndex((x) => policyKey(x) === chosenKey) + 1; // 1-based, 0 = not found
+        // SELFPLAY_RECORD_STATE=1: also keep the full position (JSON) so a move-scoring model can be trained on it
+        if (process.env.SELFPLAY_RECORD_STATE === "1") policyInfo.state = JSON.parse(JSON.stringify(state));
       }
     }
 
