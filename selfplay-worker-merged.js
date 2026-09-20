@@ -494,7 +494,14 @@ function explorationChance(plyIndex) {
   return plyIndex < EXPLORATION_OPENING_PLIES ? 0.15 : 0;
 }
 
-function playOneGame({ searchDepth, searchTimeMs, maxPlies, seed, flexibleBudget = true, evalFnByColor = null, searchDepthByColor = null, limitsByColor = null, paramsByColor = null, handicap = 0 }) {
+// recordPolicy (2026-09-20, default OFF): also log, per searched ply, which action the search chose and
+// the top root candidates with their scores (`policy` field) -- training data for a learned move-ordering
+// policy. Purely additive: no extra rng calls, nothing that changes which move is played.
+const POLICY_TOP_K = 8;
+function policyKey(action) {
+  return JSON.stringify(action, (k, v) => (k === "id" || k === "instanceId" || k === "pieceId" ? undefined : v));
+}
+function playOneGame({ searchDepth, searchTimeMs, maxPlies, seed, flexibleBudget = true, evalFnByColor = null, searchDepthByColor = null, limitsByColor = null, paramsByColor = null, handicap = 0, recordPolicy = process.env.SELFPLAY_RECORD_POLICY === "1" }) {
   const rng = makeRng(seed);
   const state = makeInitialState(rng);
   // handicap (matches only): remove N minor/major pieces (not queen/king) from a
@@ -551,6 +558,7 @@ function playOneGame({ searchDepth, searchTimeMs, maxPlies, seed, flexibleBudget
     let chosenAction;
     let searchScore;
     let completedDepth = null;
+    let policyInfo = null;
     if (rng() < explorationChance(plies)) {
       chosenAction = actions[Math.floor(rng() * actions.length)];
       searchScore = null; // no search was run for this ply, nothing meaningful to log here
@@ -601,6 +609,10 @@ function playOneGame({ searchDepth, searchTimeMs, maxPlies, seed, flexibleBudget
       chosenAction = result.action;
       searchScore = result.score;
       completedDepth = result.completedDepth ?? null;
+      if (recordPolicy && Array.isArray(result.candidates) && result.candidates.length) {
+        const ranked = result.candidates.filter((c) => c && c.action && Number.isFinite(c.score)).sort((a, b) => b.score - a.score);
+        policyInfo = { chosen: policyKey(chosenAction), n: ranked.length, top: ranked.slice(0, POLICY_TOP_K).map((c) => ({ a: policyKey(c.action), s: Math.round(c.score) })) };
+      }
     }
 
     record.push({
@@ -615,7 +627,8 @@ function playOneGame({ searchDepth, searchTimeMs, maxPlies, seed, flexibleBudget
       // this" signal to sit alongside the outcome label, not a replacement
       // for it (search score is still not used as the training label, see
       // the `outcome` field below).
-      evalDelta: searchScore === null ? null : Math.round(searchScore - evalBefore)
+      evalDelta: searchScore === null ? null : Math.round(searchScore - evalBefore),
+      ...(policyInfo ? { policy: policyInfo } : {})
     });
 
     // "Progress" = a capture or a pawn move, same definition the 50-move
