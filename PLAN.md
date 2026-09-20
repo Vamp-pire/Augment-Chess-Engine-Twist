@@ -1,107 +1,58 @@
-# Engine plan (2026-09-19)
+# 계획 (앞으로 할 일과 판단 기준)
 
-Goal: stronger engine at the same time budget, with site-exact rules, and strength proven by measurement.
+역할: 앞으로의 계획, 통과 기준, 안전 규칙만 적는 문서입니다. 실험 결과와 발견은 `ExperimentNote.md`, 남은 일과 사용자 몫은 `TODO.md`, 자동 기록은 `docs/results/results.jsonl`입니다.
+마지막 갱신: 2026-09-20.
 
-Root problems: (1) search is very slow (depth 2 = 4-12 s; >50% of time is the root safety checks, not the tree), (2) NNUE labels are mostly draws so it cannot beat the hand-coded eval, (3) measurement is too noisy to see improvements.
-Dependency: C (measure) first -> A (speed) -> B (evaluation) -> back to A.
+## 목표
+같은 시간에 더 강하고, 사이트 규칙과 정확히 일치하는 엔진. 강해졌다는 것은 대전 측정으로만 인정한다.
 
-## C. Measurement
-- C1 tactics set (`nnue/tactics.js`): needs a reference search that gets deep enough -> depends on A
-- C2 bigger matches: 100+ decisive games per comparison (time-extension 96-game match running)
-- C3 frozen benchmark for round robins
+## 진단 (근거는 ExperimentNote.md)
+1. 검색이 느리다: 시간의 절반 이상이 트리 탐색이 아니라 루트 안전 검사에 쓰인다 (2.2배 개선 후에도 깊이 4는 수십 초).
+2. NNUE 라벨이 대부분 무승부라 수제 평가를 넘기 어렵다 (깊이별 가중 라벨이 첫 win을 냄, 재확인 중).
+3. 측정이 약하다: 결정된 게임이 적어서 큰 차이만 보인다.
+의존 순서: 측정(C) -> 속도(A) -> 평가(B) -> 다시 속도.
 
-## A. Speed (each step: results identical via `tools/perf/ab-time.js`, then time saved)
-- [x] A1 root immediate-loss check: skip clone+apply for plain moves that cannot remove a royal (1.5x, identical on 20 positions; check `tools/perf/prefilter-check.js`)
-- [ ] A2 apply the same idea to the other root checks (flee trap, soft safety, bad flee threat)
-- [ ] A3 cheaper `cloneState` (18% self time)
-- [ ] A4 cache safety verdicts per position
-- [ ] A5 reuse reply lists / faster move generation
+## C. 측정
+- [x] 신뢰구간과 구분 가능한 차이 표시, `verdict.json` 자동 판정 (`match.yml`)
+- [x] 핸디캡(`handicap`), 독립 재실행(`seed_offset`), 검색 파라미터(`params_a/b`) 옵션
+- [x] 실험실 실행 도구 `tools/lab/lab.js` (dispatch/collect/status), 결과 로그 `docs/results/results.jsonl`
+- [ ] 무승부 원인 확인: 핸디캡을 올려도 무승부가 39~45%에서 안 줄어듦 -> 자가대국의 반복/50수 무승부 규칙 점검
+- [ ] 고정 오프닝 세트, 조기 종료(순차 검정), 게임 수 400 이상
+- [ ] 전술 세트 재구축(기준 검색 깊이 4 이상, 300문제 이상), 수 품질 점수
 
-## B. Evaluation
-- [~] B1 residual training (`RESIDUAL=1`): target = search score - hand-coded score; play with `@hybrid300` (train run in cloud, model `models/resid300-r3p`)
-- [ ] B2 retrain on all of round 3 (150k)
-- [ ] B3 round 4 with the faster engine (deeper labels)
-- [ ] B4 self-play with the improved model (bootstrap)
+## A. 속도 (통과 기준: 고른 수, 점수, 노드, 컷오프가 동일하고 시간이 줄어야 함)
+- [x] 루트 즉시 패배 검사 필터, 위험 캐시, 말 순회 최적화, 조용한 수 탐색 정렬 최적화 (누계 약 2.2배)
+- [ ] `cloneState` 공유(변경되지 않는 필드), 나머지 루트 안전 검사 필터 (위반 0건이 1만 건 이상일 때만)
+- [ ] 위험 증분 계산 (다른 항목이 끝나도 비용이 클 때만, 그림자 모드로 검증)
+- [ ] 검색 파라미터 튜닝(널무브, LMR, 조용한 수 탐색 깊이)은 실험실에서 후보로 대전
 
-## D. Upkeep
-- rule parity (parrot decision), site-update auto check, Chrome check + consent proof reminders, snapshot deletion (owner)
+## B. 평가
+- [x] 잔차 학습(`RESIDUAL=1`) 구현 -> 결과는 unproven
+- [x] 3라운드 전체(150,415) 재학습 여러 변형 (`ExperimentNote.md` 2번, 6번)
+- [~] 깊이별 가중 라벨(`blenddepth`)이 win -> 독립 재확인 진행 중, 통과하면 확장에 선택 모델로 추가
+- [ ] 라운드 4: 속도가 오른 엔진으로 더 깊은 라벨 (재확인 결과에 따라 결정)
+- [ ] 수제 평가 보정은 승패 기반으로만 (검색 점수 회귀는 단위가 달라 폐기)
 
-## Gates
-- speed: identical output AND less time
-- evaluation: better tactics-set score AND >= 55% of decisive games (100+); otherwise log and do not ship
+## 실험 공장 (실험실 위에 쌓는 순서)
+- 실험실(판정기): 완료 (위 C 참조)
+- 후보 생성기: 재학습 변형, 검색 파라미터, 깊이/시간 프리셋
+- 자동 루프: 자가대국(최고 모델) -> 데이터 -> 학습 -> 실험실 판정 -> win이면 승격. 아직 미구현
+- 감시: 사이트 패치 감시 워크플로 `site-watch.yml` 추가됨 (첫 실행 미확인)
 
-## Autonomy rules (owner away, 2026-09-19)
-- Decide alone; report only big goals reached, big problems, or decisions that are truly the owner's. Defaults: parrot guard stays off; a residual model becomes only a selectable extension model (never the default) unless the owner says otherwise.
-- When everything is done: repo-wide code refactor, deletions, push.
+## 통과 기준
+- 속도/무회귀 변경: 결과 동일 + 시간 감소. 검증은 컴퓨터가 한가할 때 (부하가 시간 기반 검사를 흔든다).
+- 평가/출시: 95% 구간 하한 > 50%이고 독립 재실행에서도 같은 방향. 후보가 여럿이면 우연 통과 확률(4개 중 약 19%)이 있어 반드시 재확인.
+- 통과 못 하면 unproven으로 기록만 하고 반영하지 않는다.
 
-## Risks and preparations
-- Round-3 self-play checks out master at each 6 h cron start -> an engine change must be proven identical (ab-time, prefilter check, CI) BEFORE push; a wrong change would contaminate round-3 data. If in doubt, gate the change behind an option instead.
-- 20 concurrent job limit (self-play uses 8): keep other matches/trainings <= 12 jobs, otherwise runs just queue.
-- Extension drift: CI now checks `extension/engine.js` == `engine-merged.js` (`tools/ci/engine-sync.js`); re-sync after every engine edit.
-- Silent failures: verify by artifact/log (the model-save bug was found only in the log); re-read logs of every train/match run.
-- A residual model may play worse than the hand-coded evaluator: gate = 55% of 100+ decisive games, else log only.
-- Data branch push conflicts / size: checkpoints retry with rebase; watch repo size when adding datasets.
-- Approval-needing actions (deletes) go last and alone; some are blocked by the auto-mode classifier -> leave them for the owner with the exact command.
+## 자율 진행 규칙
+- 작은/중간 위험 결정은 직접 하고 보고, 큰 위험은 다른 일을 진행하며 보류.
+- 마지막 단계: 코드 리팩터링, 삭제, 푸시, 그다음 최종 보고 (수확, 잡은 위협, 버그, 기타).
+- 기본값: 패럿 안전장치는 넣지 않음, 잔차/신규 모델은 선택 모델로만 추가(기본값 변경 금지), 스냅샷 삭제는 사용자 몫.
+- 서브에이전트/병렬은 얻는 것이 확실할 때만.
 
-## Owner instructions (2026-09-19, late)
-- Decide small/medium-risk decisions myself and report them; on high-risk decisions, work on something else and leave it for the owner.
-- Parrot (F5): only re-verify that engine == site (no code change).
-- Residual model: selectable only (never default). Propose several display names (candidates: Riptide, Undertow, Gale, Monsoon, Cyclone) and pick one.
-- FINAL STEP (most important): after everything else -- repo-wide code refactor, deletions, push -- then a FINAL REPORT covering: harvest (what improved, numbers), threats caught (rule/parity risks, data contamination risks), bugs found and fixed, and everything else notable (decisions taken, leftovers, owner-only items).
-
-## Log (autonomous run, 2026-09-20)
-- A1 root immediate-loss prefilter (1.6x) + per-search hanging-risk memo + attack memo (1.16x): ~1.85x total on depth-2 positions, output identical (ab-time, search-equiv, eq-exotic, golden, smoke). Extension engine re-synced, CI sync check added.
-- Time extension (handcoded, 1500 ms): 22-21 in the 96-game re-match, 40-31 combined with the first 45 games (56%, not significant) -> keep it optional, unproven.
-- Residual model (RESIDUAL=1, resid300-r3p, 50k round-3 positions) @hybrid300 vs handcoded: 23-22 (51%) -> no gain yet; retrain on the full round 3.
-- Tactics set (nnue/tactics-set.json, 75 positions, reference depth>=3): handcoded 16.0%, Squall@atanh400 16.0%, blend0.8 17.3%, resid@hybrid150 17.3%, resid@hybrid300 18.7% (+-4 pts noise) -> too easy to miss, cannot separate models yet; needs faster search to build a deeper reference.
-- Parrot check: parity-actions 0/300 differ; playouts 5/60 diverge (locustSwarm x2 expected, promotionRush x1, brutus x1, plain move x1) -> none parrot-related; leftovers listed in TODO.
-
-## While round 3 finishes (2026-09-20 morning)
-Order: (1) rule-fidelity check of the playout divergences (promotionRush, brutus, plain move) -- threats first; (2) card-heavy equivalence set for the speed changes (current checks are card-light); (3) speed A3: cloneState / quiescence ordering, only with identical-output proof; (4) refactor prep: list dead/unused files (legacy/, logs/, audit-data/, tools/perf junk) into a deletion candidate list, no deletion yet; (5) extension: add the residual model as a selectable entry behind the same picker (code ready, ships only if the full-round-3 retrain passes the gate).
-Stop conditions: round 3 reaches 150k -> switch to dataset-build -> retrain (RESIDUAL, 3 scales) -> matches (100+ decisive games).
-
-## Engine work plan with risk analysis (2026-09-20)
-Rule for every item: (a) prove the search tree is unchanged -- ab-time/ab-cards must match on action, score, NODES and CUTOFFS (stricter than action+score) for >= 30 positions with and without cards, plus eq-exotic, golden-eval, smoke, CI; (b) if it cannot be exact, put it behind an option (default OFF) and only enable it after a 100+ decisive-game match; (c) push only after (a); round-3 self-play checks out master every 6 h.
-1. Quiescence: filter to captures BEFORE ordering (order key = score desc, index asc, so the relative order of the subsequence is unchanged; needs actionOrderingScore/isCaptureAction to be pure). Risk: hidden state mutation -> caught by node/cutoff equality. Exact.
-2. cloneState: share (do not copy) fields no search step mutates. Risk: an in-place mutation somewhere corrupting the shared parent (the 9/19 stale-cache bug class). Approach: first log which fields applyAction/search ever mutate (instrumented run over many positions); share only fields never mutated; verify with a debug mode that deep-freezes shared fields and throws on write. Exact if the freeze run passes.
-3. Incremental hanging risk: only recompute pieces whose threat status can change (moved piece, captured piece, pieces attacked/defended along the affected lines). Risk: high (many special-piece movement rules, attacks depend on board-wide rules). Approach: shadow mode -- compute both, assert equal over thousands of positions (cards and exotic pieces) before using; fall back to full recompute whenever any special piece or effect is present. Do only if 1-2 leave a big cost.
-4. Transposition table, LMR/null-move, killers/history: NOT exact (change the tree) -> option flags default OFF, evaluated by matches; not shipped without the gate.
-5. Remaining root safety checks: prefilter only where a violation count of 0 is shown over >= 10k cases (prefilter-check pattern).
-6. Eval features / card values / label changes: only through the train-and-match gate; never edit evaluateState without golden update + parity check.
-Order: 1 -> 2 -> 5 -> (3 if worth it) -> 4 as options.
-- 2026-09-20: speed total ~2.2x vs the pre-speed-up engine (ab-cards, 16 positions, cards on): identical action/score/NODES/CUTOFFS. One earlier 11/12 "diff" was load noise (time-dependent deadline checks in root safety, `rootSafetyDeadlineTight`), not a logic change: reruns on an idle machine were 12/12 and 16/16 identical. Rule: run equivalence checks with the machine idle.
-- Tried and dropped: hoisting the clonePiece key list (0% gain). cloneState sharing / incremental hanging risk / transposition table etc. still open but now optional (2.2x reached).
-- Running: residual retrains at scales 150/300/600 on 129k round-3 positions (models resid150-r3b, resid300-r3b, resid600-r3b) -> matches @hybrid<scale> vs handcoded.
-
-## Strength plan (approved 2026-09-20): order 2 -> 1 -> 4 -> 3 -> 5 -> 6
-2 measurement: `match.yml` has `handicap` (remove N pieces from a seed-chosen side per pair; swapped pairs stay fair) -> fewer draws; 200-400 games; wider tactics set later. (handicap implemented; probe of draw rate next)
-1 spend the speed: re-measure depth 2 vs 3 vs 4 (handcoded, 1500 ms) with the 2.2x engine, then raise self-play/extension default depth/time accordingly.
-4 residual retrain verdict: 3 matches running (resid150/300/600-r3b @hybrid vs handcoded, 128 games each); then full round 3 retrain. Ship only >=55% of 100+ decisive games.
-3 hand-coded weight tuning (SPSA/regression on self-play data via tune-eval.js), card values from win rates; golden update + gate required.
-5 search options (TT, killers/history, LMR): default OFF, enable only after a match win.
-6 bootstrap self-play (round 4) with a gated model.
-- Item 3 probe (2026-09-20): regressing the static evaluateState terms onto the logged searchScore does NOT work as a tuning method: searchScore includes per-move heuristic scores (applied.score, tactical adjustments) on top of the minimax eval, so it is not in static-eval units (current weights R2 = -2.3 on 1.4k held-out positions; the "fitted" weights e.g. material 0.135 are just mimicking move bonuses). Would need the deep PV-leaf static eval or outcome-based fitting (noisy). Dropped; item 3 stays open only via outcome-based tuning + match gate.
-
-## Measurement finding (2026-09-20) -- gates revised
-Match summary now prints a Wilson 95% interval and the detectable gap: with 45 decisive games only gaps of about +-21 points are reliably detectable; +-5 points needs ~784 decisive games (~1,800 games at a 57% draw rate). So the old gate ">= 55% of 100 decisive games" cannot distinguish 55% from 50%.
-Revised gates: SHIP only if the 95% interval's lower bound is > 50% (or, for a speed/no-regression change, the interval excludes a loss of more than ~10 points); otherwise "unproven", keep optional. To get there: handicap matches (fewer draws), 400+ games per candidate, per-move quality score and the tactics set as cheaper second signals.
-
-## Experiment factory (approved to plan 2026-09-20)
-Goal: replace "human reads results and decides" with a machine that tries candidates, judges them by matches, and keeps only proven winners.
-Order rule: when round-3 self-play ends, its follow-ups go FIRST (or in parallel): dataset-build round3-full -> retrain (residual 150/300/600 + a non-residual control) -> matches. The factory is built in parallel/after, never blocking these.
-
-L0 outcome: an unattended loop candidate -> match -> verdict -> promote, with hard stop rules.
-L1 blocks
-  F  Lab (judge): a reusable judging workflow. Input: candidate spec vs baseline spec. Runs fixed balanced openings + handicap pairs, sequential test (SPRT-like) until the interval excludes/settles, prints a verdict file (win / lose / unproven, interval, games, draw rate) and stops early.
-  C  Candidate generators: (1) residual retrains at several scales, (2) search options behind flags (TT, killers/history, LMR, time management), (3) depth/time presets.
-  L  Loop (autopilot): scheduled/dispatched cycle selfplay(best) -> dataset -> train -> lab -> promote if verdict = win. Round 4+ run through it.
-  W  Watchdog: site-patch detector -> parity run -> diff report.
-L2 steps (first block F)
-  F1 fixed opening set: choose N balanced seeds from a probe (handicap 0/1/2 draw-rate probe; keep the setting that gives the most decisive games without a one-sided result)
-  F2 verdict logic: Wilson interval + stop rules (max games, min games, decisive target); machine-readable verdict.json artifact
-  F3 batch runner: one dispatch runs several candidates against the baseline and collects verdicts into one summary
-  F4 result log in the repo (docs/results/*.json: spec, games, interval, date) -- reproducible
-L3 details (F1): match-two-models gets MATCH_OPENINGS (seed list file); match.yml input `openings`; probe = handcoded vs handcoded and depth3 vs depth2 at handicap 0/1/2.
-Stop rules for anything unattended: hard cap on jobs per cycle (<= 12 concurrent), max cycles per day, abort a cycle on any failed step, never touch master engine/extension files without a `win` verdict + CI green, data-branch size check before pushing datasets.
-Owner involvement: approve the rules once; read the final summary.
-- Lab F2-F4 done (2026-09-20): `match.yml` writes verdict.json (win/lose/unproven from the 95% interval) as artifact `match-verdict`; `tools/lab/lab.js` dispatches a batch of candidates (`dispatch`), lists runs (`status`) and appends finished verdicts to `docs/results/results.jsonl` (`collect`). Example: tools/lab/example-candidates.json. Remaining: F1 opening/handicap choice (probe running), loop L, candidate generators C (search flags), watchdog W.
+## 위험과 대비
+- 6시간 주기 자가대국이 최신 엔진을 받으므로, 엔진 변경은 동일성 검증 후에만 푸시한다.
+- 클라우드 동시 작업 20개 한도(자가대국 8개 사용 시 다른 작업 12개 이하), 데이터 브랜치와 아티팩트 용량을 지켜본다.
+- 확장 엔진 사본 어긋남은 CI(`tools/ci/engine-sync.js`)가 검사, 엔진을 고치면 사본을 맞춘다.
+- 조용한 실패: 학습/대전 로그를 매번 읽는다 (모델 저장 버그를 로그에서 찾았다).
+- 승인이 필요한 삭제는 마지막에 따로. 자동 모드가 막으면 명령을 사용자에게 남긴다.
