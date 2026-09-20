@@ -80,3 +80,4 @@ Order: 1 -> 2 -> 5 -> (3 if worth it) -> 4 as options.
 3 hand-coded weight tuning (SPSA/regression on self-play data via tune-eval.js), card values from win rates; golden update + gate required.
 5 search options (TT, killers/history, LMR): default OFF, enable only after a match win.
 6 bootstrap self-play (round 4) with a gated model.
+- Item 3 probe (2026-09-20): regressing the static evaluateState terms onto the logged searchScore does NOT work as a tuning method: searchScore includes per-move heuristic scores (applied.score, tactical adjustments) on top of the minimax eval, so it is not in static-eval units (current weights R2 = -2.3 on 1.4k held-out positions; the "fitted" weights e.g. material 0.135 are just mimicking move bonuses). Would need the deep PV-leaf static eval or outcome-based fitting (noisy). Dropped; item 3 stays open only via outcome-based tuning + match gate.
