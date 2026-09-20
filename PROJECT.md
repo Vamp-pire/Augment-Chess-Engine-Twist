@@ -1,6 +1,19 @@
 # 증강체스 엔진 — 프로젝트 지도
 
-작업을 시작할 때 이 파일을 먼저 읽으세요. 상태와 할 일은 `TODO.md`, 지난 경과는 `HANDOFF.md`입니다.
+작업을 시작할 때 이 파일을 먼저 읽으세요.
+
+## 문서 역할
+
+| 문서 | 내용 |
+|---|---|
+| `PROJECT.md` (이 파일) | 폴더 지도, 명령, 워크플로, 반드시 지킬 규칙, 모델 라인업 |
+| `PLAN.md` | 앞으로의 계획, 통과 기준, 자율 진행 규칙, 위험과 대비 |
+| `TODO.md` | 남은 일과 사용자 몫 |
+| `ExperimentNote.md` | 실험 설정과 비율, 결과 요약, 발견 기록 |
+| `docs/results/results.jsonl` | 대전 판정의 자동 기록(기계용 원본) |
+| `docs/refactor-candidates.md` | 최종 정리 후보 목록(근거 포함) |
+| `CHANGELOG.md` | 눈에 띄는 변경 이력 |
+| `HANDOFF.md` | 옛 핸드오프 문서 이동 안내 |
 
 ## 한 줄 요약
 augmentchess.org(증강체스: 카드와 특수 기물이 있는 체스)의 AI를 그대로 흉내 내는 엔진(`engine-merged.js`)과,
@@ -20,6 +33,7 @@ augmentchess.org(증강체스: 카드와 특수 기물이 있는 체스)의 AI�
 | `smoke-merged.js` | 엔진 스모크 테스트 |
 | `tools/ci/` | CI 검사: `golden-eval.js`(평가값 회귀), `nnue-parity.js`(확장 == 학습 점수) |
 | `tools/site-parity/` | 실제 사이트 워커와 엔진 대조(수 목록/적용/여러 수 진행), 사이트 업데이트 확인 |
+| `tools/lab/` | 실험실 실행 도구(`lab.js`: dispatch/collect/status), 후보 목록 예시 |
 | `tools/perf/` | 속도 개선 검증(원본과 출력 동일 확인), 프로파일러 |
 | `site-oracle/` | 사이트 원본 번들 스냅샷과 Node 실행용 오라클 |
 | `audit-data/` | 카드/기물 감사 자료 |
