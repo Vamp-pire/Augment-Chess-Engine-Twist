@@ -164,6 +164,19 @@ jobs:
               dec ? '95% interval (Wilson): **' + (ci[0] * 100).toFixed(1) + '% - ' + (ci[1] * 100).toFixed(1) + '%**; draws ' + (total ? (100 * d / total).toFixed(0) : 0) + '% of ' + total + ' games' : '',
               dec ? 'With ' + dec + ' decisive games only gaps of about +-' + mde.toFixed(0) + ' points are reliably detectable (80% power); need about ' + Math.ceil(Math.pow(140 / 5, 2)) + ' decisive games to see +-5 points.' : ''
             ];
+            // Machine-readable verdict (experiment factory / by hand):
+            //   win = 95% interval lower bound > 50% ; lose = upper bound < 50% ; else unproven.
+            const verdict = !dec ? 'unproven' : ci[0] > 0.5 ? 'win' : ci[1] < 0.5 ? 'lose' : 'unproven';
+            const out = { modelA: process.env.MODEL_A, modelB: process.env.MODEL_B, aWins: a, bWins: b, draws: d, unfinished: u, decisive: dec, aWinRate: rate, ci95: ci, drawRate: total ? d / total : 0, detectableGapPoints: mde, verdict, date: new Date().toISOString(), run: process.env.GITHUB_RUN_ID };
+            fs.writeFileSync('verdict.json', JSON.stringify(out, null, 2));
+            lines.push('', 'Verdict: **' + verdict + '**');
             fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join('\n') + '\n');
             console.log(lines.join('\n'));
           "
+
+      - name: Upload verdict
+        uses: actions/upload-artifact@v7
+        with:
+          name: match-verdict
+          path: verdict.json
+          retention-days: 60
