@@ -3834,9 +3834,14 @@
         ? Math.min(HARD_TIME_LIMIT_MS, boundedTimeLimitMs * FLEXIBLE_BUDGET_MULTIPLIER)
         : boundedTimeLimitMs;
     const evalFn = typeof options.evalFn === "function" ? options.evalFn : null;
+    // Track B3 (PLAN.md): optional learned move-scoring function to use in place of
+    // actionOrderingScore, same opt-in pattern as evalFn above -- nothing sets this by
+    // default, so default search behaviour (and speed) is unchanged.
+    const orderScoreFn = typeof options.orderScoreFn === "function" ? options.orderScoreFn : null;
     const context = {
       aiColor,
       evalFn,
+      orderScoreFn,
       nodes: 0,
       cutoffs: 0,
       startedAt,
@@ -3854,7 +3859,7 @@
       killers: {},
       tt: /* @__PURE__ */ new Map()
     };
-    let orderedRoot = orderActions(rootActions.map(cloneAction), boardState, aiColor);
+    let orderedRoot = orderActions(rootActions.map(cloneAction), boardState, aiColor, orderScoreFn);
     const forcedRoyalCapture = findForcedRoyalCaptureSequence(boardState, orderedRoot, aiColor, context);
     if (forcedRoyalCapture) {
       return { action: forcedRoyalCapture, score: INF / 2, nodes: 0, cutoffs: 0, completedDepth: 0, forced: true };
@@ -4905,7 +4910,7 @@
           return alpha;
         }
       }
-      const actions = reorderWithKillers(boardState, orderActions(generateActions(boardState, color), boardState, color), context.killers?.[depth]);
+      const actions = reorderWithKillers(boardState, orderActions(generateActions(boardState, color), boardState, color, context.orderScoreFn), context.killers?.[depth]);
       if (!actions.length) return (context.evalFn || evaluateState)(boardState, context.aiColor) + (color === context.aiColor ? -2500 : 2500);
       if (isMaximizingPlayer) {
         let value2 = -INF;
@@ -5059,8 +5064,9 @@
     context.timedOut = true;
     return true;
   }
-  function orderActions(actions, boardState, perspectiveColor) {
-    return actions.map((action, index) => ({ action, index, score: actionOrderingScore(action, boardState, perspectiveColor) })).sort((a, b) => b.score - a.score || a.index - b.index).map((entry) => entry.action);
+  function orderActions(actions, boardState, perspectiveColor, scoreFn) {
+    const score = typeof scoreFn === "function" ? scoreFn : actionOrderingScore;
+    return actions.map((action, index) => ({ action, index, score: score(action, boardState, perspectiveColor) })).sort((a, b) => b.score - a.score || a.index - b.index).map((entry) => entry.action);
   }
   function actionOrderingScore(action, boardState, perspectiveColor) {
     const color = action.color || boardState.turn || perspectiveColor;
