@@ -501,7 +501,25 @@ const POLICY_TOP_K = 8;
 function policyKey(action) {
   return JSON.stringify(action, (k, v) => (k === "id" || k === "instanceId" || k === "pieceId" ? undefined : v));
 }
-function playOneGame({ searchDepth, searchTimeMs, maxPlies, seed, flexibleBudget = true, evalFnByColor = null, searchDepthByColor = null, limitsByColor = null, paramsByColor = null, searchFnByColor = null, handicap = 0, recordPolicy = process.env.SELFPLAY_RECORD_POLICY === "1" }) {
+// PLAN.md track D1 (self-play diversity): softmax-sample the played move among the
+// root candidates the search already scored, instead of always taking the top one.
+// tau in the same score units as the search (hundreds-thousands) -- a big score gap
+// (e.g. a decisive win) still collapses the softmax onto the top move on its own, so
+// this needs no separate "never sample away a winning move" guard.
+function sampleActionSoftmax(candidates, tau, rng) {
+  const cs = candidates.filter((c) => c && c.action && Number.isFinite(c.score));
+  if (cs.length < 2) return null;
+  const m = Math.max(...cs.map((c) => c.score));
+  const weights = cs.map((c) => Math.exp((c.score - m) / tau));
+  const z = weights.reduce((a, b) => a + b, 0);
+  let r = rng() * z;
+  for (let i = 0; i < cs.length; i += 1) {
+    r -= weights[i];
+    if (r <= 0) return cs[i];
+  }
+  return cs[cs.length - 1];
+}
+function playOneGame({ searchDepth, searchTimeMs, maxPlies, seed, flexibleBudget = true, evalFnByColor = null, searchDepthByColor = null, limitsByColor = null, paramsByColor = null, searchFnByColor = null, handicap = 0, recordPolicy = process.env.SELFPLAY_RECORD_POLICY === "1", sampleTau = Number(process.env.SELFPLAY_SAMPLE_TAU) || 0 }) {
   const rng = makeRng(seed);
   const state = makeInitialState(rng);
   // handicap (matches only): remove N minor/major pieces (not queen/king) from a
@@ -610,9 +628,19 @@ function playOneGame({ searchDepth, searchTimeMs, maxPlies, seed, flexibleBudget
       chosenAction = result.action;
       searchScore = result.score;
       completedDepth = result.completedDepth ?? null;
+      let sampledAway = false;
+      if (sampleTau > 0 && Array.isArray(result.candidates) && result.candidates.length > 1) {
+        const sampled = sampleActionSoftmax(result.candidates, sampleTau, rng);
+        if (sampled && policyKey(sampled.action) !== policyKey(chosenAction)) {
+          chosenAction = sampled.action;
+          searchScore = sampled.score;
+          sampledAway = true;
+        }
+      }
       if (recordPolicy && Array.isArray(result.candidates) && result.candidates.length) {
         const ranked = result.candidates.filter((c) => c && c.action && Number.isFinite(c.score)).sort((a, b) => b.score - a.score);
         policyInfo = { chosen: policyKey(chosenAction), n: ranked.length, top: ranked.slice(0, POLICY_TOP_K).map((c) => ({ a: policyKey(c.action), s: Math.round(c.score), o: Math.round(engine.actionOrderingScore(c.action, state, color)) })) };
+        if (sampledAway) policyInfo.sampled = true;
         // where does the CURRENT hand-written ordering (orderActions) put the move the search chose?
         const chosenKey = policyInfo.chosen;
         const ordered = engine.orderActions(actions, state, color);
