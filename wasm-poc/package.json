@@ -1,0 +1,8 @@
+{
+  "name": "wasm-poc",
+  "private": true,
+  "scripts": {
+    "build": "asc assembly/index.ts --target release --outFile build/index.wasm --optimize -O3 --runtime stub",
+    "bench": "node bench.js"
+  }
+}

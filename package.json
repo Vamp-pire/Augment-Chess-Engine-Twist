@@ -2,5 +2,8 @@
   "dependencies": {
     "@tensorflow/tfjs": "^4.22.0",
     "@tensorflow/tfjs-backend-wasm": "^4.22.0"
+  },
+  "devDependencies": {
+    "assemblyscript": "^0.28.20"
   }
 }
