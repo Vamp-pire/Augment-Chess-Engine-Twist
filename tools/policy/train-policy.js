@@ -33,18 +33,21 @@ const VAL_EVERY = Number(opt("val-every", 5)), SOFT = Number(opt("soft", 0)), TA
 let rs = SEED >>> 0 || 1;
 const rand = () => ((rs = (rs * 1664525 + 1013904223) >>> 0) / 4294967296);
 
-// ---- data
-const items = C.loadRecords(files, MIN_DEPTH);
+// ---- data (streamed: a cloud-scale round is multi-GB decompressed, does not fit as one
+// string/array -- see common.js's streamExamples -- so examples are built and sorted into
+// train/val one line at a time instead of loading every raw record first)
 const train = [], val = [];
-let skipped = 0;
-for (const { rec, game } of items) {
-  const ex = C.buildExample(rec, SOFT > 0 ? TAU : 0);
-  if (!ex) { skipped++; continue; }
-  ex.game = game;
-  (game % VAL_EVERY === 0 ? val : train).push(ex);
+const gamesSeen = new Set();
+async function loadData() {
+  let n = 0, skipped = 0;
+  await C.streamExamples(files, MIN_DEPTH, SOFT > 0 ? TAU : 0, (ex) => {
+    n += 1;
+    gamesSeen.add(ex.game);
+    (ex.game % VAL_EVERY === 0 ? val : train).push(ex);
+  }, () => { skipped += 1; });
+  console.log(`records with policy.state and depth>=${MIN_DEPTH}, usable: ${n} (skipped ${skipped}); train ${train.length}, validation ${val.length}; games ${gamesSeen.size}`);
+  if (!train.length) { console.log("no training data"); process.exit(1); }
 }
-console.log(`records with policy.state and depth>=${MIN_DEPTH}: ${items.length}, usable ${train.length + val.length} (skipped ${skipped}); train ${train.length}, validation ${val.length}; games ${new Set(items.map((x) => x.game)).size}`);
-if (!train.length) { console.log("no training data"); process.exit(1); }
 
 // ---- model (Adam)
 const D = FEATURE_DIM;
@@ -120,8 +123,10 @@ function evaluate(set) {
 }
 
 // ---- train
-console.log(`features ${D}, hidden ${H}, epochs ${EPOCHS}, lr ${LR}, l2 ${L2}, batch ${BATCH}, soft ${SOFT}`);
-const order = train.map((_, i) => i);
+async function run() {
+  await loadData();
+  console.log(`features ${D}, hidden ${H}, epochs ${EPOCHS}, lr ${LR}, l2 ${L2}, batch ${BATCH}, soft ${SOFT}`);
+  const order = train.map((_, i) => i);
 for (let ep = 1; ep <= EPOCHS; ep++) {
   for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
   let tl = 0, inBatch = 0;
@@ -153,3 +158,5 @@ const model = {
 };
 fs.writeFileSync(OUT, JSON.stringify(model));
 console.log("wrote " + OUT + " (" + (fs.statSync(OUT).size / 1024).toFixed(0) + " KB)");
+}
+run();

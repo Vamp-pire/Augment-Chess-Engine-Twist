@@ -2,6 +2,7 @@
 "use strict";
 const fs = require("fs");
 const zlib = require("zlib");
+const readline = require("readline");
 const path = require("path");
 const ROOT = path.resolve(__dirname, "..", "..");
 const engine = require(path.join(ROOT, "engine-merged.js"));
@@ -55,6 +56,34 @@ function loadRecords(files, minDepth) {
   return out;
 }
 
+// Streamed alternative to loadRecords()+buildExample(): reads each file one line at a time
+// (gunzip -> readline, never buffering a whole file as one string/array) and calls onExample
+// with each built example immediately, discarding the raw record right after. A cloud-scale
+// round (500k+ lines, multi-GB decompressed) does not fit as one string (Node's string length
+// cap) or comfortably as one array of raw board JSON on a low-RAM machine -- this keeps peak
+// memory to roughly one line plus the examples accumulated by the caller.
+async function streamExamples(files, minDepth, tau, onExample, onSkip) {
+  let gameBase = 0;
+  for (const f of files) {
+    const input = f.endsWith(".gz") ? fs.createReadStream(f).pipe(zlib.createGunzip()) : fs.createReadStream(f);
+    const rl = readline.createInterface({ input, crlfDelay: Infinity });
+    let g = 0, saw = false, i = 0;
+    for await (const line of rl) {
+      if (!line) continue;
+      let r; try { r = JSON.parse(line); } catch (e) { continue; }
+      const cnt = r.board ? countPieces(r.board) : 32;
+      if (i > 0 && cnt === 32 && saw) { g++; saw = false; }
+      if (cnt < 32) saw = true;
+      i += 1;
+      const p = r.policy;
+      if (!p || !p.state || !p.chosen || (r.completedDepth || 0) < minDepth) continue;
+      const ex = buildExample(r, tau);
+      if (ex) { ex.game = gameBase + g; onExample(ex); } else if (onSkip) onSkip();
+    }
+    gameBase += g + 1;
+  }
+}
+
 // One example: features for all legal actions, chosen index, soft target, current-ordering rank.
 function buildExample(rec, tau) {
   const p = rec.policy;
@@ -89,4 +118,4 @@ function fmt(label, m) {
   const pc = (x) => (100 * x / m.n).toFixed(1).padStart(5) + "%";
   return `${label.padEnd(16)} top1 ${pc(m.top1)}  top3 ${pc(m.top3)}  top5 ${pc(m.top5)}  MRR ${(m.mrr / m.n).toFixed(3)}  (n=${m.n})`;
 }
-module.exports = { engine, clone, policyKey, rehydrate, readLines, loadRecords, buildExample, newMetrics, addRank, addRandom, fmt };
+module.exports = { engine, clone, policyKey, rehydrate, readLines, loadRecords, streamExamples, buildExample, newMetrics, addRank, addRandom, fmt };

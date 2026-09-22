@@ -39,7 +39,7 @@ function scoreActions(model, state, actions, color) {
   return featurizeAll(state, actions, color).map((f) => scoreFeatures(model, f));
 }
 
-function main() {
+async function main() {
   const args = process.argv.slice(2);
   const opt = (n, d) => { const a = args.find((x) => x.startsWith("--" + n + "=")); return a ? a.split("=")[1] : d; };
   const files = args.filter((a) => !a.startsWith("--"));
@@ -47,22 +47,23 @@ function main() {
   if (files.length < 2) { console.log("usage: node tools/policy/score-actions.js <model.json> <data ...> [--min-depth=3] [--all]"); process.exit(1); }
   const C = require("./common");
   const model = loadPolicy(files[0]);
-  const items = C.loadRecords(files.slice(1), Number(opt("min-depth", 3)));
   const every = (model.meta && model.meta.valEvery) || 5;
-  const sel = items.filter((x) => all || x.game % every === 0);
   const mL = C.newMetrics(), mC = C.newMetrics(), mR = C.newMetrics();
-  for (const { rec } of sel) {
-    const ex = C.buildExample(rec, 0);
-    if (!ex) continue;
+  let n = 0;
+  // Streamed (see train-policy.js/common.js): a cloud-scale round doesn't fit as one array of
+  // raw records on this machine, so each example is scored and discarded immediately.
+  await C.streamExamples(files.slice(1), Number(opt("min-depth", 3)), 0, (ex) => {
+    if (!all && ex.game % every !== 0) return;
+    n += 1;
     const s = ex.feats.map((f) => scoreFeatures(model, f));
     let rank = 1;
     for (let i = 0; i < s.length; i++) if (i !== ex.chosen && s[i] > s[ex.chosen]) rank++;
     C.addRank(mL, rank);
     if (ex.curRank) C.addRank(mC, ex.curRank); else C.addRank(mC, 0);
     C.addRandom(mR, ex.n);
-  }
+  });
   if (!mL.n) { console.log("no usable records"); return; }
-  console.log((all ? "all games" : "validation games") + ` (${sel.length} records, depth >= ${opt("min-depth", 3)})`);
+  console.log((all ? "all games" : "validation games") + ` (${n} records, depth >= ${opt("min-depth", 3)})`);
   console.log(C.fmt("learned", mL)); console.log(C.fmt("current ordering", mC)); console.log(C.fmt("random", mR));
 }
 if (require.main === module) main();
