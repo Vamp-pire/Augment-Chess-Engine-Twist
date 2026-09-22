@@ -52,6 +52,33 @@ nuesnapshots' -File | Where-Object { $_.Name -ne 'selfplay-data.2026-09-17T06-03
 - 규칙 차이 미확인 2건(평범한 수 1건, 브루투스 상태 차이), MCTS는 러스트가 생긴 뒤 평가(자바스크립트 시제품은 초당 약 7회 시뮬레이션).
 - 로컬 부하 규칙: 코어 4개 이내(서브에이전트 포함), 무거운 작업은 클라우드, 프로세스는 `taskkill`로 종료.
 
+## 지금 진행 중 (2026-09-22)
+
+### AlphaZero 부분 적용 — B(수 순서 정책)
+- [x] A2 클라우드 16샤드 실행, cutoff(2026-09-22T08:00:00Z) 도달 확인 완료
+- [ ] cutoff 종료 확인 후 저장소 변수 원복(SHARDS=[1..8], TARGET=150000, RECORD_POLICY=0, RECORD_STATE=0)
+- [ ] `dataset-build.yml`로 정책 데이터(20260920T124334Z 이후) 합치기
+- [x] B2 파이프라인(`tools/policy/{common,features,score-actions,train-policy}.js`) 로컬 소량 데이터(298국면)로 동작 검증 완료 — train-policy.js와 score-actions.js 독립 검증 결과 일치
+- [ ] B2 파이프라인 파일 커밋(검증 완료, 아직 미커밋)
+- [ ] B1 기준선을 클라우드 대량 데이터로 재측정(`tools/policy/ordering-eval.js`)
+- [ ] B2 본 학습(대량 데이터), B3 엔진 옵션 통합(`options.params.policyOrdering`, 기본 꺼짐), 실험실 판정
+
+### 러스트 포팅 — sungjeahyun100/augment-chess-bot 이어받기
+참고: `docs/RUST-PORT-REFERENCE.md`. 카드(Phase 5, 213개 전부 미구현)는 이번 범위에서 제외 — 우리 자가대국은 카드 없이도 특수 기물만으로 충분히 다양함.
+남은 11종 기물만 포팅(우리 `SELFPLAY_SPECIAL_TYPES` 37종 중 26종은 이미 구현됨):
+- [ ] `dragon`
+- [ ] `magicGirl` (사이트 규칙 아님, 우리 자가대국 하우스룰 — `selfplay-worker-merged.js`의 `advanceSelfPlaySpecialState` 참고)
+- [ ] `trickster` (위와 동일, 하우스룰)
+- [ ] `idol`
+- [ ] `siren`
+- [ ] `reaper`
+- [ ] `coffin` (하우스룰: 자기 턴마다 빈 인접 칸으로 이동)
+- [ ] `babyBear` (하우스룰: 위와 동일)
+- [ ] `paladin`
+- [ ] `octopus`
+- [ ] `parrot`
+- [ ] 11종 전부 완료 후: 우리 저장소에 빌드/테스트 통과 확인, 커밋
+
 ## 클라우드 자가대국 대량 실행 (2026-09-20 밤 설정)
 - 16샤드, 깊이 6/1500ms, `SELFPLAY_CUTOFF_ISO=2026-09-22T08:00:00Z`(화요일 17:00 KST), `SELFPLAY_TARGET=600000`, `SELFPLAY_RECORD_POLICY=1`, `SELFPLAY_RECORD_STATE=5`(5수마다 국면 저장), 라운드 시작 `20260920T124334Z`.
 - 화요일 17시 이후 원복: `gh variable set SELFPLAY_SHARDS --body "[1,2,3,4,5,6,7,8]"`, `SELFPLAY_TARGET`=150000, `SELFPLAY_RECORD_POLICY`=0, `SELFPLAY_RECORD_STATE`=0. 그다음 `dataset-build.yml`(since `20260920T124334Z`)로 데이터셋을 만들고 `tools/policy/ordering-eval.js`로 기준선을 잰다.
