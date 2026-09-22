@@ -63,21 +63,21 @@ nuesnapshots' -File | Where-Object { $_.Name -ne 'selfplay-data.2026-09-17T06-03
 - [ ] B1 기준선을 클라우드 대량 데이터로 재측정(`tools/policy/ordering-eval.js`)
 - [ ] B2 본 학습(대량 데이터), B3 엔진 옵션 통합(`options.params.policyOrdering`, 기본 꺼짐), 실험실 판정
 
-### 러스트 포팅 — sungjeahyun100/augment-chess-bot 이어받기
-참고: `docs/RUST-PORT-REFERENCE.md`. 카드(Phase 5, 213개 전부 미구현)는 이번 범위에서 제외 — 우리 자가대국은 카드 없이도 특수 기물만으로 충분히 다양함.
-남은 11종 기물만 포팅(우리 `SELFPLAY_SPECIAL_TYPES` 37종 중 26종은 이미 구현됨):
-- [ ] `dragon`
-- [ ] `magicGirl` (사이트 규칙 아님, 우리 자가대국 하우스룰 — `selfplay-worker-merged.js`의 `advanceSelfPlaySpecialState` 참고)
-- [ ] `trickster` (위와 동일, 하우스룰)
-- [ ] `idol`
-- [ ] `siren`
-- [ ] `reaper`
-- [ ] `coffin` (하우스룰: 자기 턴마다 빈 인접 칸으로 이동)
-- [ ] `babyBear` (하우스룰: 위와 동일)
-- [ ] `paladin`
-- [ ] `octopus`
-- [ ] `parrot`
-- [ ] 11종 전부 완료 후: 우리 저장소에 빌드/테스트 통과 확인, 커밋
+### 러스트 (보류)
+평가함수(`evaluateState`)가 `isSquareAttacked`(전체 기물 공격 판정)와 카드 상태(`delayedHazards`)에 얽혀 있어 독립 포팅 불가로 확인(2026-09-22). 기물 11종 포팅도 카드 없이는 완전하지 않음. **지금은 손대지 않는다** — 참고는 `docs/RUST-PORT-REFERENCE.md`.
+
+### AlphaZero L1 다섯 트랙 전부 진행 (2026-09-22, 사용자 지시: A-F 전부, 가능한 범위는 JS 안에서)
+- [x] A1 정책 기록 구현/검증 (기존 완료)
+- [ ] A2 클라우드 데이터 확정: cutoff 도달 확인 -> 변수 원복(SHARDS=[1..8], TARGET=150000, RECORD_POLICY=0, RECORD_STATE=0) -> `dataset-build.yml`로 20260920T124334Z 이후 데이터 묶기
+- [x] B1 도구(`ordering-eval.js`) 로컬 소량 데이터로 재확인(MRR 0.30 vs 무작위 0.126)
+- [ ] B1 클라우드 대량 데이터로 기준선 재측정
+- [x] B2 파이프라인(`tools/policy/*`) 검증 및 커밋 완료
+- [ ] B2 본 학습(클라우드 데이터로 `train-policy.js` 실행, 모델 저장)
+- [ ] B3 엔진에 `options.params.policyOrdering` 옵션 연결(기본 꺼짐), 노드 수 감소 확인, 실험실 판정
+- [ ] C1 기존 MCTS 시제품(`tools/mcts/mcts.js`) 재점검: B2 학습된 정책을 사전 확률로 연결
+- [ ] C2 같은 시간 알파-베타 vs MCTS 실험실 대전(핸디캡 1, 독립 재확인) — JS 한계 인지하고 참고용으로만 기록
+- [ ] D1 자가대국 루트 소프트맥스 샘플링 옵션 구현, 무승부율/다양성 오프라인 비교
+- [x] F 이식성 — 데이터 형식은 브리지 상태 JSON과 호환(이미 충족), `docs/RUST-PORT-REFERENCE.md`로 팀 러스트 작업과 연결 문서화 완료
 
 ## 클라우드 자가대국 대량 실행 (2026-09-20 밤 설정)
 - 16샤드, 깊이 6/1500ms, `SELFPLAY_CUTOFF_ISO=2026-09-22T08:00:00Z`(화요일 17:00 KST), `SELFPLAY_TARGET=600000`, `SELFPLAY_RECORD_POLICY=1`, `SELFPLAY_RECORD_STATE=5`(5수마다 국면 저장), 라운드 시작 `20260920T124334Z`.
