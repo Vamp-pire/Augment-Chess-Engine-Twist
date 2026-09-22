@@ -23,6 +23,14 @@ on:
         description: "Hidden units (0 = linear model)"
         required: false
         default: "0"
+      soft:
+        description: "Soft-label weight (0 = one-hot on the search's chosen move only, default; >0 mixes in softmax(searchScore/tau) over recorded top candidates)"
+        required: false
+        default: "0"
+      tau:
+        description: "Softmax temperature for soft labels (only used when soft > 0)"
+        required: false
+        default: "60"
       save_model:
         description: "Name to save the model as on gha-segments-16cards: models/policy-<name>.json (empty = artifact only)"
         required: false
@@ -57,6 +65,8 @@ jobs:
             --epochs=${{ inputs.epochs }} \
             --min-depth=${{ inputs.min_depth }} \
             --hidden=${{ inputs.hidden }} \
+            --soft=${{ inputs.soft }} \
+            --tau=${{ inputs.tau }} \
             2>&1 | tee train.log
 
       - name: Independent verification (score-actions.js must match train-policy.js)
