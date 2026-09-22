@@ -1,0 +1,19 @@
+{
+  "weights": {
+    "material": 0.6260451429154557,
+    "positionEnemy": 0.6802341401573124,
+    "kingSafetyEnemy": 0.6912975710737239,
+    "pressureEnemy": 0.5589056135983393,
+    "specialEnemy": 0.8321470848277229,
+    "bloodMoonEnemy": 0.82,
+    "cardsEnemy": 0.92,
+    "campaignEnemy": 0.9
+  },
+  "k": 1200,
+  "trainedOn": [
+    "data/experiments/selfplay-data.merged-engine-local-depth3.jsonl"
+  ],
+  "examples": 6474,
+  "before": 0.13577228148947781,
+  "after": 0.11055730478857943
+}
