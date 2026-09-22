@@ -5,6 +5,8 @@
 // same colour can move several times in a row: perspective always comes from state.turn.
 const path = require("path");
 const engine = require(path.join(__dirname, "..", "..", "engine-merged.js"));
+const { featurizeAll } = require(path.join(__dirname, "..", "policy", "features.js"));
+const { loadPolicy, scoreFeatures } = require(path.join(__dirname, "..", "policy", "score-actions.js"));
 
 const VALUE_SCALE = 400;
 const clone = (a) => (typeof structuredClone === "function" ? structuredClone(a) : JSON.parse(JSON.stringify(a)));
@@ -23,16 +25,25 @@ function createMctsSearch(options = {}) {
     useBudget: false,    // if true, opts.budgetMs also caps the search (wall clock)
     evalFn: null,        // (state, color) => centipawn-like; default engine.evaluateState
     rootSafety: true,
+    // PLAN.md track C1 update: an optional learned move-scoring model (tools/policy/
+    // train-policy.js output, "policy-model-v1") to use as the PUCT prior instead of the
+    // hand-written actionOrderingScore z-score. Pass a file path (string) or an
+    // already-loaded model object. Falls back to actionOrderingScore when omitted --
+    // nothing in the default engine path sets this, so behaviour is unchanged by default.
+    policyModel: null,
     ...options
   };
   const evalFn = cfg.evalFn || engine.evaluateState;
+  const policyModel = typeof cfg.policyModel === "string" ? loadPolicy(cfg.policyModel) : cfg.policyModel;
 
   function makeNode(state) {
     return { state, turn: state.turn, terminal: state.mode === "gameover", expanded: false, actions: null, priors: null, children: null, N: null, n: 0, W: 0, value: 0 };
   }
 
   function computePriors(state, actions, color) {
-    const s = actions.map((a) => { const v = engine.actionOrderingScore(a, state, color); return Number.isFinite(v) ? v : 0; });
+    const s = policyModel
+      ? featurizeAll(state, actions, color).map((f) => scoreFeatures(policyModel, f))
+      : actions.map((a) => { const v = engine.actionOrderingScore(a, state, color); return Number.isFinite(v) ? v : 0; });
     const mean = s.reduce((x, y) => x + y, 0) / s.length;
     const sd = Math.sqrt(s.reduce((x, y) => x + (y - mean) * (y - mean), 0) / s.length) || 1;
     const z = s.map((v) => (v - mean) / sd / cfg.priorTemp);
