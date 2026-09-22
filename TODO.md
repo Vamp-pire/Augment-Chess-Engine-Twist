@@ -6,6 +6,7 @@
 - [x] WASM PoC (2026-09-22): `positionalScore` 축소판을 AssemblyScript로 포팅해 벤치마크 — 결과 애매(0.94x~1.43x, 오차범위 안), 압도적 이득 없음. 상세는 `docs/WASM-POC-RESULT.md`.
 - [x] Texel tuning 도구 (2026-09-22): `tools/tune/texel-tune.js` — `evaluateState`의 8개 손튜닝 계수(material 1.35, *Enemy 0.88/0.72/0.65/0.82/0.82/0.92/0.9)를 자가대국 결과로 재적합. 스트리밍 로딩(RAM 안전), sigmoid(score/K)+MSE, Adam + 기본값으로의 L2 정규화(노이즈로 인한 발산 방지 위해 추가). `selfplay-data.merged-engine-local-depth3.jsonl`(6474국면)로 로컬 검증: MSE 0.1358→0.1106(18.6%↓), 승부 국면 부호 일치율 66.3%→68.0%. 엔진 파일은 건드리지 않음 — `tools/tune/tuned-eval.js`가 `evaluateStateComponents`로 재계산해 `options.evalFn`에 꽂는 방식. 결과는 `tools/tune/weights.json`.
 - [x] B3 재검증(2026-09-22, 표본 120개): 노드 수 비율 1.009(+0.9%, 사실상 노이즈 -- 15개 표본의 +2.9%는 노이즈였음). 같은 수 86/120(71.7%). 결론: 속도를 해치진 않지만 확실히 줄이지도 못함, 여전히 unproven.
+- [x] B soft label 재시도(2026-09-22, 클라우드): top1 19.0%/MRR 0.357 -- 원래 one-hot 모델(top1 19.9%/MRR 0.364)과 사실상 동일하거나 살짝 낮음. 개선 없음, unproven.
 
 ## 세션 작업 루프 (2026-09-22 확정, 매 세션 이 순서로)
 1. 상태 확인: 이 문서의 미체크 항목 + 돌고 있는 클라우드/백그라운드 작업부터 확인
