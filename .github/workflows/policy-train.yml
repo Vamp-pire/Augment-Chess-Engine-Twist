@@ -1,0 +1,110 @@
+name: Policy (move-ordering) train
+
+# Runs tools/policy/train-policy.js on the cloud instead of locally -- the dev
+# machine has ~2.5GB free RAM and a cloud-scale round (500k+ positions, ~2GB
+# decompressed) is exactly the kind of job that risks the 2026-09-20 local
+# resource incident. train-policy.js/common.js stream the dataset (see their
+# 2026-09-22 commit), so this needs no special memory tuning here either way.
+on:
+  workflow_dispatch:
+    inputs:
+      dataset:
+        description: "Dataset path on gha-segments-16cards, e.g. datasets/policy-round-20260920.jsonl.gz"
+        required: true
+      epochs:
+        description: "Training epochs"
+        required: false
+        default: "40"
+      min_depth:
+        description: "Minimum completedDepth to use a record"
+        required: false
+        default: "3"
+      hidden:
+        description: "Hidden units (0 = linear model)"
+        required: false
+        default: "0"
+      save_model:
+        description: "Name to save the model as on gha-segments-16cards: models/policy-<name>.json (empty = artifact only)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - name: Fetch dataset from gha-segments-16cards
+        run: |
+          git fetch --depth=1 origin gha-segments-16cards
+          git show "origin/gha-segments-16cards:${{ inputs.dataset }}" > policy-data.jsonl.gz
+          ls -la policy-data.jsonl.gz
+
+      - name: Train
+        run: |
+          node tools/policy/train-policy.js policy-data.jsonl.gz \
+            --out=policy-model.json \
+            --epochs=${{ inputs.epochs }} \
+            --min-depth=${{ inputs.min_depth }} \
+            --hidden=${{ inputs.hidden }} \
+            2>&1 | tee train.log
+
+      - name: Independent verification (score-actions.js must match train-policy.js)
+        run: node tools/policy/score-actions.js policy-model.json policy-data.jsonl.gz --min-depth=${{ inputs.min_depth }} 2>&1 | tee verify.log
+
+      - name: Run summary
+        if: ${{ always() }}
+        run: |
+          {
+            echo "## Policy train run ${{ github.run_id }}"
+            echo ""
+            echo "- dataset: \`${{ inputs.dataset }}\`"
+            echo ""
+            echo '```'
+            tail -n 10 train.log || true
+            echo '---'
+            cat verify.log || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload model (artifact)
+        uses: actions/upload-artifact@v7
+        with:
+          name: policy-model
+          path: policy-model.json
+          retention-days: 14
+
+      - name: Save model on the data branch (optional)
+        if: ${{ inputs.save_model != '' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MODEL_NAME: ${{ inputs.save_model }}
+        shell: bash --noprofile --norc -uo pipefail {0}
+        run: |
+          rm -rf /tmp/mwt
+          git fetch origin gha-segments-16cards
+          git worktree add --detach /tmp/mwt origin/gha-segments-16cards
+          mkdir -p /tmp/mwt/models
+          cp policy-model.json "/tmp/mwt/models/policy-${MODEL_NAME}.json"
+          cd /tmp/mwt
+          git config user.email "actions@github.com"
+          git config user.name "gha-selfplay-bot"
+          git add models
+          git commit -q -m "policy model ${MODEL_NAME} from train run ${{ github.run_id }}"
+          for i in 1 2 3; do
+            git fetch origin gha-segments-16cards -q
+            git rebase origin/gha-segments-16cards -q && break
+            git rebase --abort 2>/dev/null
+            sleep 5
+          done
+          git push -q "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:gha-segments-16cards
