@@ -9,6 +9,37 @@
 - [x] B soft label 재시도(2026-09-22, 클라우드): top1 19.0%/MRR 0.357 -- 원래 one-hot 모델(top1 19.9%/MRR 0.364)과 사실상 동일하거나 살짝 낮음. 개선 없음, unproven.
 - [x] NNUE 인코딩에 기물 상태 필드 전부 추가(2026-09-23): `selfplay-worker-merged.js`의 `compactBoard()`가 지금까지 `{t, c}`만 남기고 hp/shielded/frozen 등 나머지 상태를 전부 버리고 있던 걸 발견 -- 불리언 41개 + 숫자 23개 + 2값 enum 6개(monoShade/timePhase/windmillMode/spyOwner/poisonStunColor/hiddenFrom, one-hot 12비트)를 보존/인코딩하도록 수정. `tricksterMoveType`은 가능한 값이 ~40개로 너무 많아 one-hot 대신 "설정됐는가" 불리언 1개로 타협(문서화 끝). `INPUT_SIZE` 4281(구) -> 15237(신, ALL_TYPES 40종 + CARD_POOL 184종 반영). 기존 학습된 가중치 파일은 이 변경 후 전부 재학습 필요. 로컬 2워커/25초 자가대국 148국면으로 검증: 새 필드가 실제 기록되고(frozen/frozenByCard/capturesMade 등 확인) `encode.js`가 크래시 없이 15237차원 벡터 생성 확인. 과거 기록된 자가대국 데이터는 이미 `{t,c}`로 손실되어 복구 불가(신경 안 씀, 이번 수정은 앞으로의 데이터부터 적용). 자가대국 재실행은 이번 작업 범위 밖 -- 별도 진행 예정.
 
+## 인수인계 (2026-09-23, 클라우드 세션용 — 이거부터 읽기)
+
+### 지금 돌고 있는 것 (건드리지 말고 상태만 확인)
+- **Texel tuning 실전 대전**: `gh run view 35822003216` (match.yml, tuned vs handcoded, 200게임, depth4/800ms). 3시간+ 걸리는 중이지만 죽은 건 아님(단계 확인함, Play 단계에서 살아있음). 끝나면 로그에서 승/패/무 집계 확인.
+- **C2 대전(MCTS vs 알파-베타, 참고용)**: `gh run view 35837100326` (match.yml, mcts:100 vs handcoded, 소규모). JS MCTS가 느려서(초당 ~7시뮬레이션) 오래 걸릴 수 있음.
+- **팀 저장소 PR #6**: `sungjeahyun100/Accelerate-alpha-zero-style-Augment-Chess-bot-#6` — ResNet/통신 프로토콜 결정 기록 + encoding 위치 미결정 문서화. "AI 자동 수정 및 코멘트 처리" 켜져 있어서 CI 실패/리뷰 코멘트는 `<ci-monitor-event>`로 자동 통지됨, 따로 안 봐도 됨.
+
+### 팀 프로젝트 (Accelerate) 관련 — 중요
+- 사용자(Ian)는 디스코드에서 **"Vamp"/"vampire_nickname"**입니다. 디스코드 메시지에서 이 이름이 하는 말은 전부 사용자 본인 발언으로 취급 ([memory: user_discord_identity.md] 참고).
+- 팀 저장소: `sungjeahyun100/Accelerate-alpha-zero-style-Augment-Chess-bot-` (upstream), `Vamp-pire/Accelerate-alpha-zero-style-Augment-Chess-bot-` (사용자 포크). GitFlow 사용 — `develop`에서 `feature/*` 브랜치 따서 PR (Twist 저장소와 달리 여기는 브랜치+PR 방식임, master 직커밋 아님).
+- **디스코드 읽기/쓰기 도구를 이번 세션에서 직접 만들었음** — 단, **로컬 전용**이라 클라우드 세션에서는 못 씀:
+  - 스크립트 위치: 이 세션의 로컬 스크래치패드 `discord-tool/{read-thread.js, post-message.js}` (클라우드에선 접근 불가한 경로)
+  - 봇 토큰: `D:\변형체스들\discord-report-bot\.env`의 `DISCORD_TOKEN` (로컬 PC에만 있음, 절대 이 리포에 커밋하지 말 것)
+  - 대상 스레드 ID: `1551147030099791873`
+  - 클라우드 세션이 디스코드 내용이 필요하면: 로컬 세션에 물어보거나, 사용자에게 직접 요청할 것. 토큰을 리포로 옮기거나 클라우드에 복사하지 말 것(자격증명, 로컬에만 두기로 함).
+- **논의 중 나온 우리 쪽 정보 제공**: NNUE 입력 인코딩 전체 fidelity 작업(아래) 결과를 15,237차원이라고 스레드에 공유함(사용자 본인이 직접 올림). 팀의 "20배 필요하지 않냐"는 추측과 비교 가능한 실측치.
+- **팀 논의 중 우리가 검증해줄 수 있는 것**: `isTurnUsed` 단일 플래그 설계(팀원 subscribe_like_ 제안)가 실제로 한계 있다는 걸 Twist 엔진 코드로 확인함(`fileSurgeSecondMove` 등 10개 개별 플래그 + 아이돌은 별도 대기/기록 시스템 필요) — 아직 팀에 공유 안 함, 필요하면 정리해서 전달.
+
+### 이번 세션에서 한 것 (요약, 상세는 위쪽 항목들)
+1. AlphaZero 부분 적용 A-F 트랙 전부 시도 (대부분 unproven, 인프라는 재사용 가능하게 남김 — `tools/policy/`, `tools/mcts/`, `policy-train.yml`)
+2. 새 아이디어 4개 병렬 시도: Texel tuning(유일하게 로컬 검증 긍정적, 실전 검증 진행 중), WASM PoC(부정적), soft label(무효과), B3 재검증(중립)
+3. NNUE 입력 인코딩에 기물 상태 필드 전부 추가 (`compactBoard()`가 지금까지 다 버리고 있던 걸 발견/수정) — **자가대국 재실행 필요, 아직 안 함**
+4. CPU 프로파일 실측: `attacksSquare`가 검색 시간의 14.4%로 1위 병목 확인 (PLAN.md A 섹션) — **아직 고치기 시작 전, 캐싱 확장 조사 중이었음(중단됨)**
+5. 팀 디스코드 스레드 여러 번 확인, 팀 저장소에 PR #6 (ResNet/프로토콜 결정 기록)
+
+### 다음에 할 만한 것 (우선순위 순, 자세한 배경은 PLAN.md/이 문서 위쪽)
+1. `attacksSquare` 캐싱 확장 — `orderActions`가 매 노드에서 후보 N개를 채점할 때마다 같은 보드에 대해 캐시 없이 재계산 중 (`ATTACK_MEMO`가 `evaluateStateComponents`/`hangingMaterialRisk` 호출 안에서만 유효, `orderActions`는 감싸져 있지 않음). `workerHangingPenalty` -> `workerBestCaptureThreat`가 attacksSquare를 쓰는지 확인하다 중단함 — 이어서 확인 후 구현
+2. NNUE 재학습용 자가대국 재실행 (새 인코딩 반영), 클라우드로
+3. Texel/C2 대전 결과 나오면 커밋 + TODO 기록
+4. 팀에 `isTurnUsed` 검증 정보 공유 여부 결정
+
 ## 세션 작업 루프 (2026-09-22 확정, 매 세션 이 순서로)
 1. 상태 확인: 이 문서의 미체크 항목 + 돌고 있는 클라우드/백그라운드 작업부터 확인
 2. `PLAN.md` 우선순위 순서대로 다음 항목 하나 선택
