@@ -440,8 +440,92 @@ function advanceSelfPlaySpecialState(state, rng, moverColor) {
   });
 }
 
+// Boolean-flag fields on `piece` worth preserving verbatim (see
+// nnue/encode.js's BOOL_FIELDS for the matching decode side -- keep these
+// two lists in sync). Only written into the compact record when truthy, to
+// keep recorded JSON small (absence == false/undefined on decode).
+const COMPACT_BOOL_FIELDS = [
+  "defected", "evasion", "explosive", "fileSurgeSecondMove", "frenzyExtraMove",
+  "frozen", "ghost", "ironMonarchExtraMove", "locustUsed", "madHorseSecondMove",
+  "noPromotion", "platformExtraMove", "promotedFromPawn", "protected",
+  "queensGambitProtection", "queensGambitPreviousProtected",
+  "queuedBackwardKnightTurn", "rookLiftSecondMove", "shielded",
+  "specialPromotionUsed", "thiefSecondMove", "twinSwapPending",
+  "undergroundBunker", "crownBearer", "crownRoyal", "regencyHeir",
+  "heraldJumpUnlocked", "bribed", "coolGuyCapturedLast",
+  "quantumFirstObservationFails", "checkerChainCapture", "moved"
+];
+
+// Numeric counter/turn fields worth preserving verbatim (see nnue/encode.js's
+// NUMERIC_FIELDS). Only written when the value is a finite, non-zero number
+// (0 is the implicit default on decode, same reasoning as the bools above).
+const COMPACT_NUMERIC_FIELDS = [
+  "hp", "maxHp", "ammo", "maxAmmo", "mana", "maxMana", "poisonStunTurns",
+  "bearRetaliationsRemaining", "capturesMade", "reaperCaptures",
+  "necromancyRemaining", "bribedRemaining", "cardNoCaptureUntil",
+  "freshNoCaptureUntil", "heraldJumpLockTurn", "quantumNoCaptureUntil"
+];
+
+// Small-cardinality enum/color fields, stored as their raw string value (see
+// nnue/encode.js's ENUM_FIELDS for the one-hot decode).
+const COMPACT_ENUM_FIELDS = [
+  "monoShade", "timePhase", "windmillMode", "spyOwner", "poisonStunColor",
+  "hiddenFrom"
+];
+
 function compactBoard(board) {
-  return board.map((row) => row.map((p) => (p ? { t: p.type, c: p.color } : null)));
+  return board.map((row) => row.map((p) => {
+    if (!p) return null;
+    const out = { t: p.type, c: p.color };
+    COMPACT_BOOL_FIELDS.forEach((f) => { if (p[f]) out[f] = true; });
+    COMPACT_NUMERIC_FIELDS.forEach((f) => {
+      const v = p[f];
+      if (typeof v === "number" && Number.isFinite(v) && v !== 0) out[f] = v;
+    });
+    COMPACT_ENUM_FIELDS.forEach((f) => { if (p[f]) out[f] = p[f]; });
+    // tricksterMoveType has too many possible values (~40) to one-hot
+    // cheaply -- encode.js only needs to know whether it's set at all, so
+    // just preserve the raw string (cheap) and let encode.js reduce it to a
+    // presence bit.
+    if (p.tricksterMoveType) out.tricksterMoveType = p.tricksterMoveType;
+    // Object-valued fields: encode.js only needs presence + a couple of
+    // scalar sub-fields (see the analysis in the graft session notes), not
+    // the full nested shape, so pick just those out here.
+    if (p.bloodCurse) out.bloodCurse = true;
+    if (p.callingCard) out.callingCard = true;
+    if (p.quantum) out.quantum = true;
+    if (p.lastResistance) out.lastResistance = true;
+    if (p.coronationProtection) {
+      out.coronationProtection = true;
+      if (typeof p.coronationProtection.remaining === "number") {
+        out.coronationProtectionRemaining = p.coronationProtection.remaining;
+      }
+    }
+    if (p.frozenByCard) {
+      out.frozenByCard = true;
+      if (typeof p.frozenByCard.remaining === "number") {
+        out.frozenByCardRemaining = p.frozenByCard.remaining;
+      }
+    }
+    if (p.logDir) {
+      out.logDir = true;
+      if (typeof p.logDir.dr === "number") out.logDirDr = p.logDir.dr;
+      if (typeof p.logDir.dc === "number") out.logDirDc = p.logDir.dc;
+    }
+    if (p.repositionSecondMove && p.repositionSecondMove.used) {
+      out.repositionSecondMoveUsed = true;
+    }
+    if (Array.isArray(p.crownTokenIds) && p.crownTokenIds.length) {
+      out.crownTokenCount = p.crownTokenIds.length;
+    }
+    if (Array.isArray(p.imperialMoves) && p.imperialMoves.length) {
+      out.imperialMoveCount = p.imperialMoves.length;
+    }
+    if (Array.isArray(p.queuedKnightExtraMoveReasons) && p.queuedKnightExtraMoveReasons.length) {
+      out.queuedKnightExtraMoveCount = p.queuedKnightExtraMoveReasons.length;
+    }
+    return out;
+  }));
 }
 
 // Only the fields nnue/encode.js's card-threat scoring actually needs

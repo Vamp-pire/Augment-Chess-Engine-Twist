@@ -40,6 +40,94 @@ ALL_TYPES.forEach((type, i) => { PIECE_INDEX[type] = i; });
 
 const PLANE_COUNT = ALL_TYPES.length; // 33
 
+// Per-piece STATE fields beyond type/color (added 2026-09-23): the board
+// planes above only ever encoded "what piece, what color, what square" --
+// every other bit of a piece's state (HP, shields, frozen turns, card-granted
+// flags, etc.) was silently discarded before this. Keep this list in sync
+// with selfplay-worker-merged.js's COMPACT_BOOL_FIELDS /
+// COMPACT_NUMERIC_FIELDS / COMPACT_ENUM_FIELDS -- that's the compaction step
+// that has to actually preserve a field for it to ever reach here.
+// Each field gets its own pair of 64-square planes (mover-owned / enemy-
+// owned), same split as the board type/color planes, so the network doesn't
+// have to cross-reference two differently-organized plane groups to tell
+// whose piece an attribute belongs to.
+//
+// Booleans: presence (1) / absence (0) at the piece's square.
+const BOOL_FIELDS = [
+  "defected", "evasion", "explosive", "fileSurgeSecondMove", "frenzyExtraMove",
+  "frozen", "ghost", "ironMonarchExtraMove", "locustUsed", "madHorseSecondMove",
+  "noPromotion", "platformExtraMove", "promotedFromPawn", "protected",
+  "queensGambitProtection", "queensGambitPreviousProtected",
+  "queuedBackwardKnightTurn", "rookLiftSecondMove", "shielded",
+  "specialPromotionUsed", "thiefSecondMove", "twinSwapPending",
+  "undergroundBunker", "crownBearer", "crownRoyal", "regencyHeir",
+  "heraldJumpUnlocked", "bribed", "coolGuyCapturedLast",
+  "quantumFirstObservationFails", "checkerChainCapture", "moved",
+  // Object-presence-only fields (the object's own shape is either not
+  // meaningful beyond "does it exist" -- bloodCurse/callingCard/quantum --
+  // or too irregular to encode structurally -- lastResistance):
+  "bloodCurse", "callingCard", "quantum", "lastResistance",
+  // Derived booleans folded in from richer compact fields:
+  "coronationProtection", "frozenByCard", "logDir",
+  "repositionSecondMoveUsed",
+  // tricksterMoveType has ~40 possible values (see TRICKSTER_MOVEMENT_TYPES
+  // in engine-merged.js) -- too many to one-hot cheaply for a piece that's
+  // at most one-per-side, so it's folded down to a presence bit here per the
+  // task's "too many values -> at least a truthy boolean" fallback rule.
+  "tricksterMoveType"
+];
+const BOOL_FIELD_INDEX = {};
+BOOL_FIELDS.forEach((f, i) => { BOOL_FIELD_INDEX[f] = i; });
+
+// Numeric counters/turn-timers, normalized by a generous fixed divisor (real
+// values observed in engine-merged.js top out in the single digits -- HP/
+// mana/ammo caps are 2-5) and clamped so an unexpectedly large value can't
+// blow up the input scale.
+const NUMERIC_FIELDS = [
+  "hp", "maxHp", "ammo", "maxAmmo", "mana", "maxMana", "poisonStunTurns",
+  "bearRetaliationsRemaining", "capturesMade", "reaperCaptures",
+  "necromancyRemaining", "bribedRemaining", "cardNoCaptureUntil",
+  "freshNoCaptureUntil", "heraldJumpLockTurn", "quantumNoCaptureUntil",
+  // Sub-fields of object-valued state, pulled out flat by
+  // selfplay-worker-merged.js's compactBoard():
+  "coronationProtectionRemaining", "frozenByCardRemaining",
+  "logDirDr", "logDirDc",
+  // Array fields collapsed to their length by compactBoard():
+  "crownTokenCount", "imperialMoveCount", "queuedKnightExtraMoveCount"
+];
+const NUMERIC_FIELD_INDEX = {};
+NUMERIC_FIELDS.forEach((f, i) => { NUMERIC_FIELD_INDEX[f] = i; });
+const NUMERIC_NORMALIZER = 20;
+
+// Small-cardinality color/enum fields -- each stored as ONE-HOT over its
+// value set (not lossy: absence and each possible value all get distinct
+// bit patterns), unlike the >2-valued tricksterMoveType above.
+const ENUM_FIELD_VALUES = {
+  monoShade: ["light", "dark"],
+  timePhase: ["past", "future"],
+  windmillMode: ["rook", "bishop"],
+  spyOwner: ["white", "black"],
+  poisonStunColor: ["white", "black"],
+  hiddenFrom: ["white", "black"]
+};
+const ENUM_FIELDS = Object.keys(ENUM_FIELD_VALUES);
+// Flattened (field, value) -> bit index within the enum-bits block.
+const ENUM_BIT_INDEX = {};
+let enumBitCursor = 0;
+ENUM_FIELDS.forEach((field) => {
+  ENUM_FIELD_VALUES[field].forEach((value) => {
+    ENUM_BIT_INDEX[`${field}:${value}`] = enumBitCursor;
+    enumBitCursor += 1;
+  });
+});
+const ENUM_BIT_COUNT = enumBitCursor; // 12 (6 fields x 2 values)
+
+// Total per-square attribute bits (booleans + numerics + enum one-hot bits),
+// each duplicated into a mover-owned plane and an enemy-owned plane, same as
+// PLANE_COUNT above.
+const ATTR_BIT_COUNT = BOOL_FIELDS.length + NUMERIC_FIELDS.length + ENUM_BIT_COUNT;
+const ATTR_BOARD_SIZE = ATTR_BIT_COUNT * 2 * 64;
+
 // Replaced 2026-09-08: previously 3 hand-rolled scalar hints (material,
 // king safety, special-piece-count), computed straight from the board with
 // no engine dependency. Superseded by feeding the network the SAME ~21
@@ -164,7 +252,10 @@ const CARD_ONEHOT_COUNT = CARD_POOL_TYPES.length * 2; // own + enemy
 const PLY_FEATURE_ENABLED = process.env.ABLATE_PLY_FEATURE === "1";
 const PLY_FEATURE_COUNT = PLY_FEATURE_ENABLED ? 1 : 0;
 const BOARD_SIZE = PLANE_COUNT * 2 * 64;
-const INPUT_SIZE = BOARD_SIZE + CARD_ONEHOT_COUNT + PLY_FEATURE_COUNT + EXTRA_FEATURE_COUNT;
+// Per-piece state attribute planes (added 2026-09-23), placed right after
+// the type/color board planes and before the card one-hot -- anywhere
+// before the final-21 block is fine per the layout note above.
+const INPUT_SIZE = BOARD_SIZE + ATTR_BOARD_SIZE + CARD_ONEHOT_COUNT + PLY_FEATURE_COUNT + EXTRA_FEATURE_COUNT;
 
 // A card counts as "present" if it's a live, usable instance (not already
 // used/recovering) of a pool effect -- matches how the engine's own
@@ -191,7 +282,19 @@ function writeCardOneHot(input, offset, deckSlots, color) {
 // deckSlots field fall back to the previous empty-deck behavior unchanged.
 function makeState(board, deckSlots) {
   const state = engine.cloneState({});
-  state.board = board.map((row) => row.map((p) => (p ? { type: p.t, color: p.c, moved: true } : null)));
+  // Spread the compact record's preserved state fields (hp/shielded/frozen/
+  // etc, all under their real engine field names already -- only `t`/`c`
+  // are aliases) so evaluateStateComponents() sees real piece state instead
+  // of a bare type/color/moved skeleton. Added 2026-09-23 alongside
+  // compactBoard() preserving these fields in the first place; before that
+  // change this function silently fed the evaluator a piece stripped of
+  // everything but type/color/moved, so e.g. shielded/hp-based scoring
+  // couldn't see the real values even though it was reading real state.
+  state.board = board.map((row) => row.map((p) => {
+    if (!p) return null;
+    const { t, c, ...rest } = p;
+    return { ...rest, type: t, color: c, moved: p.moved !== undefined ? p.moved : true };
+  }));
   state.mode = "play";
   state.deckSlots = deckSlots ? { white: deckSlots.white || [], black: deckSlots.black || [] } : { white: [], black: [] };
   state.captures = { white: [], black: [] };
@@ -214,21 +317,45 @@ function encodeBoard(board, mover, deckSlots) {
       const p = board[r][col];
       if (!p) continue;
       const typeIdx = PIECE_INDEX[p.t];
-      if (typeIdx === undefined) continue; // unsupported piece type -> skip (still 0 there)
-      const colorOffset = p.c === mover ? 0 : PLANE_COUNT;
       const square = r * 8 + col;
-      input[(typeIdx + colorOffset) * 64 + square] = 1;
+      const isMoverPiece = p.c === mover;
+      if (typeIdx !== undefined) {
+        const colorOffset = isMoverPiece ? 0 : PLANE_COUNT;
+        input[(typeIdx + colorOffset) * 64 + square] = 1;
+      } // unsupported piece type -> board plane skipped (still 0 there), but
+        // attribute planes below still get written regardless of type.
+
+      const attrColorOffset = isMoverPiece ? 0 : ATTR_BIT_COUNT;
+      const attrBase = BOARD_SIZE + attrColorOffset * 64;
+      BOOL_FIELDS.forEach((field) => {
+        if (p[field]) input[attrBase + BOOL_FIELD_INDEX[field] * 64 + square] = 1;
+      });
+      const numericBase = attrBase + BOOL_FIELDS.length * 64;
+      NUMERIC_FIELDS.forEach((field) => {
+        const v = p[field];
+        if (typeof v === "number" && Number.isFinite(v)) {
+          input[numericBase + NUMERIC_FIELD_INDEX[field] * 64 + square] = v / NUMERIC_NORMALIZER;
+        }
+      });
+      const enumBase = numericBase + NUMERIC_FIELDS.length * 64;
+      ENUM_FIELDS.forEach((field) => {
+        const v = p[field];
+        if (v === undefined || v === null) return;
+        const bitIdx = ENUM_BIT_INDEX[`${field}:${v}`];
+        if (bitIdx !== undefined) input[enumBase + bitIdx * 64 + square] = 1;
+      });
     }
   }
+  const attrEnd = BOARD_SIZE + ATTR_BOARD_SIZE;
   const enemy = mover === "white" ? "black" : "white";
-  writeCardOneHot(input, BOARD_SIZE, deckSlots, mover);
-  writeCardOneHot(input, BOARD_SIZE + CARD_POOL_TYPES.length, deckSlots, enemy);
+  writeCardOneHot(input, attrEnd, deckSlots, mover);
+  writeCardOneHot(input, attrEnd + CARD_POOL_TYPES.length, deckSlots, enemy);
 
   if (PLY_FEATURE_ENABLED) {
     let pieceCount = 0;
     for (const row of board) for (const p of row) if (p) pieceCount += 1;
     // Normalized to [0,1], 32 pieces (game start) -> 1.0, fewer -> lower.
-    input[BOARD_SIZE + CARD_ONEHOT_COUNT] = pieceCount / 32;
+    input[attrEnd + CARD_ONEHOT_COUNT] = pieceCount / 32;
   }
 
   const base = INPUT_SIZE - EXTRA_FEATURE_COUNT;
@@ -236,4 +363,7 @@ function encodeBoard(board, mover, deckSlots) {
   return input;
 }
 
-module.exports = { encodeBoard, INPUT_SIZE, PIECE_INDEX, ALL_TYPES, FEATURE_NAMES, CARD_POOL_TYPES };
+module.exports = {
+  encodeBoard, INPUT_SIZE, PIECE_INDEX, ALL_TYPES, FEATURE_NAMES, CARD_POOL_TYPES,
+  BOOL_FIELDS, NUMERIC_FIELDS, ENUM_FIELD_VALUES
+};
