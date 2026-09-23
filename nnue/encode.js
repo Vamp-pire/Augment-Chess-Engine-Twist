@@ -126,7 +126,17 @@ const ENUM_BIT_COUNT = enumBitCursor; // 12 (6 fields x 2 values)
 // each duplicated into a mover-owned plane and an enemy-owned plane, same as
 // PLANE_COUNT above.
 const ATTR_BIT_COUNT = BOOL_FIELDS.length + NUMERIC_FIELDS.length + ENUM_BIT_COUNT;
-const ATTR_BOARD_SIZE = ATTR_BIT_COUNT * 2 * 64;
+// Opt-in (2026-09-23), same pattern as PLY_FEATURE_ENABLED below: adding
+// these planes changes INPUT_SIZE, which would immediately break the
+// extension's NNUE copy (extension/nnue.js) and every currently-shipped
+// weights.json -- neither has been retrained/ported yet (nnue-parity.js
+// caught this: extension=5509, training=15237 with it always on). Keep it
+// off by default so training/CI/the extension all stay at the current 5509
+// until a retrain + extension port happens; compactBoard() already preserves
+// the raw fields in new self-play records regardless of this flag, so
+// turning it on later doesn't require regenerating old data first.
+const FULL_PIECE_STATE_ENABLED = process.env.FULL_PIECE_STATE === "1";
+const ATTR_BOARD_SIZE = FULL_PIECE_STATE_ENABLED ? ATTR_BIT_COUNT * 2 * 64 : 0;
 
 // Replaced 2026-09-08: previously 3 hand-rolled scalar hints (material,
 // king safety, special-piece-count), computed straight from the board with
@@ -325,25 +335,27 @@ function encodeBoard(board, mover, deckSlots) {
       } // unsupported piece type -> board plane skipped (still 0 there), but
         // attribute planes below still get written regardless of type.
 
-      const attrColorOffset = isMoverPiece ? 0 : ATTR_BIT_COUNT;
-      const attrBase = BOARD_SIZE + attrColorOffset * 64;
-      BOOL_FIELDS.forEach((field) => {
-        if (p[field]) input[attrBase + BOOL_FIELD_INDEX[field] * 64 + square] = 1;
-      });
-      const numericBase = attrBase + BOOL_FIELDS.length * 64;
-      NUMERIC_FIELDS.forEach((field) => {
-        const v = p[field];
-        if (typeof v === "number" && Number.isFinite(v)) {
-          input[numericBase + NUMERIC_FIELD_INDEX[field] * 64 + square] = v / NUMERIC_NORMALIZER;
-        }
-      });
-      const enumBase = numericBase + NUMERIC_FIELDS.length * 64;
-      ENUM_FIELDS.forEach((field) => {
-        const v = p[field];
-        if (v === undefined || v === null) return;
-        const bitIdx = ENUM_BIT_INDEX[`${field}:${v}`];
-        if (bitIdx !== undefined) input[enumBase + bitIdx * 64 + square] = 1;
-      });
+      if (FULL_PIECE_STATE_ENABLED) {
+        const attrColorOffset = isMoverPiece ? 0 : ATTR_BIT_COUNT;
+        const attrBase = BOARD_SIZE + attrColorOffset * 64;
+        BOOL_FIELDS.forEach((field) => {
+          if (p[field]) input[attrBase + BOOL_FIELD_INDEX[field] * 64 + square] = 1;
+        });
+        const numericBase = attrBase + BOOL_FIELDS.length * 64;
+        NUMERIC_FIELDS.forEach((field) => {
+          const v = p[field];
+          if (typeof v === "number" && Number.isFinite(v)) {
+            input[numericBase + NUMERIC_FIELD_INDEX[field] * 64 + square] = v / NUMERIC_NORMALIZER;
+          }
+        });
+        const enumBase = numericBase + NUMERIC_FIELDS.length * 64;
+        ENUM_FIELDS.forEach((field) => {
+          const v = p[field];
+          if (v === undefined || v === null) return;
+          const bitIdx = ENUM_BIT_INDEX[`${field}:${v}`];
+          if (bitIdx !== undefined) input[enumBase + bitIdx * 64 + square] = 1;
+        });
+      }
     }
   }
   const attrEnd = BOARD_SIZE + ATTR_BOARD_SIZE;

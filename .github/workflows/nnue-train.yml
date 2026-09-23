@@ -99,6 +99,7 @@ jobs:
             // string would override its default with 0/NaN.
             const envNames = {
               nnueVariant: 'NNUE_VARIANT', ablatePlyFeature: 'ABLATE_PLY_FEATURE',
+              fullPieceState: 'FULL_PIECE_STATE',
               ablateDeepUnits: 'ABLATE_DEEP_UNITS', ablateWarmStart: 'ABLATE_WARM_START',
               ablateOversample: 'ABLATE_OVERSAMPLE', ablateBlend: 'ABLATE_BLEND',
               ablateBlunder: 'ABLATE_BLUNDER',
