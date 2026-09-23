@@ -5064,9 +5064,25 @@
     context.timedOut = true;
     return true;
   }
+  // Perf (2026-09-23, measured via --cpu-prof: attacksSquare was the single largest
+  // self-time function at 14.4%, ahead of cloneState's known 13.2%): orderActions runs at
+  // EVERY node and scores every candidate action against the SAME pre-move boardState, but
+  // ATTACK_MEMO (see workerBestCaptureThreat/hangingMaterialRisk/evaluateStateComponents
+  // above) was only ever set up inside those functions, never around this scoring loop --
+  // so e.g. workerBestCaptureThreat's sorted-attackers-by-color list got rebuilt from
+  // scratch for every single candidate instead of once per node. Wrapping the loop in the
+  // same memo lets repeated attacksSquare/attacker-list queries for this node's board reuse
+  // results across candidates. Re-entrant-safe: if a memo for this exact boardState is
+  // already active (nested call), reuse it instead of clobbering it.
   function orderActions(actions, boardState, perspectiveColor, scoreFn) {
     const score = typeof scoreFn === "function" ? scoreFn : actionOrderingScore;
-    return actions.map((action, index) => ({ action, index, score: score(action, boardState, perspectiveColor) })).sort((a, b) => b.score - a.score || a.index - b.index).map((entry) => entry.action);
+    const reuse = ATTACK_MEMO !== null && ATTACK_MEMO.board === boardState;
+    if (!reuse) ATTACK_MEMO = { board: boardState, map: /* @__PURE__ */ new Map(), pieces: null, cols: -1, encouraged: /* @__PURE__ */ new Map(), ranged: /* @__PURE__ */ new Map(), attackers: /* @__PURE__ */ new Map() };
+    try {
+      return actions.map((action, index) => ({ action, index, score: score(action, boardState, perspectiveColor) })).sort((a, b) => b.score - a.score || a.index - b.index).map((entry) => entry.action);
+    } finally {
+      if (!reuse) ATTACK_MEMO = null;
+    }
   }
   function actionOrderingScore(action, boardState, perspectiveColor) {
     const color = action.color || boardState.turn || perspectiveColor;
