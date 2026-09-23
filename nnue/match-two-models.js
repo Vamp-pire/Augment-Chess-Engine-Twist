@@ -19,6 +19,7 @@
 // better than the hand-picked-coefficient evaluator it was warm-started
 // from, not just whether one NNUE checkpoint beats another.
 const path = require("path");
+const fs = require("fs");
 const { loadWeights, forward } = require("./forward.js");
 const { encodeBoard } = require("./encode.js");
 
@@ -81,6 +82,14 @@ function makeEvalFn(spec) {
     return function (boardState, aiColor) {
       return engine.evaluateState(boardState, aiColor);
     };
+  }
+  // Spec "tuned:<weights.json>" = tools/tune/texel-tune.js's re-fit evaluateState
+  // coefficients (PLAN.md 2026-09-22), applied via tools/tune/tuned-eval.js without
+  // touching engine-merged.js itself.
+  if (weightsPathOrHandcoded.startsWith("tuned:")) {
+    const { makeTunedEvalFn } = require(path.join(__dirname, "..", "tools", "tune", "tuned-eval.js"));
+    const weights = JSON.parse(fs.readFileSync(weightsPathOrHandcoded.slice("tuned:".length), "utf8"));
+    return makeTunedEvalFn(weights);
   }
   const weights = loadWeights(weightsPathOrHandcoded);
   return function (boardState, aiColor) {
