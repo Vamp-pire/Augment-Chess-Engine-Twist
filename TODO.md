@@ -1,7 +1,7 @@
 # TODO
 
 역할: 남은 일과 사용자 몫만 적는 문서입니다. 계획과 기준은 `PLAN.md`, 실험 결과와 발견은 `ExperimentNote.md`, 프로젝트 지도는 `PROJECT.md`입니다.
-마지막 갱신: 2026-09-22.
+마지막 갱신: 2026-09-24.
 
 - [x] WASM PoC (2026-09-22): `positionalScore` 축소판을 AssemblyScript로 포팅해 벤치마크 — 결과 애매(0.94x~1.43x, 오차범위 안), 압도적 이득 없음. 상세는 `docs/WASM-POC-RESULT.md`.
 - [x] Texel tuning 도구 (2026-09-22): `tools/tune/texel-tune.js` — `evaluateState`의 8개 손튜닝 계수(material 1.35, *Enemy 0.88/0.72/0.65/0.82/0.82/0.92/0.9)를 자가대국 결과로 재적합. 스트리밍 로딩(RAM 안전), sigmoid(score/K)+MSE, Adam + 기본값으로의 L2 정규화(노이즈로 인한 발산 방지 위해 추가). `selfplay-data.merged-engine-local-depth3.jsonl`(6474국면)로 로컬 검증: MSE 0.1358→0.1106(18.6%↓), 승부 국면 부호 일치율 66.3%→68.0%. 엔진 파일은 건드리지 않음 — `tools/tune/tuned-eval.js`가 `evaluateStateComponents`로 재계산해 `options.evalFn`에 꽂는 방식. 결과는 `tools/tune/weights.json`.
@@ -9,14 +9,20 @@
 - [x] B soft label 재시도(2026-09-22, 클라우드): top1 19.0%/MRR 0.357 -- 원래 one-hot 모델(top1 19.9%/MRR 0.364)과 사실상 동일하거나 살짝 낮음. 개선 없음, unproven.
 - [x] NNUE 인코딩에 기물 상태 필드 전부 추가(2026-09-23): `selfplay-worker-merged.js`의 `compactBoard()`가 지금까지 `{t, c}`만 남기고 hp/shielded/frozen 등 나머지 상태를 전부 버리고 있던 걸 발견 -- 불리언 41개 + 숫자 23개 + 2값 enum 6개(monoShade/timePhase/windmillMode/spyOwner/poisonStunColor/hiddenFrom, one-hot 12비트)를 보존/인코딩하도록 수정. `tricksterMoveType`은 가능한 값이 ~40개로 너무 많아 one-hot 대신 "설정됐는가" 불리언 1개로 타협(문서화 끝). `INPUT_SIZE` 4281(구) -> 15237(신, ALL_TYPES 40종 + CARD_POOL 184종 반영). 기존 학습된 가중치 파일은 이 변경 후 전부 재학습 필요. 로컬 2워커/25초 자가대국 148국면으로 검증: 새 필드가 실제 기록되고(frozen/frozenByCard/capturesMade 등 확인) `encode.js`가 크래시 없이 15237차원 벡터 생성 확인. 과거 기록된 자가대국 데이터는 이미 `{t,c}`로 손실되어 복구 불가(신경 안 씀, 이번 수정은 앞으로의 데이터부터 적용). 자가대국 재실행은 이번 작업 범위 밖 -- 별도 진행 예정.
 
-## 인수인계 (2026-09-23, 클라우드 세션용 — 이거부터 읽기)
+## 지금 진행 중 (2026-09-24)
 
-### 지금 돌고 있는 것 (건드리지 말고 상태만 확인)
-- **Texel tuning 실전 대전**: `gh run view 35822003216` (match.yml, tuned vs handcoded, 200게임, depth4/800ms). 3시간+ 걸리는 중이지만 죽은 건 아님(단계 확인함, Play 단계에서 살아있음). 끝나면 로그에서 승/패/무 집계 확인.
-- **C2 대전(MCTS vs 알파-베타, 참고용)**: `gh run view 35837100326` (match.yml, mcts:100 vs handcoded, 소규모). JS MCTS가 느려서(초당 ~7시뮬레이션) 오래 걸릴 수 있음.
-- **팀 저장소 PR #6**: `sungjeahyun100/Accelerate-alpha-zero-style-Augment-Chess-bot-#6` — ResNet/통신 프로토콜 결정 기록 + encoding 위치 미결정 문서화. "AI 자동 수정 및 코멘트 처리" 켜져 있어서 CI 실패/리뷰 코멘트는 `<ci-monitor-event>`로 자동 통지됨, 따로 안 봐도 됨.
+- [ ] `fullstate-v1`(15237차원, 정확도 78.5%) 실전 대전 검증: `match.yml`로 handcoded/tuned와 붙여보기 전엔 master 승격 안 함. 상세는 `ExperimentNote.md` 7번.
+- [ ] NNUE-eval 자가대국 피드백 루프 위험 재확인: 1차 소규모 테스트(19샤드, 4분씩)에서 무승부율 40.8%→52.7% 상승(주의 신호, 결정적 증거는 아님). 표본 확대 + 다세대 드리프트 확인 없이는 메인 파이프라인에 절대 안 섞음. 상세는 `ExperimentNote.md` 8번.
+- [ ] 확장(`extension/nnue.js`) 15237차원 포팅 — fullstate-v1이 실전 검증 통과해야 착수 가치 있음, 지금은 보류.
+- [ ] 사이트 규칙 반영 자가대국(45수/데스매치/별 합계) — 정확한 트리거/동점 처리 스펙 확인 전엔 구현 보류.
+- [x] Accelerate 팀 저장소: Dependabot(PR #11), cpp 스케치 CI 컴파일체크(PR #12), 위 둘 통합(PR #13), main→develop 백머지(PR #9), engine.cpp 검토 기반 이슈 #10 파일링. GitHub Pages/브랜치보호/Copilot 리뷰는 admin 권한 필요해서 막힘(구독좋아요에게 요청 필요).
 
-### 팀 프로젝트 (Accelerate) 관련 — 중요
+## 사라진 이전 인수인계 블록 (2026-09-23) 정리 메모
+
+- Texel-tuned 실전 대전, C2 대전, 팀 저장소 PR #6은 모두 완료/병합됨 — 개별 상태 추적 불필요해짐.
+- 디스코드 "인코딩 위치" 논쟁은 팀 저장소 `docs/DECISIONS.md`에 "미결정"으로 정직하게 기록 완료.
+
+## 팀 프로젝트 (Accelerate) 관련 참고 — 지금도 유효
 - 사용자(Ian)는 디스코드에서 **"Vamp"/"vampire_nickname"**입니다. 디스코드 메시지에서 이 이름이 하는 말은 전부 사용자 본인 발언으로 취급 ([memory: user_discord_identity.md] 참고).
 - 팀 저장소: `sungjeahyun100/Accelerate-alpha-zero-style-Augment-Chess-bot-` (upstream), `Vamp-pire/Accelerate-alpha-zero-style-Augment-Chess-bot-` (사용자 포크). GitFlow 사용 — `develop`에서 `feature/*` 브랜치 따서 PR (Twist 저장소와 달리 여기는 브랜치+PR 방식임, master 직커밋 아님).
 - **디스코드 읽기/쓰기 도구를 이번 세션에서 직접 만들었음** — 단, **로컬 전용**이라 클라우드 세션에서는 못 씀:
@@ -26,19 +32,6 @@
   - 클라우드 세션이 디스코드 내용이 필요하면: 로컬 세션에 물어보거나, 사용자에게 직접 요청할 것. 토큰을 리포로 옮기거나 클라우드에 복사하지 말 것(자격증명, 로컬에만 두기로 함).
 - **논의 중 나온 우리 쪽 정보 제공**: NNUE 입력 인코딩 전체 fidelity 작업(아래) 결과를 15,237차원이라고 스레드에 공유함(사용자 본인이 직접 올림). 팀의 "20배 필요하지 않냐"는 추측과 비교 가능한 실측치.
 - **팀 논의 중 우리가 검증해줄 수 있는 것**: `isTurnUsed` 단일 플래그 설계(팀원 subscribe_like_ 제안)가 실제로 한계 있다는 걸 Twist 엔진 코드로 확인함(`fileSurgeSecondMove` 등 10개 개별 플래그 + 아이돌은 별도 대기/기록 시스템 필요) — 아직 팀에 공유 안 함, 필요하면 정리해서 전달.
-
-### 이번 세션에서 한 것 (요약, 상세는 위쪽 항목들)
-1. AlphaZero 부분 적용 A-F 트랙 전부 시도 (대부분 unproven, 인프라는 재사용 가능하게 남김 — `tools/policy/`, `tools/mcts/`, `policy-train.yml`)
-2. 새 아이디어 4개 병렬 시도: Texel tuning(유일하게 로컬 검증 긍정적, 실전 검증 진행 중), WASM PoC(부정적), soft label(무효과), B3 재검증(중립)
-3. NNUE 입력 인코딩에 기물 상태 필드 전부 추가 (`compactBoard()`가 지금까지 다 버리고 있던 걸 발견/수정) — **자가대국 재실행 필요, 아직 안 함**
-4. CPU 프로파일 실측: `attacksSquare`가 검색 시간의 14.4%로 1위 병목 확인 (PLAN.md A 섹션) — **아직 고치기 시작 전, 캐싱 확장 조사 중이었음(중단됨)**
-5. 팀 디스코드 스레드 여러 번 확인, 팀 저장소에 PR #6 (ResNet/프로토콜 결정 기록)
-
-### 다음에 할 만한 것 (우선순위 순, 자세한 배경은 PLAN.md/이 문서 위쪽)
-1. `attacksSquare` 캐싱 확장 — `orderActions`가 매 노드에서 후보 N개를 채점할 때마다 같은 보드에 대해 캐시 없이 재계산 중 (`ATTACK_MEMO`가 `evaluateStateComponents`/`hangingMaterialRisk` 호출 안에서만 유효, `orderActions`는 감싸져 있지 않음). `workerHangingPenalty` -> `workerBestCaptureThreat`가 attacksSquare를 쓰는지 확인하다 중단함 — 이어서 확인 후 구현
-2. NNUE 재학습용 자가대국 재실행 (새 인코딩 반영), 클라우드로
-3. Texel/C2 대전 결과 나오면 커밋 + TODO 기록
-4. 팀에 `isTurnUsed` 검증 정보 공유 여부 결정
 
 ## 세션 작업 루프 (2026-09-22 확정, 매 세션 이 순서로)
 1. 상태 확인: 이 문서의 미체크 항목 + 돌고 있는 클라우드/백그라운드 작업부터 확인
@@ -59,21 +52,18 @@ nuesnapshots' -File | Where-Object { $_.Name -ne 'selfplay-data.2026-09-17T06-03
 - [ ] 크롬에서 확장 확인(압축 해제된 확장 새로고침): 모델 드롭다운과 로드 상태, 새 아이콘, 리뷰, 실시간 봇, 설정("우리 엔진" 블록), 성능 패널 평가기 표시
 - [ ] 사이트 운영자 동의 증빙 저장(스크린샷/메시지 링크): NOTICE.md가 인용함(Discord, 2026-09-19)
 
-## 지금 진행 중
+## 아직 열린 항목 (여러 세션에 걸쳐 안 끝난 것)
 
-- [x] `blenddepth` 독립 재확인 완료: 재현 안 됨(50.8%, 53.7%, 합산 56.2% unproven). 재학습 3종도 전부 unproven
-- [ ] 전술 세트 재구축(완전한 상태로, 약 240문제) 후 모델 5종 평가
+- [ ] 전술 세트 재구축(완전한 상태로, 약 240문제) 후 모델들 평가 — 오래 밀린 항목
 - [ ] `site-watch.yml` 첫 실행 확인(매일 자동, 수동 실행도 가능)
-
-## 다음
-
 - [ ] 무승부 원인 확인(자가대국의 반복/50수 규칙), 고정 오프닝 세트, 조기 종료
 - [ ] 속도: `cloneState` 공유, 나머지 루트 안전 검사 필터 (`PLAN.md` A)
-- [x] 확장 드롭다운에 실험 모델 추가(Hurricane, Gale, Cyclone, 통과 여부와 무관), 기본값은 Squall 그대로. 이름을 바꾸고 싶으면 `extension/nnue.js`의 `MODELS` 라벨만 수정 (후보: Gale, Cyclone, Squall급 폭풍 이름들)
-- [ ] 전술 세트 재구축, 수 품질 점수
 - [ ] 규칙 차이 남은 것: `promotionRush`, 브루터스 상태, 평범한 수 1건 (`tools/site-parity/TRIAGE.md`), 패럿 안전장치는 넣지 않기로 함
 - [ ] 리뷰 개선(맥락, 깊이 기반 신뢰도, 아이콘 활용)은 엔진이 강해질 때까지 보류 (`tools/review-calibration/README.md`)
 - [ ] 마지막 단계: 코드 리팩터링, 삭제, 푸시, 최종 보고 (후보 목록은 `docs/refactor-candidates.md`)
+- [ ] B3(정책 기반 수 순서, `options.orderScoreFn`) 표본 확대 재확인 여부 — 15위치 unproven에서 안 넘어감
+- [ ] C2(같은 시간 알파-베타 vs MCTS 실험실 대전) — JS MCTS가 느려서(초당 ~7시뮬레이션) 참고용으로만, 아직 결과 미확인
+- [ ] 러스트 포팅: `evaluateState`가 `isSquareAttacked`/`delayedHazards`와 얽혀 있어 독립 포팅 불가 확인됨(2026-09-22) — 지금은 손대지 않음, 참고는 `docs/RUST-PORT-REFERENCE.md`
 
 ## 열린 질문
 
@@ -83,45 +73,14 @@ nuesnapshots' -File | Where-Object { $_.Name -ne 'selfplay-data.2026-09-17T06-03
 ## 정리 기록
 
 - [x] 2026-09-19: `nnue/cache/*`(6.0GB)와 `data/backups/*`(1.2GB) 삭제, `data/experiments`와 `data/archive`는 유지, 옛 개요 Artifact 삭제, Dependabot PR 3개 시험 후 병합
+- [x] 2026-09-24: 죽은 스크립트(`tools/perf/safety-report-check.js`, `rootSafetyReport` 미존재), Accelerate로 이미 포팅된 중복 fixture(`tools/fixtures/`), 오래된 로그 파일들 삭제
 - 결정: 로컬 실험 가중치(`nnue/model/`, 추적 안 함)는 유지
 
 ## 완료 (최근)
 
+- [x] 2026-09-23/24: CI 수정(확장 5509차원 vs 학습 15237차원 불일치 -> `FULL_PIECE_STATE` opt-in), 자가대국 라운드4(45,438 포지션, 기물상태 포함), 15237차원 학습(정확도 78.5%, `fullstate-v1`, master 미승격), NNUE-eval 피드백루프 실험(19샤드, `ExperimentNote.md` 8번, inconclusive), Texel-tuned 실전대전 80게임(unproven), `attacksSquare` 캐싱 확장(1.05배)
+- [x] 2026-09-22: AlphaZero L1 A-F 트랙 전부 시도 — A1(정책 기록)/B1(정렬 기준선)/B2(정책망 학습, top1 19.9%/MRR 0.364)/C1(MCTS 시제품)/D1(소프트맥스 샘플링) 완료, B3(정책 기반 정렬)는 15위치 unproven, soft label/WASM PoC는 개선 없음, `blenddepth` 3회 재확인 전부 unproven(합산 56.2%)
+- [x] 2026-09-23: NNUE 입력에 기물 상태(HP/보호막/빙결 등 70개+ 필드) 전부 보존하도록 `compactBoard()` 수정
 - [x] 2026-09-20: 속도 약 2.2배(결과 동일), 실험실(판정기 `verdict.json`, `tools/lab/lab.js`, `docs/results/`), 핸디캡/시드 오프셋/검색 파라미터 옵션, 3라운드 자가대국 종료(150,415)와 `round3-full` 데이터셋, 재학습 7종, 사이트 패치 감시 워크플로, 정리 후보 감사, 확장 엔진 동기화 CI 검사
 - [x] 2026-09-19: 워크플로 재정비(`ci.yml`, `selfplay.yml`, `nnue-train.yml`, `match.yml`, `dataset-build.yml`), CI 검사 세트, 사이트 9/19 패치 반영과 규칙 일치 수정, 평가/검색 속도 개선, 확장 엔진과 인코더와 모델 선택기, 폴더 재정리
 - [x] 2라운드 데이터셋(112,981), 깊이 대전, 상한 분석
-
-## 진행 중 / 이어받기 (2026-09-20 저녁, 세션 마무리 시점)
-- 클라우드 자가대국(정책 + 국면 기록, 목표 2만 국면, 라운드 시작 (재시작, 아래 변수 참고))이 돌고 있다. 끝나면: 저장소 변수 `SELFPLAY_TARGET`=150000, `SELFPLAY_RECORD_POLICY`=0, `SELFPLAY_RECORD_STATE`=0으로 되돌리고, `tools/policy/ordering-eval.js`로 현재 정렬의 기준선을 잰다.
-- 서브에이전트 3개가 로컬에서 작업 중(코어 1개씩): 수 점수 학습 도구(`tools/policy/`), 카드 9종 정답지(`tools/fixtures/special-cards.js`), 안전 검사 정답지(`rootSafetyReport`와 `generate-fixtures.js --safety`). 각자 master에 커밋하므로 결과와 `git log`를 확인하고, 안전 검사 쪽은 엔진 파일을 바꾸므로 CI(동기화, 골든)가 통과했는지 본다.
-- 팀 저장소 PR #5(정답지)는 열려 있고 리뷰 대기. 안전 검사 정답지와 카드 9종 정답지가 끝나면 팀 저장소에도 별도 PR로 올릴지 정한다.
-- 사이트 종료 규칙 대조 결과는 `docs/GAME-END-RULES.md`. 자가대국의 사이트 규칙 옵션은 아직 미구현.
-- 규칙 차이 미확인 2건(평범한 수 1건, 브루투스 상태 차이), MCTS는 러스트가 생긴 뒤 평가(자바스크립트 시제품은 초당 약 7회 시뮬레이션).
-- 로컬 부하 규칙: 코어 4개 이내(서브에이전트 포함), 무거운 작업은 클라우드, 프로세스는 `taskkill`로 종료.
-
-## 지금 진행 중 (2026-09-23)
-- [ ] NNUE 입력에 기물 상태(HP/보호막/빙결/탄약 등 70개+ 필드) 전부 추가, `compactBoard()`부터 손 봐야 함(지금은 type/color만 남기고 다 버림). 서브에이전트 진행 중. 끝나면: 새 필드가 반영된 자가대국을 클라우드에서 다시 돌려야 함(과거 데이터는 이 필드들이 전부 없어서 재사용 불가) -> 그 데이터로 NNUE 재학습.
-
-## 지금 진행 중 (2026-09-22)
-
-### 러스트 (보류)
-평가함수(`evaluateState`)가 `isSquareAttacked`(전체 기물 공격 판정)와 카드 상태(`delayedHazards`)에 얽혀 있어 독립 포팅 불가로 확인(2026-09-22). 기물 11종 포팅도 카드 없이는 완전하지 않음. **지금은 손대지 않는다** — 참고는 `docs/RUST-PORT-REFERENCE.md`.
-
-### AlphaZero L1 다섯 트랙 전부 진행 (2026-09-22, 사용자 지시: A-F 전부, 가능한 범위는 JS 안에서)
-- [x] A1 정책 기록 구현/검증 (기존 완료)
-- [ ] A2 클라우드 데이터 확정: cutoff(08:00 UTC) 넘긴 지 40분+인데 아직 in_progress, 계속 확인 중 -> 끝나면 변수 원복(SHARDS=[1..8], TARGET=150000, RECORD_POLICY=0, RECORD_STATE=0) -> `dataset-build.yml`로 20260920T124334Z 이후 데이터 묶기
-- [x] B1 도구(`ordering-eval.js`) 로컬 소량 데이터로 재확인(MRR 0.30 vs 무작위 0.126)
-- [ ] B1 클라우드 대량 데이터로 기준선 재측정
-- [x] B2 파이프라인(`tools/policy/*`) 검증 및 커밋 완료
-- [ ] B2 본 학습(클라우드 데이터로 `train-policy.js` 실행, 모델 저장)
-- [x] B3 엔진에 `options.orderScoreFn` 옵션 연결(기본 꺼짐). `search-equiv.js` 100위치 diffs 0으로 기본 동작 무변화 확인, 커밋 완료.
-- [x] B2 본 학습(클라우드, `policy-train.yml`): 검증 top1 19.9%/MRR 0.364 vs 기존 16.2%/MRR 0.313, 독립검증(score-actions.js) 일치. **B3 실측(15위치)은 unproven**: 노드 수 오히려 +2.9%, 고른 수 15개 중 3개 다름 -- "1등 맞히기"는 좋아졌지만 알파-베타 노드 절감으로는 아직 안 이어짐. 기본값 안 바꿈. 표본 늘려 재확인 여부 결정 필요
-- [x] C1 기존 MCTS 시제품(`tools/mcts/mcts.js`) 재점검: `cfg.policyModel`로 학습된 정책을 사전 확률로 연결. 커밋 완료, 실제 모델 강도 평가는 B2 이후
-- [ ] C2 같은 시간 알파-베타 vs MCTS 실험실 대전(핸디캡 1, 독립 재확인) — JS 한계 인지하고 참고용으로만 기록
-- [x] D1 자가대국 루트 소프트맥스 샘플링 옵션 구현(`SELFPLAY_SAMPLE_TAU`). 로컬 검증(tau=150, 246개 중 72개 샘플링됨). 커밋 완료. 무승부율/다양성 오프라인 비교는 클라우드 데이터로 나중에
-- [x] F 이식성 — 데이터 형식은 브리지 상태 JSON과 호환(이미 충족), `docs/RUST-PORT-REFERENCE.md`로 팀 러스트 작업과 연결 문서화 완료
-
-## 클라우드 자가대국 대량 실행 (2026-09-20 밤 설정)
-- 16샤드, 깊이 6/1500ms, `SELFPLAY_CUTOFF_ISO=2026-09-22T08:00:00Z`(화요일 17:00 KST), `SELFPLAY_TARGET=600000`, `SELFPLAY_RECORD_POLICY=1`, `SELFPLAY_RECORD_STATE=5`(5수마다 국면 저장), 라운드 시작 `20260920T124334Z`.
-- 화요일 17시 이후 원복: `gh variable set SELFPLAY_SHARDS --body "[1,2,3,4,5,6,7,8]"`, `SELFPLAY_TARGET`=150000, `SELFPLAY_RECORD_POLICY`=0, `SELFPLAY_RECORD_STATE`=0. 그다음 `dataset-build.yml`(since `20260920T124334Z`)로 데이터셋을 만들고 `tools/policy/ordering-eval.js`로 기준선을 잰다.
-- 데이터 브랜치(`gha-segments-16cards`) 용량이 크게 늘 수 있으니 저장소 크기를 확인한다.
