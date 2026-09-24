@@ -58,7 +58,7 @@ jobs:
           node -e "
             const m = require('./extension/manifest.json');
             const res = m.web_accessible_resources.flatMap((r) => r.resources);
-            for (const f of ['model/nnue-squall.json', 'model/nnue-tornado.json', 'model/nnue-hurricane.json', 'model/nnue-gale.json', 'model/nnue-cyclone.json', 'engine.js', 'searchWorker.js']) {
+            for (const f of ['model/nnue-squall.json', 'model/nnue-hurricane.json', 'model/nnue-gale.json', 'engine.js', 'searchWorker.js']) {
               if (!res.includes(f)) { console.error('manifest missing web_accessible_resource: ' + f); process.exit(1); }
             }
             console.log('manifest ok');

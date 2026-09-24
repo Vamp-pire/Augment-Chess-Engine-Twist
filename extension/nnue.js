@@ -186,10 +186,6 @@
       label: "Squall", file: "model/nnue-squall.json",
       desc: "기본 모델입니다. 대국의 승패를 위주로 학습했고, 무난하고 안정적입니다."
     },
-    tornado: {
-      label: "Tornado", file: "model/nnue-tornado.json",
-      desc: "가장 오래된 모델입니다. 비교용으로 남겨 두었고, Squall과 실력 차이는 없었습니다."
-    },
     hurricane: {
       label: "Hurricane (실험)", file: "model/nnue-hurricane.json", map: "atanh400",
       desc: "깊이 읽은 대국일수록 더 믿고 학습한 실험 모델입니다. 처음 테스트에서는 기본 평가보다 앞섰지만 재확인에서는 차이가 없었습니다."
@@ -197,10 +193,6 @@
     gale: {
       label: "Gale (실험)", file: "model/nnue-gale.json", map: "hybrid300",
       desc: "기본 평가가 틀리는 부분만 보정하도록 학습한 실험 모델입니다. 아직 차이가 확인되지 않았습니다."
-    },
-    cyclone: {
-      label: "Cyclone (실험)", file: "model/nnue-cyclone.json", map: "atanh400",
-      desc: "검색 점수를 크게 반영해 학습한 실험 모델입니다. 테스트 결과를 기다리는 중입니다."
     }
   };
   const DEFAULT_MODEL = "squall";
