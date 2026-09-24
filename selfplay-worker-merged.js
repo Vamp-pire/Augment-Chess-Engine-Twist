@@ -353,6 +353,15 @@ const SELFPLAY_CARD_POOL = [
   "locustSwarm", "longEnPassant", "extinction", "symmetry", "brutus",
   "clockwork", "mutation", "parrot", "paladin", "octopus", "metal"
 ];
+
+// Real per-card star cost (2026-09-24), reverse-engineered from the live
+// site bundle -- see tools/site-rules/site-rules.js's own header comment
+// for the extraction method (181/184 confirmed, 3 unverified with a
+// fallback of 3, flagged in the JSON itself). Used below instead of the
+// SITE_CARD_STARS_FALLBACK random placeholder this replaced.
+const SITE_CARD_STARS = require("./tools/site-rules/card-catalog.json");
+const SITE_CARD_STARS_FALLBACK = 3; // catalog median; only hit if a pool effect is somehow missing from the catalog
+
 // Real games apparently deal a fixed hand size that depends on game mode
 // (owner: "반은 3장 받고 반은 6개 받는 게임" -- basic mode deals 3, grand
 // mode deals 6, roughly a coin flip which one a given game is), not always
@@ -380,7 +389,7 @@ function makeSelfPlayDeck(color, rng, handSize) {
     id: effect,
     instanceId: `${color}-${effect}-${i}`,
     effect,
-    stars: 1 + Math.floor(rng() * 5),
+    stars: SITE_CARD_STARS[effect]?.stars ?? SITE_CARD_STARS_FALLBACK,
     used: false,
     recovering: false
   }));
