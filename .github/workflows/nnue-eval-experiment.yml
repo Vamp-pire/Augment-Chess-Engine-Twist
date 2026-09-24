@@ -1,0 +1,133 @@
+name: Self-play feedback-loop experiment (NNUE-eval vs handcoded)
+
+# One-off experiment, NOT part of the main data pipeline: checks whether
+# letting self-play use the model's own NNUE evaluation instead of the
+# hand-coded one (SELFPLAY_NNUE_EVAL=1, see selfplay-worker-merged.js's
+# comment on self-reinforcement/feedback-loop risk -- this is why that
+# option defaults off and is never silently mixed into selfplay.yml) shows
+# early degeneration symptoms: narrower opening variety, skewed decisive/
+# draw/unfinished mix, vs a handcoded-eval batch played under the same
+# settings. Not a full multi-generation drift test (that needs days across
+# several retrain cycles) -- just a first sanity/diversity check before
+# trusting the mechanism enough to try that.
+#
+# Odd shards play handcoded (baseline), even shards play NNUE-eval with the
+# fullstate-v1 model (2026-09-23 training run), so both conditions run in
+# the same batch under identical wall-clock/hardware conditions.
+#
+# Output goes to experiments/nnue-eval-test/ on the data branch, NOT
+# segments/ -- dataset-build.yml only ever reads segments/, so this can
+# never leak into a real training dataset by accident.
+on:
+  workflow_dispatch:
+    inputs:
+      shards:
+        description: "Total parallel shards (split evenly odd=handcoded/even=nnue-eval)"
+        required: false
+        default: "19"
+      run_minutes:
+        description: "Wall-clock minutes each shard plays for"
+        required: false
+        default: "4"
+      sample_tau:
+        description: "Softmax exploration temperature for the NNUE-eval shards (0 = greedy/off)"
+        required: false
+        default: "0.3"
+
+permissions:
+  contents: write
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      shards: ${{ steps.gen.outputs.shards }}
+    steps:
+      - id: gen
+        run: |
+          N=${{ inputs.shards }}
+          node -e "console.log('shards=' + JSON.stringify(Array.from({length: Number(process.argv[1])}, (_, i) => i + 1)))" "$N" >> "$GITHUB_OUTPUT"
+
+  play:
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.setup.outputs.shards) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run shard
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_MINUTES: ${{ inputs.run_minutes }}
+          SAMPLE_TAU: ${{ inputs.sample_tau }}
+        shell: bash --noprofile --norc -uo pipefail {0}
+        run: |
+          set -e
+          SHARD=${{ matrix.shard }}
+          RUN_ID="nnueexp-$(date -u +%Y%m%dT%H%M%SZ)-${GITHUB_RUN_ID}-s${SHARD}"
+          RUN_MS=$(( RUN_MINUTES * 60 * 1000 ))
+          # Stagger so 19 shards' final checkpoint pushes to the shared data
+          # branch don't all collide at once (same reason selfplay.yml staggers).
+          sleep $(( (SHARD - 1) * 3 ))
+
+          if [ $(( SHARD % 2 )) -eq 0 ]; then
+            COND="nnue-eval"
+            git fetch --depth=1 origin gha-segments-16cards
+            git show origin/gha-segments-16cards:models/fullstate-v1.json > fullstate-v1.json
+            export SELFPLAY_NNUE_EVAL=1
+            export SELFPLAY_NNUE_WEIGHTS="$PWD/fullstate-v1.json"
+            export FULL_PIECE_STATE=1
+            export SELFPLAY_SAMPLE_TAU="$SAMPLE_TAU"
+          else
+            COND="handcoded"
+          fi
+          export SELFPLAY_SEARCH_DEPTH=3
+          export SELFPLAY_SEARCH_MS=80
+
+          echo "shard=$SHARD condition=$COND run_ms=$RUN_MS"
+          SELFPLAY_OUT_FILE="${RUN_ID}.jsonl" node selfplay-run-merged.js "$RUN_MS" | tee "${RUN_ID}.log"
+          echo "positions: $(wc -l < "${RUN_ID}.jsonl" 2>/dev/null || echo 0)"
+
+          mkdir -p "/tmp/expout"
+          cp "${RUN_ID}.jsonl" "/tmp/expout/" 2>/dev/null || true
+          echo "condition=$COND" > "/tmp/expout/${RUN_ID}.meta"
+
+          rm -rf /tmp/expwt
+          git fetch origin gha-segments-16cards 2>/dev/null || true
+          if git show-ref --verify --quiet refs/remotes/origin/gha-segments-16cards; then
+            git worktree add -B gha-segments-16cards /tmp/expwt origin/gha-segments-16cards
+          else
+            git worktree add --orphan -b gha-segments-16cards /tmp/expwt
+          fi
+          mkdir -p "/tmp/expwt/experiments/nnue-eval-test"
+          cp "/tmp/expout/${RUN_ID}.jsonl" "/tmp/expwt/experiments/nnue-eval-test/" 2>/dev/null || true
+          cp "/tmp/expout/${RUN_ID}.meta" "/tmp/expwt/experiments/nnue-eval-test/"
+          cd /tmp/expwt
+          git config user.email "actions@github.com"
+          git config user.name "gha-selfplay-bot"
+          git add experiments/nnue-eval-test/
+          if git diff --cached --quiet; then
+            echo "nothing to commit"
+          else
+            git commit -q -m "nnue-eval experiment shard ${SHARD} (${COND})"
+            # More retries than selfplay.yml's push_checkpoint (3): 19 shards
+            # finishing close together means heavier contention on one branch.
+            for i in 1 2 3 4 5 6 7 8; do
+              git fetch origin gha-segments-16cards -q
+              git rebase origin/gha-segments-16cards -q && break
+              git rebase --abort 2>/dev/null
+              sleep $(( RANDOM % 10 + 3 ))
+            done
+            git push -q "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:gha-segments-16cards
+          fi
