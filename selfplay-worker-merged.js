@@ -46,6 +46,15 @@ if (process.env.SELFPLAY_NNUE_EVAL === "1") {
   console.log("[worker] SELFPLAY_NNUE_EVAL active, weights:", weightsPath);
 }
 
+// Site game-end rules (2026-09-24, opt-in via SELFPLAY_SITE_RULES=1): by
+// default self-play uses a simplified 50-move/3-fold-repetition-draw
+// approximation (see the comment above playOneGame's positionKey below),
+// not the real site rules (3-fold repetition -> star tiebreak, 45-turn
+// deathmatch, star-total comparison -- docs/GAME-END-RULES.md). Kept
+// opt-in so existing data/labels aren't silently mixed with a different
+// termination rule; see tools/site-rules/site-rules.js.
+const siteRules = process.env.SELFPLAY_SITE_RULES === "1" ? require("./tools/site-rules/site-rules.js") : null;
+
 // Movement-only special pieces confirmed (by reading engine.js's actual move
 // functions this session, not guessed) to work standalone without any
 // card/deck/rule state -- no ability actions, no ammo/chain/platform/crown
@@ -635,6 +644,16 @@ function playOneGame({ searchDepth, searchTimeMs, maxPlies, seed, flexibleBudget
   const positionCounts = new Map();
   let pliesSinceProgress = 0;
   let drawReason = null;
+  // Site-rules-only state (see siteRules import above): a "card event"
+  // (site: card gained/box revealed/passive triggered) bumps repetitionSalt
+  // so a position isn't falsely called a repeat of one with different
+  // hidden card state -- approximated here as "any card action played",
+  // since self-play decks are fully drafted at game start (no mid-game
+  // draws/reveals to distinguish from card *use*).
+  let repetitionSalt = 0;
+  let deathmatch = null; // { halfTurnsSinceProgress } once turn 45+ is reached
+  let roundProgress = false; // resets each time White is about to move
+  let siteResult = null; // { winner, reason } once repetition/deathmatch ends the game
 
   function positionKey(board, turn) {
     let key = turn;
@@ -648,6 +667,7 @@ function playOneGame({ searchDepth, searchTimeMs, maxPlies, seed, flexibleBudget
 
   while (state.mode === "play" && plies < maxPlies) {
     const color = state.turn;
+    if (siteRules && color === "white") roundProgress = false; // a "round" = one full white+black turn pair
     advanceSelfPlaySpecialState(state, rng, color);
     const actions = engine.generateActions(state, color);
     if (!actions.length) break;
@@ -772,34 +792,85 @@ function playOneGame({ searchDepth, searchTimeMs, maxPlies, seed, flexibleBudget
     // regardless of how generous the overall ply budget is; maxPlies itself
     // is now just a much higher outer safety net for games that are
     // actually still making progress (see its own comment where it's set).
-    const STALL_PLIES_THRESHOLD = 30;
-    pliesSinceProgress = isProgress ? 0 : pliesSinceProgress + 1;
-    if (pliesSinceProgress >= STALL_PLIES_THRESHOLD) {
-      drawReason = "50-move";
-      break;
-    }
-    // Only check repetition when the turn actually passed (added
-    // 2026-09-11): cards never end the turn (see childDepthAfterAction in
-    // engine.js), so a card-only ply leaves board+turn completely
-    // unchanged. positionKey hashes board+turn with no notion of card/deck
-    // state, so 3 non-board-moving cards played back-to-back by the same
-    // side used to hash to the identical key 3 times and get this falsely
-    // declared a "repetition" draw after just a few plies -- nothing on
-    // the board had actually repeated, the mover just used some cards.
-    // Real position repetition is only meaningful at the point control
-    // passes back and forth anyway, so gating on that is also the more
-    // correct definition, not just a card-specific patch.
-    if (state.turn !== color) {
-      const key = positionKey(state.board, state.turn);
-      const count = (positionCounts.get(key) || 0) + 1;
-      positionCounts.set(key, count);
-      if (count >= 3) {
-        drawReason = "repetition";
+    if (siteRules) {
+      // Site rules (docs/GAME-END-RULES.md): no 50-move draw at all --
+      // instead 3-fold repetition and 45-turn stalemate both resolve via
+      // the star-total tiebreak, never a plain draw-by-rule.
+      const isProgressSite = isProgress
+        || (chosenAction.type === "card" && siteRules.isActiveNonRuleCard(
+          state.deckSlots?.[color]?.find((c) => c && c.id === chosenAction.cardId)?.effect
+        ));
+      roundProgress = roundProgress || isProgressSite;
+
+      if (chosenAction.type === "card") repetitionSalt += 1; // approximated "card event", see the field's own comment above
+
+      const sharedTurnCount = Math.min(Number(state.turnsTaken?.white) || 0, Number(state.turnsTaken?.black) || 0);
+      if (!deathmatch && sharedTurnCount >= siteRules.STAR_WIN_LIMIT) {
+        deathmatch = { halfTurnsSinceProgress: 0 };
+      }
+
+      if (deathmatch && color === "black") {
+        // Ticks only after Black's move (matches the site exactly), i.e.
+        // once per full round -- roundProgress covers both this round's
+        // White and Black plies.
+        if (roundProgress) deathmatch.halfTurnsSinceProgress = 0;
+        else deathmatch.halfTurnsSinceProgress += 2;
+        if (deathmatch.halfTurnsSinceProgress >= siteRules.DEATHMATCH_INTERVAL_HALF_TURNS) {
+          siteResult = siteRules.resolveStarTiebreak(state, "deathmatch");
+          break;
+        }
+      }
+
+      if (state.turn !== color) {
+        const key = siteRules.positionKey(state.board, state.turn, repetitionSalt);
+        const count = (positionCounts.get(key) || 0) + 1;
+        positionCounts.set(key, count);
+        if (count >= 3) {
+          siteResult = siteRules.resolveStarTiebreak(state, "repetition");
+          break;
+        }
+      }
+    } else {
+      // Decoupled from maxPlies (2026-09-07): this used to scale WITH
+      // maxPlies (maxPlies * 0.6), so raising maxPlies to let genuinely still-
+      // fighting games run longer also loosened this stagnation check by the
+      // same amount -- defeating the point. A truly stalled game (no capture/
+      // pawn move for a while) should get cut short at a fixed threshold
+      // regardless of how generous the overall ply budget is; maxPlies itself
+      // is now just a much higher outer safety net for games that are
+      // actually still making progress (see its own comment where it's set).
+      const STALL_PLIES_THRESHOLD = 30;
+      pliesSinceProgress = isProgress ? 0 : pliesSinceProgress + 1;
+      if (pliesSinceProgress >= STALL_PLIES_THRESHOLD) {
+        drawReason = "50-move";
         break;
+      }
+      // Only check repetition when the turn actually passed (added
+      // 2026-09-11): cards never end the turn (see childDepthAfterAction in
+      // engine.js), so a card-only ply leaves board+turn completely
+      // unchanged. positionKey hashes board+turn with no notion of card/deck
+      // state, so 3 non-board-moving cards played back-to-back by the same
+      // side used to hash to the identical key 3 times and get this falsely
+      // declared a "repetition" draw after just a few plies -- nothing on
+      // the board had actually repeated, the mover just used some cards.
+      // Real position repetition is only meaningful at the point control
+      // passes back and forth anyway, so gating on that is also the more
+      // correct definition, not just a card-specific patch.
+      if (state.turn !== color) {
+        const key = positionKey(state.board, state.turn);
+        const count = (positionCounts.get(key) || 0) + 1;
+        positionCounts.set(key, count);
+        if (count >= 3) {
+          drawReason = "repetition";
+          break;
+        }
       }
     }
   }
-  const outcome = drawReason ? "draw" : state.mode === "gameover" ? state.winner || "draw" : "unfinished";
+  const outcome = siteResult ? (siteResult.winner || "draw")
+    : drawReason ? "draw"
+    : state.mode === "gameover" ? state.winner || "draw"
+    : "unfinished";
   // Label each position by the actual game outcome from its mover's
   // perspective (1 = that side went on to win, -1 = lost, 0 = draw/unfinished)
   // -- this is what a value net should learn from, rather than our own
@@ -845,7 +916,8 @@ function playOneGame({ searchDepth, searchTimeMs, maxPlies, seed, flexibleBudget
     plies,
     outcome,
     record,
-    positions: record.length
+    positions: record.length,
+    ...(siteResult ? { siteRuleTermination: siteResult.reason } : {})
   };
 }
 

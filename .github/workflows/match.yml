@@ -64,6 +64,10 @@ on:
         description: "Base search time per move in ms"
         required: false
         default: "300"
+      full_piece_state:
+        description: "1 if either model's weights.json was trained with FULL_PIECE_STATE=1 (15237-dim input, see nnue/encode.js) -- forward.js has no shape check, a mismatch silently produces NaN evals instead of erroring"
+        required: false
+        default: "0"
 
 permissions:
   contents: read
@@ -103,6 +107,7 @@ jobs:
           SEED_OFFSET: ${{ inputs.seed_offset }}
           MATCH_PARAMS_A: ${{ inputs.params_a }}
           MATCH_PARAMS_B: ${{ inputs.params_b }}
+          FULL_PIECE_STATE: ${{ inputs.full_piece_state }}
         run: |
           # A spec is "<weights path | handcoded | data:<path on gha-segments-16cards>>[@<output map>]".
           # data:models/x.json pulls an experiment model from the data branch, so
