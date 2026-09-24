@@ -93,15 +93,40 @@ function searchBlendWeight(entry) {
 // score (exploration plies) get target 0 ("no correction known").
 const RESIDUAL = process.env.RESIDUAL === "1";
 const RESID_SCALE = Number(process.env.RESID_SCALE || 300);
+
+// TD_BOOTSTRAP_WEIGHTS=<path> (2026-09-24, opt-in): blend in a PRIOR
+// model's own value estimate of the position right after this one's move
+// (classic TD(0) bootstrapping) -- needs an existing trained model to
+// point at, so this only makes sense from a 2nd+ retrain generation
+// onward, never the first. Kept as a small blend weight (default 0.15,
+// matching SEARCH_SCORE_BLEND_WEIGHT's own default) rather than replacing
+// the outcome/search-score label outright, same reasoning as that one:
+// don't let one noisy-ish signal dominate. Encoded with THIS run's own
+// encode.js flags (FULL_PIECE_STATE/STAR_TOTAL_FEATURES/etc) -- the prior
+// model's weights.json must match that same input shape, or forward.js
+// (no shape check) silently returns garbage instead of erroring.
+const TD_BOOTSTRAP_WEIGHTS_PATH = process.env.TD_BOOTSTRAP_WEIGHTS || null;
+const TD_BOOTSTRAP_BLEND = Number(process.env.TD_BOOTSTRAP_BLEND || 0.15);
+let tdForward = null, tdWeights = null;
+if (TD_BOOTSTRAP_WEIGHTS_PATH) {
+  const { loadWeights, forward } = require("./forward.js");
+  tdWeights = loadWeights(TD_BOOTSTRAP_WEIGHTS_PATH);
+  tdForward = forward;
+}
+function applyTdBootstrap(entry, label) {
+  if (!tdForward || entry.tdValue == null) return label;
+  return (1 - TD_BOOTSTRAP_BLEND) * label + TD_BOOTSTRAP_BLEND * entry.tdValue;
+}
+
 function blendedLabel(entry) {
   if (RESIDUAL) {
     if (entry.searchScore == null || entry.evalBefore == null) return 0;
     return Math.tanh((entry.searchScore - entry.evalBefore) / RESID_SCALE);
   }
-  if (entry.searchScore == null) return entry.outcome;
+  if (entry.searchScore == null) return applyTdBootstrap(entry, entry.outcome);
   const searchSignal = Math.tanh(entry.searchScore / SEARCH_SCORE_SCALE);
   const w = searchBlendWeight(entry);
-  return (1 - w) * entry.outcome + w * searchSignal;
+  return applyTdBootstrap(entry, (1 - w) * entry.outcome + w * searchSignal);
 }
 
 // Geometric decay applied to a position's sample weight based on how many
@@ -320,6 +345,28 @@ async function loadData(dataFile = DATA_FILE) {
   const allEntries = lines.map((line) => JSON.parse(line));
   const allPieceCounts = allEntries.map((entry) => countPieces(entry.board));
   const allGameIds = assignGameIds(allPieceCounts);
+
+  // TD_BOOTSTRAP (2026-09-24): tdValue(entry i) = the bootstrap model's own
+  // evaluation of entry (i+1)'s board -- the position AFTER this one's move
+  // -- encoded from entry i's mover's perspective, not entry (i+1)'s own
+  // recorded turn. Only needs entry (i+1) to exist and be in the same game
+  // (allGameIds, computed over the UNFILTERED sequence per the comment
+  // above); it doesn't matter whether (i+1) itself survived the
+  // tainted/unfinished/siteRuleTiebreak filters below, since only its raw
+  // board/deckSlots are read here, not its label.
+  if (tdForward) {
+    let tdComputed = 0;
+    for (let i = 0; i < allEntries.length - 1; i += 1) {
+      if (allGameIds[i + 1] !== allGameIds[i]) continue;
+      const next = allEntries[i + 1];
+      const input = encodeBoard(next.board, allEntries[i].turn, next.deckSlots);
+      if (input === null) continue; // terminal position, no meaningful next-state value
+      allEntries[i].tdValue = tdForward(tdWeights, input);
+      tdComputed += 1;
+    }
+    console.log("TD bootstrap values computed for", tdComputed, "of", allEntries.length, "positions (blend weight", TD_BOOTSTRAP_BLEND + ")");
+  }
+
   const kept = [];
   let skippedTainted = 0;
   let skippedUnfinished = 0;

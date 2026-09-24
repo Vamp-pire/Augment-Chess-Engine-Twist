@@ -100,6 +100,7 @@ jobs:
             const envNames = {
               nnueVariant: 'NNUE_VARIANT', ablatePlyFeature: 'ABLATE_PLY_FEATURE',
               fullPieceState: 'FULL_PIECE_STATE', starTotalFeatures: 'STAR_TOTAL_FEATURES',
+              tdBootstrapWeights: 'TD_BOOTSTRAP_WEIGHTS', tdBootstrapBlend: 'TD_BOOTSTRAP_BLEND',
               ablateDeepUnits: 'ABLATE_DEEP_UNITS', ablateWarmStart: 'ABLATE_WARM_START',
               ablateOversample: 'ABLATE_OVERSAMPLE', ablateBlend: 'ABLATE_BLEND',
               ablateBlunder: 'ABLATE_BLUNDER',
@@ -183,6 +184,16 @@ jobs:
         run: |
           source train-env.sh
           if [ -f "$GITHUB_WORKSPACE/selfplay-val.jsonl" ]; then export VAL_DATA_FILE="$GITHUB_WORKSPACE/selfplay-val.jsonl"; fi
+          # TD_BOOTSTRAP_WEIGHTS accepts "data:<path on gha-segments-16cards>"
+          # (same convention as match.yml's model specs) so a prior
+          # generation's model can be referenced without committing it to
+          # master -- resolve it to a local file before train.js reads it.
+          if [[ "${TD_BOOTSTRAP_WEIGHTS:-}" == data:* ]]; then
+            p="${TD_BOOTSTRAP_WEIGHTS#data:}"
+            git fetch --depth=1 -q origin gha-segments-16cards
+            git show "origin/gha-segments-16cards:${p}" > "td-bootstrap-weights.json"
+            export TD_BOOTSTRAP_WEIGHTS="$GITHUB_WORKSPACE/td-bootstrap-weights.json"
+          fi
           cd nnue
           node train.js 2>&1 | tee ../train.log
 

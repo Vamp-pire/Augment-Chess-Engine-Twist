@@ -5,6 +5,8 @@
   "nnueVariant": "new",
   "fullPieceState": "",
   "starTotalFeatures": "",
+  "tdBootstrapWeights": "",
+  "tdBootstrapBlend": "",
   "ablatePlyFeature": "",
   "ablateDeepUnits": "",
   "ablateWarmStart": "",
