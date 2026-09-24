@@ -357,9 +357,13 @@ const SELFPLAY_CARD_POOL = [
 // Real per-card star cost (2026-09-24), reverse-engineered from the live
 // site bundle -- see tools/site-rules/site-rules.js's own header comment
 // for the extraction method (181/184 confirmed, 3 unverified with a
-// fallback of 3, flagged in the JSON itself). Used below instead of the
-// SITE_CARD_STARS_FALLBACK random placeholder this replaced.
-const SITE_CARD_STARS = require("./tools/site-rules/card-catalog.json");
+// fallback of 3, flagged in the JSON itself).
+// Opt-in via SELFPLAY_REAL_CARD_STARS=1 (default stays the original random
+// 1-5 draw): the random value may have been acting as an unintentional but
+// real diversity source for card-move scoring (owner's call, 2026-09-24) --
+// not clearly a bug to just replace outright, so both are kept as a toggle
+// rather than swapping the default.
+const SITE_CARD_STARS = process.env.SELFPLAY_REAL_CARD_STARS === "1" ? require("./tools/site-rules/card-catalog.json") : null;
 const SITE_CARD_STARS_FALLBACK = 3; // catalog median; only hit if a pool effect is somehow missing from the catalog
 
 // Real games apparently deal a fixed hand size that depends on game mode
@@ -389,7 +393,7 @@ function makeSelfPlayDeck(color, rng, handSize) {
     id: effect,
     instanceId: `${color}-${effect}-${i}`,
     effect,
-    stars: SITE_CARD_STARS[effect]?.stars ?? SITE_CARD_STARS_FALLBACK,
+    stars: SITE_CARD_STARS ? (SITE_CARD_STARS[effect]?.stars ?? SITE_CARD_STARS_FALLBACK) : 1 + Math.floor(rng() * 5),
     used: false,
     recovering: false
   }));
