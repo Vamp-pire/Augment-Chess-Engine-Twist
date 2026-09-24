@@ -4,6 +4,7 @@
   "encodeWorkerCount": "2",
   "nnueVariant": "new",
   "fullPieceState": "",
+  "starTotalFeatures": "",
   "ablatePlyFeature": "",
   "ablateDeepUnits": "",
   "ablateWarmStart": "",

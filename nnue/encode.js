@@ -261,11 +261,33 @@ const CARD_ONEHOT_COUNT = CARD_POOL_TYPES.length * 2; // own + enemy
 // weights file's shape -- is unaffected unless explicitly requested.
 const PLY_FEATURE_ENABLED = process.env.ABLATE_PLY_FEATURE === "1";
 const PLY_FEATURE_COUNT = PLY_FEATURE_ENABLED ? 1 : 0;
+
+// STAR_FEATURE (2026-09-24, STAR_TOTAL_FEATURES=1 opt-in): deck star-cost
+// total (mover / enemy), the same quantity the site's star-tiebreak rule
+// compares (tools/site-rules/site-rules.js's deckStarTotal). The 184-slot
+// card one-hot block already says WHICH cards are in hand but not how much
+// they're worth -- this gives the network that scalar directly instead of
+// making it infer relative deck strength from 368 presence bits. Opt-in
+// like PLY_FEATURE_ENABLED above, same reason (INPUT_SIZE/shape safety).
+const STAR_FEATURE_ENABLED = process.env.STAR_TOTAL_FEATURES === "1";
+const STAR_FEATURE_COUNT = STAR_FEATURE_ENABLED ? 2 : 0;
+const STAR_NORMALIZER = 20; // generous ceiling for a 3-6 card hand at ~5 stars each
+// Real per-card star costs (tools/site-rules/card-catalog.json, see that
+// file's own header for provenance) -- NOT deckSlots entries' own `.stars`
+// field, which is a random 1-5 placeholder by default (see
+// selfplay-worker-merged.js's SELFPLAY_REAL_CARD_STARS toggle) and would
+// make this feature partly noise on any data recorded with that flag off.
+const SITE_CARD_STARS = STAR_FEATURE_ENABLED ? require("../tools/site-rules/card-catalog.json") : null;
+function deckStarTotal(deckSlots, color) {
+  const deck = deckSlots?.[color] || [];
+  return deck.reduce((sum, card) => sum + (card ? (SITE_CARD_STARS[card.effect]?.stars ?? 3) : 0), 0);
+}
+
 const BOARD_SIZE = PLANE_COUNT * 2 * 64;
 // Per-piece state attribute planes (added 2026-09-23), placed right after
 // the type/color board planes and before the card one-hot -- anywhere
 // before the final-21 block is fine per the layout note above.
-const INPUT_SIZE = BOARD_SIZE + ATTR_BOARD_SIZE + CARD_ONEHOT_COUNT + PLY_FEATURE_COUNT + EXTRA_FEATURE_COUNT;
+const INPUT_SIZE = BOARD_SIZE + ATTR_BOARD_SIZE + CARD_ONEHOT_COUNT + PLY_FEATURE_COUNT + STAR_FEATURE_COUNT + EXTRA_FEATURE_COUNT;
 
 // A card counts as "present" if it's a live, usable instance (not already
 // used/recovering) of a pool effect -- matches how the engine's own
@@ -368,6 +390,12 @@ function encodeBoard(board, mover, deckSlots) {
     for (const row of board) for (const p of row) if (p) pieceCount += 1;
     // Normalized to [0,1], 32 pieces (game start) -> 1.0, fewer -> lower.
     input[attrEnd + CARD_ONEHOT_COUNT] = pieceCount / 32;
+  }
+
+  if (STAR_FEATURE_ENABLED) {
+    const starBase = attrEnd + CARD_ONEHOT_COUNT + PLY_FEATURE_COUNT;
+    input[starBase] = deckStarTotal(deckSlots, mover) / STAR_NORMALIZER;
+    input[starBase + 1] = deckStarTotal(deckSlots, enemy) / STAR_NORMALIZER;
   }
 
   const base = INPUT_SIZE - EXTRA_FEATURE_COUNT;
