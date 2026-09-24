@@ -1,0 +1,100 @@
+name: Self-play site-rules trial (real search settings)
+
+# One-off check: does SELFPLAY_SITE_RULES=1 (docs/GAME-END-RULES.md's real
+# 3-fold-repetition/45-turn-deathmatch/star-tiebreak rules, see
+# tools/site-rules/) still show the "draws collapse to ~0%" pattern seen in
+# the earlier quick depth3/80ms trial once real production search settings
+# (depth 6, 1500ms/move) are used instead? Separate from the main
+# self-play pipeline: writes to experiments/site-rules-test/ on the data
+# branch, NOT segments/, so dataset-build.yml (segments/ only) can never
+# pick this up by accident.
+on:
+  workflow_dispatch:
+    inputs:
+      shards:
+        description: "Parallel shards"
+        required: false
+        default: "8"
+      run_minutes:
+        description: "Wall-clock minutes each shard plays for"
+        required: false
+        default: "20"
+
+permissions:
+  contents: write
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      shards: ${{ steps.gen.outputs.shards }}
+    steps:
+      - id: gen
+        run: |
+          N=${{ inputs.shards }}
+          node -e "console.log('shards=' + JSON.stringify(Array.from({length: Number(process.argv[1])}, (_, i) => i + 1)))" "$N" >> "$GITHUB_OUTPUT"
+
+  play:
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.setup.outputs.shards) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run shard
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_MINUTES: ${{ inputs.run_minutes }}
+        shell: bash --noprofile --norc -uo pipefail {0}
+        run: |
+          set -e
+          SHARD=${{ matrix.shard }}
+          RUN_ID="siterules-$(date -u +%Y%m%dT%H%M%SZ)-${GITHUB_RUN_ID}-s${SHARD}"
+          RUN_MS=$(( RUN_MINUTES * 60 * 1000 ))
+          sleep $(( (SHARD - 1) * 5 ))
+
+          export SELFPLAY_SITE_RULES=1
+          export SELFPLAY_SEARCH_DEPTH=6
+          export SELFPLAY_SEARCH_MS=1500
+
+          echo "shard=$SHARD run_ms=$RUN_MS site_rules=1"
+          SELFPLAY_OUT_FILE="${RUN_ID}.jsonl" node selfplay-run-merged.js "$RUN_MS" | tee "${RUN_ID}.log"
+          echo "positions: $(wc -l < "${RUN_ID}.jsonl" 2>/dev/null || echo 0)"
+
+          mkdir -p "/tmp/expout"
+          cp "${RUN_ID}.jsonl" "/tmp/expout/" 2>/dev/null || true
+
+          rm -rf /tmp/expwt
+          git fetch origin gha-segments-16cards 2>/dev/null || true
+          if git show-ref --verify --quiet refs/remotes/origin/gha-segments-16cards; then
+            git worktree add -B gha-segments-16cards /tmp/expwt origin/gha-segments-16cards
+          else
+            git worktree add --orphan -b gha-segments-16cards /tmp/expwt
+          fi
+          mkdir -p "/tmp/expwt/experiments/site-rules-test"
+          cp "/tmp/expout/${RUN_ID}.jsonl" "/tmp/expwt/experiments/site-rules-test/" 2>/dev/null || true
+          cd /tmp/expwt
+          git config user.email "actions@github.com"
+          git config user.name "gha-selfplay-bot"
+          git add experiments/site-rules-test/
+          if git diff --cached --quiet; then
+            echo "nothing to commit"
+          else
+            git commit -q -m "site-rules trial shard ${SHARD}"
+            for i in 1 2 3 4 5 6 7 8; do
+              git fetch origin gha-segments-16cards -q
+              git rebase origin/gha-segments-16cards -q && break
+              git rebase --abort 2>/dev/null
+              sleep $(( RANDOM % 10 + 3 ))
+            done
+            git push -q "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:gha-segments-16cards
+          fi
