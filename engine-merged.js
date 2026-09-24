@@ -72,6 +72,19 @@
   function usesSeptember18Balance(state) {
     return state?.september18Balance !== false;
   }
+  // 2026-09-24 site patch (September 22 rules): scarecrow now places an
+  // actual (reserved, uncapturable-the-normal-way) piece on the captured
+  // square immediately, instead of leaving it empty until the 3-own-turn
+  // countdown resolves. Hash-gated on the real site (catalogHash ===
+  // PRE_SEPTEMBER22_BALANCE_HASH keeps the old behavior); ground-truth
+  // default ported here (hash absent -> enabled), same convention as
+  // usesSeptember18Balance above. Found via site-watch.yml's parity re-check
+  // on 2026-09-24 (9/150 scarecrow apply mismatches, 3/15 playout games
+  // diverging) -- this state's board was missing the reserved scarecrow
+  // piece the real site keeps.
+  function usesScarecrowPieceReservation(state) {
+    return state?.scarecrowPieceReservation !== false;
+  }
   function usesParrotBasicMovement(state) {
     return state?.parrotBasicMovement !== false;
   }
@@ -5547,7 +5560,7 @@
     if (boardState.zugzwang?.[piece.color] && isWorkerZugzwangTargetKing(boardState, piece)) {
       moves = moves.filter(isWorkerZugzwangKingMove);
     }
-    moves = moves.filter((move) => !crossesReservedScarecrow({ row, col }, move, [...boardState.pendingScarecrows || [], ...usesSeptember18Balance(boardState) ? piecesMatching(boardState, (p) => p.type === "scarecrow").map(({ row: row2, col: col2 }) => ({ row: row2, col: col2, solid: true })) : []]));
+    moves = moves.filter((move) => !crossesReservedScarecrow({ row, col }, move, [...boardState.pendingScarecrows || [], ...usesSeptember18Balance(boardState) ? piecesMatching(boardState, (p) => p.type === "scarecrow" && !p.scarecrowReserved).map(({ row: row2, col: col2 }) => ({ row: row2, col: col2, solid: true })) : []]));
     moves = moves.filter((move) => !workerMoveLandingCellsForQuantum(move).some((cell) => isWorkerPortalMovementReservedSquare(boardState, cell.row, cell.col) || isWorkerPendingSpawnReservedSquare(boardState, cell.row, cell.col)));
     moves = moves.filter((move) => thiefMoveAllowed(piece, move, boardState, { row, col }));
     moves = moves.filter((move) => threeMoveAllowed(boardState.board, piece, row, col, move, { allSquaresRadiance: usesSeptember18Balance(boardState), enemyOnlyRadiance: usesEnemyOnlyRadiance(boardState), movementType: pieceHasAbility(piece, "parrot") ? boardState.parrotMovement?.[piece.color]?.type : pieceAbilityType(piece) }));
@@ -5563,7 +5576,7 @@
     if (!piece?.color || piece.type === "log") return false;
     return workerMoveCaptureCells(move).some(({ row, col }) => {
       const target = get(boardState, row, col);
-      return target?.type === "scarecrow" && target.color !== piece.color && canWorkerCaptureTarget(piece.color, target, piece, boardState, {
+      return target?.type === "scarecrow" && !target.scarecrowReserved && target.color !== piece.color && canWorkerCaptureTarget(piece.color, target, piece, boardState, {
         allowBasicTrainingCapture: Boolean(move?.basicTrainingCapture)
       });
     });
@@ -13992,6 +14005,13 @@
       const decisive = isWorkerDecisiveCaptureTarget(boardState, target);
       clearPieceCells(boardState, target);
       recordWorkerCapturedPieces(boardState, opponent(color), [target]);
+      if (usesScarecrowPieceReservation(boardState)) {
+        const reserved = workerCreatePiece(color, "scarecrow", boardState, action.target.row, action.target.col);
+        reserved.moved = true;
+        reserved.scarecrowReserved = true;
+        set(boardState, action.target.row, action.target.col, reserved);
+        Object.assign(boardState.pendingScarecrows.at(-1), { pieceId: reserved.id, reserved: false });
+      }
       if (decisive) {
         boardState.mode = "gameover";
         boardState.winner = opponent(color);
