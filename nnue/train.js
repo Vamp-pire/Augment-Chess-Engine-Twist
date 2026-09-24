@@ -323,6 +323,7 @@ async function loadData(dataFile = DATA_FILE) {
   const kept = [];
   let skippedTainted = 0;
   let skippedUnfinished = 0;
+  let skippedSiteRuleTiebreak = 0;
   allEntries.forEach((entry, i) => {
     // Skip positions whose outcome label is unreliable because a random
     // exploration move happened somewhere between this position and the
@@ -343,10 +344,22 @@ async function loadData(dataFile = DATA_FILE) {
       skippedUnfinished += 1;
       return;
     }
+    // Skip positions from SELFPLAY_SITE_RULES games that ended via a
+    // star-total tiebreak (3-fold repetition or 45-turn deathmatch
+    // stalemate) instead of real play -- see selfplay-worker-merged.js's
+    // own comment on this field. The winner/loser label there reflects
+    // deck star-cost luck, not position quality: worse than "unfinished"'s
+    // neutral 0 (a confidently WRONG decisive label, not just a missing
+    // one), so this drops it the same way rather than trusting it.
+    if (entry.siteRuleTiebreak) {
+      skippedSiteRuleTiebreak += 1;
+      return;
+    }
     kept.push({ entry, sourceGameId: allGameIds[i], pieceCount: allPieceCounts[i] });
   });
   if (skippedTainted) console.log("skipped exploration-tainted positions:", skippedTainted);
   if (skippedUnfinished) console.log("skipped unfinished-game positions:", skippedUnfinished);
+  if (skippedSiteRuleTiebreak) console.log("skipped site-rule-tiebreak positions:", skippedSiteRuleTiebreak);
 
   // Blunder-game down-weighting -- DISABLED BY DEFAULT (2026-09-10) after
   // three failed calibration attempts in one session, each catching the

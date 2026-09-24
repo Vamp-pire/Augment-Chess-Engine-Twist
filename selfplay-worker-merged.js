@@ -899,6 +899,14 @@ function playOneGame({ searchDepth, searchTimeMs, maxPlies, seed, flexibleBudget
   record.forEach((entry, i) => {
     entry.outcome = outcome === "draw" || outcome === "unfinished" ? 0 : outcome === entry.turn ? 1 : -1;
     entry.unfinished = outcome === "unfinished";
+    // Site-rules-only (siteResult set, see SELFPLAY_SITE_RULES above): the
+    // game was resolved by a star-total tiebreak (3-fold repetition or
+    // 45-turn deathmatch stalemate), not by actual play -- the winner/loser
+    // label reflects deck star-cost luck, not position quality. Confidently
+    // WRONG as a value-net label (worse than "unfinished"'s neutral 0),
+    // so flag it the same way for train.js to drop/down-weight instead of
+    // trusting it like a real decisive result.
+    if (siteResult) entry.siteRuleTiebreak = true;
     // How many plies happened AFTER this position before the game actually
     // ended (0 = this was the last recorded position). Not every surviving
     // (untainted, finished) position is equally trustworthy -- one right
