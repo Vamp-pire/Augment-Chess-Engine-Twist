@@ -6,7 +6,13 @@ node parity-actions.js  [engine|-] [N=400] [seed=12345]          # generateActio
 node parity-apply.js    [engine|-] [N=300] [seed=777]            # same random action applied in both, resulting state compared
 node parity-playout.js  [engine|-] [GAMES=30] [seed=4242] [PLIES=40]   # multi-ply playouts, stops at first divergence per game
 node check-site-update.js [--save]           # CHANGED/UNCHANGED vs last-seen.json (bundle name + worker SHA-256); exit 0, or 2 on network error
+node make-fast-worker.js [--skip=a,b|--only=a,b]   # .cache/real-worker.js + anchored perf patches -> .cache/real-worker-fast.js (fails if an anchor isn't matched exactly once)
+node diff-fast-worker.js [GAMES=300] [seed=1] [PLIES=120]   # fast vs original worker: byte-identical actions/states/results required (want: TOTAL divergences=0)
 ```
+
+`real-worker-fast.js` is the site's own rules code with behaviour-preserving speedups (~3.7x plies/s on random playouts), for use as
+a self-play rules layer. After every `fetch-real-worker.js --force`, rebuild it and re-run `diff-fast-worker.js`; if a patch anchor no
+longer matches, re-anchor it only after re-checking that the reasoning in its comment still holds for the new site code.
 
 `engine` defaults to `../../engine-merged.js` (`-` = default). Actions are matched between engines by normalized content
 (random ids stripped), never by list index. Run `fetch-real-worker.js --force` first whenever `check-site-update.js` says CHANGED.
