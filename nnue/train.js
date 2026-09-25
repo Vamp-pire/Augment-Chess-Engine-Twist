@@ -395,7 +395,16 @@ async function getEncodedInputs(dataFile, kept) {
 }
 
 async function loadData(dataFile = DATA_FILE) {
-  const lines = fs.readFileSync(dataFile, "utf8").split("\n").filter(Boolean);
+  // Read as a Buffer and cut lines by byte offset: a single utf8 string over
+  // ~512MB throws ERR_STRING_TOO_LONG (1.28M-position datasets are ~2GB).
+  const raw = fs.readFileSync(dataFile);
+  const lines = [];
+  for (let start = 0; start < raw.length;) {
+    let end = raw.indexOf(10, start);
+    if (end < 0) end = raw.length;
+    if (end > start) lines.push(raw.toString("utf8", start, end));
+    start = end + 1;
+  }
   // Captured here instead of re-reading the file later (see the sanity
   // check below) -- a concurrent self-play run (or, once, an accidental
   // manual delete of the snapshot) can make that file gone by the time

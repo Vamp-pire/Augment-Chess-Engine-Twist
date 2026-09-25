@@ -196,7 +196,7 @@ jobs:
             export TD_BOOTSTRAP_WEIGHTS="$GITHUB_WORKSPACE/td-bootstrap-weights.json"
           fi
           cd nnue
-          node train.js 2>&1 | tee ../train.log
+          node --max-old-space-size=12288 train.js 2>&1 | tee ../train.log
 
       - name: Run summary
         if: ${{ always() }}
