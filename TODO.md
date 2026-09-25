@@ -1,7 +1,7 @@
 # TODO
 
 역할: 남은 일과 사용자 몫만 적는 문서입니다. 계획과 기준은 `PLAN.md`, 실험 결과와 발견은 `ExperimentNote.md`, 프로젝트 지도는 `PROJECT.md`입니다.
-마지막 갱신: 2026-09-24.
+마지막 갱신: 2026-09-25.
 
 - [x] WASM PoC (2026-09-22): `positionalScore` 축소판을 AssemblyScript로 포팅해 벤치마크 — 결과 애매(0.94x~1.43x, 오차범위 안), 압도적 이득 없음. 상세는 `docs/WASM-POC-RESULT.md`.
 - [x] Texel tuning 도구 (2026-09-22): `tools/tune/texel-tune.js` — `evaluateState`의 8개 손튜닝 계수(material 1.35, *Enemy 0.88/0.72/0.65/0.82/0.82/0.92/0.9)를 자가대국 결과로 재적합. 스트리밍 로딩(RAM 안전), sigmoid(score/K)+MSE, Adam + 기본값으로의 L2 정규화(노이즈로 인한 발산 방지 위해 추가). `selfplay-data.merged-engine-local-depth3.jsonl`(6474국면)로 로컬 검증: MSE 0.1358→0.1106(18.6%↓), 승부 국면 부호 일치율 66.3%→68.0%. 엔진 파일은 건드리지 않음 — `tools/tune/tuned-eval.js`가 `evaluateStateComponents`로 재계산해 `options.evalFn`에 꽂는 방식. 결과는 `tools/tune/weights.json`.
@@ -9,13 +9,32 @@
 - [x] B soft label 재시도(2026-09-22, 클라우드): top1 19.0%/MRR 0.357 -- 원래 one-hot 모델(top1 19.9%/MRR 0.364)과 사실상 동일하거나 살짝 낮음. 개선 없음, unproven.
 - [x] NNUE 인코딩에 기물 상태 필드 전부 추가(2026-09-23): `selfplay-worker-merged.js`의 `compactBoard()`가 지금까지 `{t, c}`만 남기고 hp/shielded/frozen 등 나머지 상태를 전부 버리고 있던 걸 발견 -- 불리언 41개 + 숫자 23개 + 2값 enum 6개(monoShade/timePhase/windmillMode/spyOwner/poisonStunColor/hiddenFrom, one-hot 12비트)를 보존/인코딩하도록 수정. `tricksterMoveType`은 가능한 값이 ~40개로 너무 많아 one-hot 대신 "설정됐는가" 불리언 1개로 타협(문서화 끝). `INPUT_SIZE` 4281(구) -> 15237(신, ALL_TYPES 40종 + CARD_POOL 184종 반영). 기존 학습된 가중치 파일은 이 변경 후 전부 재학습 필요. 로컬 2워커/25초 자가대국 148국면으로 검증: 새 필드가 실제 기록되고(frozen/frozenByCard/capturesMade 등 확인) `encode.js`가 크래시 없이 15237차원 벡터 생성 확인. 과거 기록된 자가대국 데이터는 이미 `{t,c}`로 손실되어 복구 불가(신경 안 씀, 이번 수정은 앞으로의 데이터부터 적용). 자가대국 재실행은 이번 작업 범위 밖 -- 별도 진행 예정.
 
-## 지금 진행 중 (2026-09-24)
+## 지금 진행 중 (2026-09-25) — 다음 세션은 여기부터
 
-- [ ] `fullstate-v1`(15237차원, 정확도 78.5%) 실전 대전 검증: `match.yml`로 handcoded/tuned와 붙여보기 전엔 master 승격 안 함. 상세는 `ExperimentNote.md` 7번.
-- [ ] NNUE-eval 자가대국 피드백 루프 위험 재확인: 1차 소규모 테스트(19샤드, 4분씩)에서 무승부율 40.8%→52.7% 상승(주의 신호, 결정적 증거는 아님). 표본 확대 + 다세대 드리프트 확인 없이는 메인 파이프라인에 절대 안 섞음. 상세는 `ExperimentNote.md` 8번.
-- [ ] 확장(`extension/nnue.js`) 15237차원 포팅 — fullstate-v1이 실전 검증 통과해야 착수 가치 있음, 지금은 보류.
-- [ ] 사이트 규칙 반영 자가대국(45수/데스매치/별 합계) — 정확한 트리거/동점 처리 스펙 확인 전엔 구현 보류.
-- [x] Accelerate 팀 저장소: Dependabot(PR #11), cpp 스케치 CI 컴파일체크(PR #12), 위 둘 통합(PR #13), main→develop 백머지(PR #9), engine.cpp 검토 기반 이슈 #10 파일링. GitHub Pages/브랜치보호/Copilot 리뷰는 admin 권한 필요해서 막힘(구독좋아요에게 요청 필요).
+**세션 규칙(사용자 지시)**: 승격(promote)은 매번 먼저 묻기 / 감시·반복 확인 없이 필요할 때 한 번만 확인 / 시각은 KST로만 말하기 / 단계마다 결과를 빠짐없이 정확히, 하지만 쉬운 말로 보고 / 자가대국 스케줄(`selfplay.yml`)은 2026-09-25에 수동 비활성화됨(다시 켤지는 사용자에게 묻기, `gh workflow enable selfplay.yml`).
+
+**대기 중이던 것(이 문서 갱신 시점)**
+- [ ] v3-all 대전 결과 확인: 대 핸드코딩 run 36105118496, 대 v2 run 36105123190 (각 200판). 결과는 `ExperimentNote.md` 9번에 기록.
+- [ ] real-worker 최적화(서브에이전트): `tools/site-parity/make-fast-worker.js`(앵커 패치 방식, 원본 미수정)와 `diff-fast-worker.js`. 속도 배수와 원본 대조 차이 0건 여부 확인 필요.
+- [ ] 측정 체계(서브에이전트): `tools/league/`(stats, league, run-ladder), `match.yml` 요약에 점수/Elo/SPRT 추가와 `match-result` 아티팩트, `PLAN.md`에 승격 규칙.
+
+**계획(사용자 승인, 2026-09-25)**
+1. 사다리 실행(핸드코딩 깊이 2~5 + v1, v2, v3-all, 20샤드, 핸디캡 사용) 후 리그 Elo 산출.
+2. v3-all 분기: 확실히 낫다면 승격 여부를 먼저 묻고, 에폭 15~20으로 재학습(희소 저장)과 v3 선생 TD 부트스트랩 검토. 낫다는 증거가 없으면 데이터를 더 늘리기 전에 "정답 점수의 질이 한계인가"를 깊은 탐색 라벨 재학습으로 검증.
+3. 최적화 분기: 약 2배 이상 빠르고 원본과 차이 0건이면 자동화(사이트 갱신 확인 -> 원본 받기 -> 패치 -> 동일성 대조 -> 자가대국이 사이트 규칙 사용, 실패 시 원본으로 후퇴 + 알림)를 만들고 취소됐던 사이트 규칙 자가대국 시험(run 35977727355)을 재실행. 아니면 오라클 교체는 접고 동일성 검사만 유지.
+(4단계 정리 작업은 사용자가 뺌.)
+
+**상태 요약**
+- v1 대 핸드코딩 56.8%(96판), v2는 v1/핸드코딩 대비 낫다는 증거 없음(모두 unproven). 자세한 수치는 `ExperimentNote.md` 7, 9번.
+- 15237차원 학습은 이제 `SPARSE_INPUT=1`로 128만 포지션까지 가능(메모리 문제 해소). 다만 5시간 제한 안에서 에폭 상한이 필요.
+- 대전 도구: `match.yml`에 `shards`(1~20) 입력 있음. Discord `!ai` 감시 방법은 사용자 메모리 `reference_discord_watch.md` 참조(사용자가 요청할 때만 켬).
+
+**계속 유효한 항목**
+- [ ] `fullstate-v1`/v2/v3 실전 검증 통과 전에는 master 승격 안 함, 확장(`extension/nnue.js`) 15237차원 포팅도 보류.
+- [ ] NNUE-eval 자가대국 피드백 루프 위험: 무승부율 40.8%→52.7%(4배 표본에서도 재현). 확인 없이는 메인 파이프라인에 안 섞음. `ExperimentNote.md` 8번.
+- [ ] 사이트 규칙 반영 자가대국(45수/데스매치/별 합계): 트리거/동점 처리 스펙 확인 전엔 구현 보류.
+- [x] Accelerate 팀 저장소: PR #7~#9, #13~#15 머지(#11, #12는 닫힘). GitHub Pages/브랜치보호/머지된 브랜치 자동삭제/Copilot 리뷰는 admin 권한이 필요해서 구독좋아요에게 요청해야 함. Accelerate는 아직 Phase 0만 완료(구현 코드 없음), encoding 위치(O-001)는 미결정.
+
 
 ## 사라진 이전 인수인계 블록 (2026-09-23) 정리 메모
 
