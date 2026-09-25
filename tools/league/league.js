@@ -166,7 +166,7 @@ if (require.main === module) {
   const hc = get("handicap", "0");
   const { used, skipped } = loadResults(dir, { handicap: hc === "any" ? "any" : Number(hc) });
   const agg = aggregate(used);
-  if (!agg.length) { console.error("no usable match-result files in " + dir + " (skipped " + skipped.length + ")"); process.exit(1); }
+  if (!agg.length) { console.error("no usable match-result files in " + dir + " (skipped " + skipped.length + "; a participant against itself and handicap runs do not count)"); process.exit(1); }
   const names = [...new Set(agg.flatMap((m) => [m.a, m.b]))];
   let anchor = get("anchor", "handcoded/d3");
   if (!names.includes(anchor)) {

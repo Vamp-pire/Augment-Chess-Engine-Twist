@@ -76,7 +76,7 @@ function summarize(input, opts) {
   else { m = momentsFromWDL(input.w || 0, input.d || 0, input.l || 0); unit = "games"; }
   const variance = Math.max(m.variance, 0.0625 / Math.max(1, m.n));
   const se = m.n ? Math.sqrt(variance / m.n) : 0.5;
-  const lo = m.mean - Z95 * se, hi = m.mean + Z95 * se;
+  const lo = Math.max(0, m.mean - Z95 * se), hi = Math.min(1, m.mean + Z95 * se); // score CI clipped to [0, 1]; an Elo bound of +-Infinity (null in JSON) = unbounded
   const los = m.n ? normalCdf((m.mean - 0.5) / se) : 0.5;
   const elo = eloFromScore(m.mean);
   return {
