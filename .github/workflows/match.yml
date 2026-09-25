@@ -161,6 +161,11 @@ jobs:
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout (tools/league only)
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: tools/league
+
       - name: Download shard logs
         uses: actions/download-artifact@v8
         with:
@@ -211,9 +216,38 @@ jobs:
             console.log(lines.join('\n'));
           "
 
+      # Score-based statistics over colour-swapped pairs (draws count as half a point,
+      # variance over pairs, not games); the result JSON feeds tools/league/league.js.
+      - name: Score / Elo / LOS / SPRT
+        continue-on-error: true
+        env:
+          MODEL_A: ${{ inputs.model_a }}
+          MODEL_B: ${{ inputs.model_b }}
+          MATCH_SEARCH_DEPTH: ${{ inputs.depth }}
+          MATCH_DEPTH_A: ${{ inputs.depth_a }}
+          MATCH_DEPTH_B: ${{ inputs.depth_b }}
+          MATCH_LIMITS_A: ${{ inputs.limits_a }}
+          MATCH_LIMITS_B: ${{ inputs.limits_b }}
+          MATCH_PARAMS_A: ${{ inputs.params_a }}
+          MATCH_PARAMS_B: ${{ inputs.params_b }}
+          MATCH_SEARCH_MS: ${{ inputs.ms }}
+          MATCH_HANDICAP: ${{ inputs.handicap }}
+          SEED_OFFSET: ${{ inputs.seed_offset }}
+          FULL_PIECE_STATE: ${{ inputs.full_piece_state }}
+          SHARDS: ${{ inputs.shards }}
+          PAIRS: ${{ inputs.pairs_per_shard }}
+        run: node tools/league/match-summary.js . match-result.json
+
       - name: Upload verdict
         uses: actions/upload-artifact@v7
         with:
           name: match-verdict
           path: verdict.json
           retention-days: 60
+
+      - name: Upload match result
+        uses: actions/upload-artifact@v7
+        with:
+          name: match-result
+          path: match-result.json
+          retention-days: 90
