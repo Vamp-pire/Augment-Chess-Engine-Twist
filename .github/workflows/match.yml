@@ -2,7 +2,7 @@ name: Model match (head to head, parallel)
 
 # Plays A against B with the real self-play game loop
 # (nnue/match-two-models.js): games come in colour-swapped pairs sharing a
-# seed, which cancels card-draw luck and colour advantage. Four shards play
+# seed, which cancels card-draw luck and colour advantage. `shards` (default 4, max 20) play
 # disjoint seed ranges in parallel and a final job adds them up.
 #
 # A and B are weight files in the repo (e.g. nnue/model/weights.round2-full-112981.json)
@@ -10,7 +10,7 @@ name: Model match (head to head, parallel)
 # experiment's artifact into nnue/model/ first if you want to match it.
 #
 # Never trust fewer than ~10 decisive games: 2-game results have flipped at 10.
-# Total games = 4 shards x pairs_per_shard x 2.
+# Total games = shards x pairs_per_shard x 2.
 on:
   workflow_dispatch:
     inputs:
@@ -20,8 +20,12 @@ on:
       model_b:
         description: "Weights file for B (repo path) or handcoded"
         required: true
+      shards:
+        description: "Number of parallel shards (1-20; GitHub runs up to 20 jobs at once). Total games = shards x pairs_per_shard x 2"
+        required: false
+        default: "4"
       pairs_per_shard:
-        description: "Pairs per shard (each pair = 2 games); 4 shards run in parallel"
+        description: "Pairs per shard (each pair = 2 games); shards run in parallel"
         required: false
         default: "8"
       depth:
@@ -73,13 +77,26 @@ permissions:
   contents: read
 
 jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - id: m
+        env:
+          SHARDS: ${{ inputs.shards }}
+        run: |
+          n=${SHARDS:-4}
+          if ! [[ "$n" =~ ^[0-9]+$ ]] || [ "$n" -lt 1 ] || [ "$n" -gt 20 ]; then echo "shards must be 1-20, got $n" >&2; exit 1; fi
+          echo "matrix={\"shard\":[$(seq -s, 0 $((n-1)))]}" >> "$GITHUB_OUTPUT"
+
   play:
+    needs: setup
     runs-on: ubuntu-latest
     timeout-minutes: 300
     strategy:
       fail-fast: false
-      matrix:
-        shard: [0, 1, 2, 3]
+      matrix: ${{ fromJSON(needs.setup.outputs.matrix) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
