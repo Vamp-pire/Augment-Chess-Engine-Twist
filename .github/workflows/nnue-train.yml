@@ -105,7 +105,8 @@ jobs:
               ablateOversample: 'ABLATE_OVERSAMPLE', ablateBlend: 'ABLATE_BLEND',
               ablateBlunder: 'ABLATE_BLUNDER',
               blendByDepth: 'BLEND_BY_DEPTH', blendDepthMap: 'BLEND_DEPTH_MAP',
-              residual: 'RESIDUAL', residScale: 'RESID_SCALE'
+              residual: 'RESIDUAL', residScale: 'RESID_SCALE',
+              sparseInput: 'SPARSE_INPUT', epochsCap: 'EPOCHS_CAP', patience: 'PATIENCE', chunkSize: 'CHUNK_SIZE'
             };
             const exportLines = Object.entries(envNames)
               .filter(([k]) => c[k] !== undefined && c[k] !== null && c[k] !== '')
