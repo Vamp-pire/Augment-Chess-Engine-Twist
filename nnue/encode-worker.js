@@ -8,15 +8,32 @@
 const { parentPort, workerData } = require("worker_threads");
 const { encodeBoard, INPUT_SIZE } = require("./encode.js");
 
-const { boards } = workerData; // [{board, turn, deckSlots}, ...]
-const out = new Float32Array(boards.length * INPUT_SIZE);
+const { boards, sparse } = workerData; // [{board, turn, deckSlots}, ...]
 const nullFlags = new Uint8Array(boards.length);
-boards.forEach((b, i) => {
-  const encoded = encodeBoard(b.board, b.turn, b.deckSlots);
-  if (encoded === null) {
-    nullFlags[i] = 1;
-    return;
-  }
-  out.set(encoded, i * INPUT_SIZE);
-});
-parentPort.postMessage({ out, nullFlags }, [out.buffer, nullFlags.buffer]);
+if (sparse) {
+  // SPARSE_INPUT=1: emit CSR rows for the non-terminal positions only, never
+  // a dense boards.length * INPUT_SIZE buffer (see sparse.js).
+  const { SparseBuilder } = require("./sparse.js");
+  const builder = new SparseBuilder();
+  boards.forEach((b, i) => {
+    const encoded = encodeBoard(b.board, b.turn, b.deckSlots);
+    if (encoded === null) {
+      nullFlags[i] = 1;
+      return;
+    }
+    builder.addDenseRow(encoded);
+  });
+  const { rows, offsets, indices, values } = builder.finish();
+  parentPort.postMessage({ rows, offsets, indices, values, nullFlags }, [offsets.buffer, indices.buffer, values.buffer, nullFlags.buffer]);
+} else {
+  const out = new Float32Array(boards.length * INPUT_SIZE);
+  boards.forEach((b, i) => {
+    const encoded = encodeBoard(b.board, b.turn, b.deckSlots);
+    if (encoded === null) {
+      nullFlags[i] = 1;
+      return;
+    }
+    out.set(encoded, i * INPUT_SIZE);
+  });
+  parentPort.postMessage({ out, nullFlags }, [out.buffer, nullFlags.buffer]);
+}

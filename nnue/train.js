@@ -6,9 +6,23 @@ const { Worker } = require("worker_threads");
 const tf = require("@tensorflow/tfjs");
 require("@tensorflow/tfjs-backend-wasm");
 const { encodeBoard, INPUT_SIZE, FEATURE_NAMES } = require("./encode.js");
+const { sparseConcat, sparseDensifyInto } = require("./sparse.js");
 
 const DATA_FILE = path.join(__dirname, "..", "selfplay-data.jsonl");
 const MODEL_DIR = "file://" + path.join(__dirname, "model");
+
+// SPARSE_INPUT=1 (2026-09-25, opt-in): a full-state row (FULL_PIECE_STATE=1,
+// INPUT_SIZE 15237) is ~99% zeros, but the dense path holds every position as
+// INPUT_SIZE floats -- ~17GB at 139k positions, so 1.26M positions can't fit.
+// This keeps the encoded dataset as CSR rows (nonzero indices + values, see
+// sparse.js) and only densifies one CHUNK_SIZE chunk at a time when feeding
+// model.fit(), and the validation set in VAL_CHUNK-row slices -- the model and
+// its math are untouched (same dense first-layer matmul on every chunk), so
+// results match the dense path; only peak memory changes. Encode cache uses
+// its own ".sparse" key so dense caches stay valid.
+const SPARSE_INPUT = process.env.SPARSE_INPUT === "1";
+const SPARSE_ENCODE_CHUNK = 20000; // positions per encode-worker job in sparse mode
+const VAL_CHUNK = 4096; // multiple of the 256 evaluate batchSize, so batches match dense evaluation
 
 // evaluateState()'s own hand-picked coefficients (engine.js), in the exact
 // same order as encode.js's FEATURE_NAMES -- copied from tune-eval.js's
@@ -215,7 +229,11 @@ async function encodeInParallel(entries) {
   const workerCount = process.env.ENCODE_WORKER_COUNT
     ? Math.max(1, Number(process.env.ENCODE_WORKER_COUNT))
     : Math.max(1, os.cpus().length - 1);
-  const chunkSize = Math.ceil(entries.length / workerCount) || 1;
+  // Sparse mode: small jobs (a worker's dense buffer for 1/workerCount of a
+  // 1.26M-position set would be ~38GB) run through a workerCount-wide pool.
+  const chunkSize = SPARSE_INPUT
+    ? Math.min(Math.ceil(entries.length / workerCount) || 1, SPARSE_ENCODE_CHUNK)
+    : Math.ceil(entries.length / workerCount) || 1;
   const chunks = [];
   for (let i = 0; i < entries.length; i += chunkSize) chunks.push(entries.slice(i, i + chunkSize));
   console.log("encoding", entries.length, "positions across", chunks.length, "worker(s)...");
@@ -223,17 +241,40 @@ async function encodeInParallel(entries) {
   function runChunk(chunk) {
     return new Promise((resolve, reject) => {
       const worker = new Worker(path.join(__dirname, "encode-worker.js"), {
-        workerData: { boards: chunk.map((e) => ({ board: e.board, turn: e.turn, deckSlots: e.deckSlots })) }
+        workerData: { boards: chunk.map((e) => ({ board: e.board, turn: e.turn, deckSlots: e.deckSlots })), sparse: SPARSE_INPUT }
       });
       worker.on("message", (msg) => { worker.terminate(); resolve(msg); });
       worker.on("error", (err) => { worker.terminate(); reject(err); });
     });
   }
 
-  const chunkResults = await Promise.all(chunks.map(runChunk));
+  let chunkResults;
+  if (SPARSE_INPUT) {
+    chunkResults = new Array(chunks.length);
+    let nextChunk = 0;
+    const pool = Array.from({ length: Math.min(workerCount, chunks.length) }, async () => {
+      while (nextChunk < chunks.length) {
+        const i = nextChunk;
+        nextChunk += 1;
+        chunkResults[i] = await runChunk(chunks[i]);
+      }
+    });
+    await Promise.all(pool);
+  } else {
+    chunkResults = await Promise.all(chunks.map(runChunk));
+  }
   let survivorCount = 0;
   for (const { nullFlags } of chunkResults) {
     for (const flag of nullFlags) if (!flag) survivorCount += 1;
+  }
+  if (SPARSE_INPUT) {
+    // Each chunk's rows are already survivors-only in order; only the mask needs building.
+    const survivorMask = new Uint8Array(entries.length);
+    let entryIdx = 0;
+    for (const { nullFlags } of chunkResults) {
+      for (let i = 0; i < nullFlags.length; i++, entryIdx++) if (!nullFlags[i]) survivorMask[entryIdx] = 1;
+    }
+    return { sparse: sparseConcat(chunkResults), survivorMask, skippedTerminal: entries.length - survivorCount };
   }
   const flat = new Float32Array(survivorCount * INPUT_SIZE);
   const survivorMask = new Uint8Array(entries.length);
@@ -294,13 +335,45 @@ function readFileChunked(filePath, chunkSize = 1 << 30) {
   return buffer;
 }
 
+// Sparse cache file layout: [offsets Int32 (rows+1)][indices Int32 (nnz)][values Float32 (nnz)].
+function writeSparseCache(binPath, sp) {
+  const fd = fs.openSync(binPath, "w");
+  try {
+    for (const arr of [sp.offsets, sp.indices, sp.values]) {
+      const buf = Buffer.from(arr.buffer, arr.byteOffset, arr.byteLength);
+      for (let off = 0; off < buf.length; off += 1 << 30) fs.writeSync(fd, buf, off, Math.min(1 << 30, buf.length - off));
+    }
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
+function readSparseCache(binPath, rows, nnz) {
+  const buf = readFileChunked(binPath);
+  if (buf.byteLength !== (rows + 1) * 4 + nnz * 8) throw new Error("sparse encode cache size mismatch: " + binPath);
+  const aligned = buf.byteOffset % 4 === 0;
+  const ab = aligned ? buf.buffer : buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+  const base = aligned ? buf.byteOffset : 0;
+  return {
+    rows,
+    offsets: new Int32Array(ab, base, rows + 1),
+    indices: new Int32Array(ab, base + (rows + 1) * 4, nnz),
+    values: new Float32Array(ab, base + (rows + 1) * 4 + nnz * 4, nnz)
+  };
+}
+
 async function getEncodedInputs(dataFile, kept) {
   fs.mkdirSync(ENCODE_CACHE_DIR, { recursive: true });
-  const key = encodeCacheKey(dataFile);
+  const key = encodeCacheKey(dataFile) + (SPARSE_INPUT ? ".sparse" : "");
   const binPath = path.join(ENCODE_CACHE_DIR, key + ".bin");
   const metaPath = path.join(ENCODE_CACHE_DIR, key + ".meta.json");
   if (fs.existsSync(binPath) && fs.existsSync(metaPath)) {
     const meta = JSON.parse(fs.readFileSync(metaPath, "utf8"));
+    if (meta.keptCount === kept.length && SPARSE_INPUT) {
+      const sparse = readSparseCache(binPath, meta.rows, meta.nnz);
+      console.log("loaded cached sparse encoded features (" + sparse.rows + " rows, " + meta.nnz + " nonzeros) -- skipping re-encode");
+      return { sparse, survivorMask: Uint8Array.from(meta.survivorMask), skippedTerminal: meta.skippedTerminal };
+    }
     if (meta.keptCount === kept.length) {
       const buf = readFileChunked(binPath);
       const flat = new Float32Array(buf.buffer, buf.byteOffset, buf.byteLength / 4);
@@ -310,11 +383,13 @@ async function getEncodedInputs(dataFile, kept) {
     console.log("encode cache found but kept-count mismatch (" + meta.keptCount + " vs " + kept.length + ") -- re-encoding");
   }
   const result = await encodeInParallel(kept);
-  writeFileChunked(binPath, Buffer.from(result.flat.buffer, result.flat.byteOffset, result.flat.byteLength));
+  if (SPARSE_INPUT) writeSparseCache(binPath, result.sparse);
+  else writeFileChunked(binPath, Buffer.from(result.flat.buffer, result.flat.byteOffset, result.flat.byteLength));
   fs.writeFileSync(metaPath, JSON.stringify({
     keptCount: kept.length,
     survivorMask: Array.from(result.survivorMask),
-    skippedTerminal: result.skippedTerminal
+    skippedTerminal: result.skippedTerminal,
+    ...(SPARSE_INPUT ? { rows: result.sparse.rows, nnz: result.sparse.indices.length } : {})
   }));
   return result;
 }
@@ -451,7 +526,7 @@ async function loadData(dataFile = DATA_FILE) {
   for (const has of gameHasBlunder) if (has) blunderGames += 1;
   if (blunderGames) console.log("down-weighting", blunderGames, "of", totalSourceGames, "games containing a big eval swing (>=", BLUNDER_EVAL_DELTA_THRESHOLD, ")");
 
-  const { flat, survivorMask, skippedTerminal } = await getEncodedInputs(dataFile, kept.map((k) => k.entry));
+  const { flat, sparse, survivorMask, skippedTerminal } = await getEncodedInputs(dataFile, kept.map((k) => k.entry));
   if (skippedTerminal) console.log("skipped terminal positions:", skippedTerminal);
 
   const inputs = [];
@@ -462,7 +537,7 @@ async function loadData(dataFile = DATA_FILE) {
   let row = 0;
   kept.forEach((k, i) => {
     if (!survivorMask[i]) return;
-    inputs.push(flat.subarray(row * INPUT_SIZE, (row + 1) * INPUT_SIZE));
+    if (!SPARSE_INPUT) inputs.push(flat.subarray(row * INPUT_SIZE, (row + 1) * INPUT_SIZE));
     row += 1;
     const entry = k.entry;
     // `labels` stays the pure, clean outcome (-1/0/1) -- used for
@@ -477,7 +552,9 @@ async function loadData(dataFile = DATA_FILE) {
   });
   const gameIds = assignGameIds(pieceCounts);
   console.log("reconstructed games:", gameIds.length ? gameIds[gameIds.length - 1] + 1 : 0);
-  return { inputs, labels, trainingLabels, pieceCounts, sampleWeights, firstBoard, gameIds };
+  // Sparse mode: `sparse` holds the rows (already in survivor order, aligned
+  // with labels/etc) and `inputs` stays empty.
+  return { inputs, sparse, labels, trainingLabels, pieceCounts, sampleWeights, firstBoard, gameIds };
 }
 
 // Shrunk from 32/32 and given L2 weight decay -- the previous run (51k
@@ -508,8 +585,9 @@ const VARIANT = process.env.NNUE_VARIANT === "old" ? "old" : process.env.NNUE_VA
 const L2 = 0.001;
 const DROPOUT_RATE = VARIANT === "new" ? 0.2 : 0;
 const LEARNING_RATE = VARIANT === "new" ? 0.0002 : 0.001;
-const EPOCHS_CAP = VARIANT === "new" ? 40 : 15;
-const PATIENCE = VARIANT === "new" ? 12 : 6;
+// EPOCHS_CAP/PATIENCE env override (2026-09-25); unset keeps the per-variant defaults.
+const EPOCHS_CAP = process.env.EPOCHS_CAP ? Number(process.env.EPOCHS_CAP) : VARIANT === "new" ? 40 : 15;
+const PATIENCE = process.env.PATIENCE ? Number(process.env.PATIENCE) : VARIANT === "new" ? 12 : 6;
 console.log("NNUE_VARIANT:", VARIANT, `(lr=${LEARNING_RATE}, dropout=${DROPOUT_RATE}, epochs=${EPOCHS_CAP}, patience=${PATIENCE})`);
 function buildModel() {
   if (VARIANT === "linear") {
@@ -635,7 +713,8 @@ function snapshotDataFile() {
   fs.mkdirSync(dir, { recursive: true });
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   const dest = path.join(dir, `selfplay-data.${stamp}.jsonl`);
-  fs.copyFileSync(DATA_FILE, dest);
+  // TRAIN_DATA_FILE (2026-09-25): train on another jsonl instead of the live selfplay-data.jsonl.
+  fs.copyFileSync(process.env.TRAIN_DATA_FILE || DATA_FILE, dest);
   console.log("snapshotted training data to:", dest);
   return dest;
 }
@@ -654,9 +733,11 @@ async function main() {
   console.log("tf backend:", tf.getBackend());
 
   const snapshotPath = snapshotDataFile();
-  const { inputs, labels, trainingLabels, pieceCounts, sampleWeights, firstBoard, gameIds } = await loadData(snapshotPath);
-  console.log("positions loaded:", inputs.length);
-  if (inputs.length < 50) {
+  const { inputs, sparse: sparseMain, labels, trainingLabels, pieceCounts, sampleWeights, firstBoard, gameIds } = await loadData(snapshotPath);
+  let sparse = sparseMain;
+  const totalRows = () => (SPARSE_INPUT ? sparse.rows : inputs.length);
+  console.log("positions loaded:", totalRows());
+  if (totalRows() < 50) {
     console.log("too little data for a meaningful sanity run, but proceeding anyway to verify the pipeline.");
   }
 
@@ -668,15 +749,16 @@ async function main() {
   let externalValStart = null;
   if (process.env.VAL_DATA_FILE) {
     const val = await loadData(process.env.VAL_DATA_FILE);
-    externalValStart = inputs.length;
-    for (let i = 0; i < val.inputs.length; i += 1) {
-      inputs.push(val.inputs[i]);
+    externalValStart = totalRows();
+    if (SPARSE_INPUT) sparse = sparseConcat([sparse, val.sparse]);
+    for (let i = 0; i < val.labels.length; i += 1) {
+      if (!SPARSE_INPUT) inputs.push(val.inputs[i]);
       labels.push(val.labels[i]);
       trainingLabels.push(val.trainingLabels[i]);
       pieceCounts.push(val.pieceCounts[i]);
       sampleWeights.push(val.sampleWeights[i]);
     }
-    console.log("external validation file:", process.env.VAL_DATA_FILE, "->", val.inputs.length, "positions (train", externalValStart + ")");
+    console.log("external validation file:", process.env.VAL_DATA_FILE, "->", val.labels.length, "positions (train", externalValStart + ")");
   }
 
   // Split by GAME, not by raw position index (2026-09-07): a game's ~20-90
@@ -693,7 +775,7 @@ async function main() {
   const valGameStart = Math.floor(totalGames * 0.9);
   const gameBoundaryIndex = gameIds.findIndex((id) => id >= valGameStart);
   const splitAt = externalValStart !== null ? externalValStart : (gameBoundaryIndex === -1 ? gameIds.length : gameBoundaryIndex);
-  console.log("train/val split: game", valGameStart, "of", totalGames, "-> position index", splitAt, "of", inputs.length, externalValStart !== null ? "(external validation file)" : "");
+  console.log("train/val split: game", valGameStart, "of", totalGames, "-> position index", splitAt, "of", totalRows(), externalValStart !== null ? "(external validation file)" : "");
 
   // tfjs.js's LayersModel.fit doesn't support the `sampleWeight` option yet
   // (throws "sample weight is not supported yet" -- confirmed 2026-09-06,
@@ -720,15 +802,26 @@ async function main() {
   // tf.tensor2d's own array-of-arrays flatten() chokes (RangeError: Invalid
   // array length) on tens of thousands of Float32Arrays -- build one flat
   // buffer by hand instead and hand tensor2d the shape directly.
-  const trainFlat = new Float32Array(trainIndices.length * INPUT_SIZE);
+  // Sparse mode never builds trainFlat/xVal (the whole-dataset dense copies):
+  // rows are densified per fit chunk / per validation slice below instead.
+  const trainFlat = SPARSE_INPUT ? null : new Float32Array(trainIndices.length * INPUT_SIZE);
   const trainLabelsFlat = new Float32Array(trainIndices.length);
   trainIndices.forEach((idx, row) => {
-    trainFlat.set(inputs[idx], row * INPUT_SIZE);
+    if (!SPARSE_INPUT) trainFlat.set(inputs[idx], row * INPUT_SIZE);
     trainLabelsFlat[row] = trainingLabels[idx];
   });
 
-  const xVal = tf.tensor2d(inputs.slice(splitAt));
-  const yVal = tf.tensor2d(labels.slice(splitAt), [inputs.length - splitAt, 1]);
+  const numVal = totalRows() - splitAt;
+  const xVal = SPARSE_INPUT ? null : tf.tensor2d(inputs.slice(splitAt));
+  const yVal = SPARSE_INPUT ? null : tf.tensor2d(labels.slice(splitAt), [numVal, 1]);
+  // Sparse mode: dense tensors for validation rows [start, start + rows).
+  function valSlice(start, rows) {
+    const rowIdx = new Int32Array(rows);
+    for (let r = 0; r < rows; r += 1) rowIdx[r] = splitAt + start + r;
+    const buf = new Float32Array(rows * INPUT_SIZE);
+    sparseDensifyInto(sparse, rowIdx, rows, INPUT_SIZE, buf);
+    return { x: tf.tensor2d(buf, [rows, INPUT_SIZE]), y: tf.tensor2d(labels.slice(splitAt + start, splitAt + start + rows), [rows, 1]) };
+  }
 
   const model = buildModel();
 
@@ -775,7 +868,9 @@ async function main() {
   // cuts that down to ~9 JS-level calls per epoch instead of ~2700, while
   // each chunk tensor (20000 rows -> ~440MB) stays comfortably under
   // whatever ceiling broke on the full 3.8GB one.
-  const CHUNK_SIZE = 20000;
+  // CHUNK_SIZE env override (2026-09-25) to cut the per-chunk dense copy in
+  // sparse mode (rows x INPUT_SIZE x 4 bytes, held twice: JS buffer + wasm heap).
+  const CHUNK_SIZE = process.env.CHUNK_SIZE ? Number(process.env.CHUNK_SIZE) : 20000;
   const numExamples = trainIndices.length;
   const chunkStarts = [];
   for (let s = 0; s < numExamples; s += CHUNK_SIZE) chunkStarts.push(s);
@@ -795,11 +890,14 @@ async function main() {
       const rows = Math.min(CHUNK_SIZE, numExamples - start);
       const chunkInput = new Float32Array(rows * INPUT_SIZE);
       const chunkLabel = new Float32Array(rows);
+      const chunkRows = SPARSE_INPUT ? new Int32Array(rows) : null;
       for (let r = 0; r < rows; r += 1) {
         const srcRow = order[start + r];
-        chunkInput.set(trainFlat.subarray(srcRow * INPUT_SIZE, (srcRow + 1) * INPUT_SIZE), r * INPUT_SIZE);
+        if (SPARSE_INPUT) chunkRows[r] = trainIndices[srcRow];
+        else chunkInput.set(trainFlat.subarray(srcRow * INPUT_SIZE, (srcRow + 1) * INPUT_SIZE), r * INPUT_SIZE);
         chunkLabel[r] = trainLabelsFlat[srcRow];
       }
+      if (SPARSE_INPUT) sparseDensifyInto(sparse, chunkRows, rows, INPUT_SIZE, chunkInput);
       const xChunk = tf.tensor2d(chunkInput, [rows, INPUT_SIZE]);
       const yChunk = tf.tensor2d(chunkLabel, [rows, 1]);
       const history = await model.fit(xChunk, yChunk, { epochs: 1, batchSize: 64, shuffle: true, verbose: 0 });
@@ -808,10 +906,27 @@ async function main() {
       yChunk.dispose();
     }
     const trainLoss = trainLossSum / numExamples;
-    const valLossTensor = model.evaluate(xVal, yVal, { batchSize: 256 });
-    const valLossScalar = Array.isArray(valLossTensor) ? valLossTensor[0] : valLossTensor;
-    const valLoss = (await valLossScalar.data())[0];
-    (Array.isArray(valLossTensor) ? valLossTensor : [valLossTensor]).forEach((t) => t.dispose());
+    let valLoss;
+    if (SPARSE_INPUT) {
+      // Row-weighted mean of per-slice MSE == dense evaluate()'s mean over all rows.
+      let valLossSum = 0;
+      for (let vs = 0; vs < numVal; vs += VAL_CHUNK) {
+        const rows = Math.min(VAL_CHUNK, numVal - vs);
+        const { x, y } = valSlice(vs, rows);
+        const t = model.evaluate(x, y, { batchSize: 256 });
+        const scalar = Array.isArray(t) ? t[0] : t;
+        valLossSum += (await scalar.data())[0] * rows;
+        (Array.isArray(t) ? t : [t]).forEach((tt) => tt.dispose());
+        x.dispose();
+        y.dispose();
+      }
+      valLoss = valLossSum / numVal;
+    } else {
+      const valLossTensor = model.evaluate(xVal, yVal, { batchSize: 256 });
+      const valLossScalar = Array.isArray(valLossTensor) ? valLossTensor[0] : valLossTensor;
+      valLoss = (await valLossScalar.data())[0];
+      (Array.isArray(valLossTensor) ? valLossTensor : [valLossTensor]).forEach((t) => t.dispose());
+    }
 
     // Log every epoch, not just every 5th (2026-09-17) -- diagnosing the
     // round-1 retrain regression needed the real epoch-by-epoch trajectory
@@ -847,9 +962,10 @@ async function main() {
   // the "new" variant's weights (or vice versa) -- both stick around for
   // comparison instead of only ever having the most recent run's result.
   const weightsFileName = VARIANT === "new" ? "weights.json" : `weights.variant-${VARIANT}.json`;
-  const weightsPath = path.join(__dirname, "model", weightsFileName);
+  // WEIGHTS_OUT (2026-09-25): write the weights to this path instead (verification runs, so they never touch nnue/model/).
+  const weightsPath = process.env.WEIGHTS_OUT || path.join(__dirname, "model", weightsFileName);
   fs.writeFileSync(weightsPath, JSON.stringify(weights));
-  console.log("weights saved to nnue/model/" + weightsFileName);
+  console.log("weights saved to", process.env.WEIGHTS_OUT || "nnue/model/" + weightsFileName);
 
   // Restore the exported (best-epoch) weights onto the model before the
   // sanity check -- otherwise this would predict with the LAST epoch's
@@ -874,7 +990,20 @@ async function main() {
   // ply-ish proxy: pieces remaining) since decisive endgame-like positions
   // should be much easier to call correctly than balanced opening ones.
   const valLabels = labels.slice(splitAt);
-  const valPreds = await model.predict(xVal).data();
+  let valPreds;
+  if (SPARSE_INPUT) {
+    valPreds = new Float32Array(numVal);
+    for (let vs = 0; vs < numVal; vs += VAL_CHUNK) {
+      const { x, y } = valSlice(vs, Math.min(VAL_CHUNK, numVal - vs));
+      const pred = model.predict(x);
+      valPreds.set(await pred.data(), vs);
+      pred.dispose();
+      x.dispose();
+      y.dispose();
+    }
+  } else {
+    valPreds = await model.predict(xVal).data();
+  }
   let decisive = 0, correct = 0;
   let fewPieces = 0, fewCorrect = 0, manyPieces = 0, manyCorrect = 0;
   const valPieceCounts = pieceCounts.slice(splitAt);
