@@ -203,9 +203,40 @@ function assignGameIds(pieceCounts) {
 //     scratch instead of reusing the first run's cache.)
 const ENCODE_CACHE_DIR = path.join(__dirname, "cache");
 
+// Chunked file reads: fs.readFileSync throws above 2GiB (1.28M-position
+// datasets are ~3.5GB) and a single utf8 string above ~512MB.
+const READ_CHUNK = 64 * 1024 * 1024;
+function hashFileSha1(file) {
+  const h = crypto.createHash("sha1");
+  const fd = fs.openSync(file, "r");
+  const buf = Buffer.allocUnsafe(READ_CHUNK);
+  try {
+    for (let n; (n = fs.readSync(fd, buf, 0, READ_CHUNK, null)) > 0;) h.update(buf.subarray(0, n));
+  } finally { fs.closeSync(fd); }
+  return h.digest("hex");
+}
+function readJsonLines(file) {
+  const out = [];
+  const fd = fs.openSync(file, "r");
+  const buf = Buffer.allocUnsafe(READ_CHUNK);
+  let carry = Buffer.alloc(0);
+  try {
+    for (let n; (n = fs.readSync(fd, buf, 0, READ_CHUNK, null)) > 0;) {
+      const chunk = carry.length ? Buffer.concat([carry, buf.subarray(0, n)]) : buf.subarray(0, n);
+      let start = 0;
+      for (let end; (end = chunk.indexOf(10, start)) >= 0; start = end + 1) {
+        if (end > start) out.push(JSON.parse(chunk.toString("utf8", start, end)));
+      }
+      carry = Buffer.from(chunk.subarray(start));
+    }
+    if (carry.length) out.push(JSON.parse(carry.toString("utf8")));
+  } finally { fs.closeSync(fd); }
+  return out;
+}
+
 function encodeCacheKey(dataFile) {
   const encodeMtime = fs.statSync(path.join(__dirname, "encode.js")).mtimeMs;
-  const contentHash = crypto.createHash("sha1").update(fs.readFileSync(dataFile)).digest("hex").slice(0, 16);
+  const contentHash = hashFileSha1(dataFile).slice(0, 16);
   // ENCODE_CACHE_SALT (2026-09-19): the encoded features come from
   // engine-merged.js's evaluateStateComponents, but this key only covered the
   // data file + encode.js mtime -- so after an engine rules/balance change an
@@ -395,23 +426,14 @@ async function getEncodedInputs(dataFile, kept) {
 }
 
 async function loadData(dataFile = DATA_FILE) {
-  // Read as a Buffer and cut lines by byte offset: a single utf8 string over
-  // ~512MB throws ERR_STRING_TOO_LONG (1.28M-position datasets are ~2GB).
-  const raw = fs.readFileSync(dataFile);
-  const lines = [];
-  for (let start = 0; start < raw.length;) {
-    let end = raw.indexOf(10, start);
-    if (end < 0) end = raw.length;
-    if (end > start) lines.push(raw.toString("utf8", start, end));
-    start = end + 1;
-  }
+  const allEntries = readJsonLines(dataFile);
   // Captured here instead of re-reading the file later (see the sanity
   // check below) -- a concurrent self-play run (or, once, an accidental
   // manual delete of the snapshot) can make that file gone by the time
   // training finishes, crashing the run after the expensive part is
   // already done and the weights are already saved. This has no such
   // problem since it's just a reference into what's already in memory.
-  const firstBoard = lines.length ? JSON.parse(lines[0]).board : null;
+  const firstBoard = allEntries.length ? allEntries[0].board : null;
   // Game boundaries MUST be computed over every ply in original order,
   // tainted/unfinished included -- assignGameIds detects a new game by
   // piece count resetting to 32, which only works walking an unbroken
@@ -426,7 +448,6 @@ async function loadData(dataFile = DATA_FILE) {
   // `lines` one-to-one; `kept` carries each surviving entry's REAL gameId
   // alongside it instead of ever recomputing boundaries on a filtered
   // subsequence.
-  const allEntries = lines.map((line) => JSON.parse(line));
   const allPieceCounts = allEntries.map((entry) => countPieces(entry.board));
   const allGameIds = assignGameIds(allPieceCounts);
 
