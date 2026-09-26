@@ -18386,6 +18386,6 @@
     return { ok: true, after: augmentBaseParityProjection(clientState, termination) };
   }
   // orderActions..isCaptureAction are exported for tools (learned move ordering, MCTS prototype); not used by the extension.
-  globalThis.__engineMerged = { searchBestAction, generateActions, applyAction, evaluateState, evaluateStateComponents, cloneState, setWorkerBoardDimensions, orderActions, actionOrderingScore, actionDecisivelyWins, rootCandidateAllowsImmediateDecisiveReply, isCaptureAction };
+  globalThis.__engineMerged = { searchBestAction, generateActions, applyAction, evaluateState, evaluateStateComponents, cloneState, setWorkerBoardDimensions, orderActions, actionOrderingScore, actionDecisivelyWins, rootCandidateAllowsImmediateDecisiveReply, isCaptureAction, applyWorkerAdditionalRuleCard };
   if (typeof module !== "undefined") module.exports = globalThis.__engineMerged;
 })();

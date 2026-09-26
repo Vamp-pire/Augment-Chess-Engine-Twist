@@ -1,0 +1,2747 @@
+{
+ "provenance": {
+  "bundleFile": "site-bundle-20260919.js",
+  "bundleSha256": "dcec869a820581bf12fe47cb09c01f88c0f71b92248a27704cc2686d976b5abe",
+  "bundleBytes": 11991167,
+  "engineFile": "engine-merged.js",
+  "engineSha256": "405d820838aa9bed0663ffca24e90bd8f309a052614e2377ce93c6d71d107c1f",
+  "extractedBy": "tools/site-draft/extract-draft-data.js",
+  "note": "data only; equal-weight draws (site draftCardWeight / opening 1.3x boost / draft balance deliberately NOT extracted)"
+ },
+ "constants": {
+  "normalDeckSlots": 3,
+  "chaosDeckSlots": 6,
+  "chaosBundleCount": 3,
+  "chaosBundleSize": 2,
+  "grandDeckSlots": 6,
+  "grandPoolSize": 28,
+  "grandPickCount": 12,
+  "ruleOpeningChance": 0.4,
+  "firstDraftOpeningWeightMultiplier": 1.3,
+  "grandCategorySizes": {
+   "OPENING": 4,
+   "MIDDLE": 10,
+   "PIECE": 7,
+   "END": 7
+  },
+  "grandCategories": [
+   "OPENING",
+   "MIDDLE",
+   "PIECE",
+   "END"
+  ],
+  "ruleOpeningChanceGrand": 0.2,
+  "grandFirstPickingColor": "black",
+  "grandAlternates": true,
+  "normalOfferSize": 3,
+  "chaosOfferSize": 6,
+  "phasePlan": {
+   "OPENING": {
+    "mixed": [
+     "OPENING",
+     "MIDDLE",
+     "PIECE"
+    ]
+   },
+   "MIDDLE": {
+    "pieceShare": "max(1, round(count/3)) PIECE, rest MIDDLE"
+   },
+   "END": {
+    "mixed": [
+     "MIDDLE",
+     "END"
+    ]
+   }
+  }
+ },
+ "deletedCardIds": [],
+ "neverDrafted": [
+  "shotgun-king"
+ ],
+ "exclusiveOpeningIds": [
+  "big-rook",
+  "london-system",
+  "horde"
+ ],
+ "mutuallyExclusiveGroups": [
+  [
+   "big-rook",
+   "london-system",
+   "horde"
+  ],
+  [
+   "pawn-conversion",
+   "en-passant-bang"
+  ],
+  [
+   "democracy",
+   "mongolian-gambit"
+  ],
+  [
+   "democracy",
+   "black-magic"
+  ],
+  [
+   "democracy",
+   "last-stand"
+  ],
+  [
+   "merchant-guild",
+   "king-of-the-hill"
+  ],
+  [
+   "merchant-guild",
+   "iron-monarch"
+  ],
+  [
+   "merchant-guild",
+   "horse-riding"
+  ],
+  [
+   "merchant-guild",
+   "racing-king"
+  ],
+  [
+   "merchant-guild",
+   "switcheroo"
+  ],
+  [
+   "merchant-guild",
+   "imperial-studies"
+  ],
+  [
+   "merchant-guild",
+   "underground-bunker"
+  ],
+  [
+   "merchant-guild",
+   "last-resistance"
+  ],
+  [
+   "merchant-guild",
+   "black-magic"
+  ],
+  [
+   "merchant-guild",
+   "knightmate"
+  ],
+  [
+   "merchant-guild",
+   "qxe1"
+  ],
+  [
+   "merchant-guild",
+   "castling"
+  ],
+  [
+   "merchant-guild",
+   "encouragement"
+  ]
+ ],
+ "pawnDirectionConflicts": [
+  [
+   "reverse-pawns",
+   "rule-ticket"
+  ],
+  [
+   "reverse-pawns",
+   "macho-chess"
+  ]
+ ],
+ "chaos": {
+  "forbiddenBundlePairs": [
+   [
+    "democracy",
+    "queens-gambit"
+   ]
+  ],
+  "noTwoSameCategoryInBundle": [
+   "OPENING"
+  ],
+  "exclusiveOpeningPartnerMustNotBeOpening": [
+   "big-rook",
+   "london-system",
+   "horde"
+  ]
+ },
+ "grandPoolConflicts": [
+  [
+   "london-system",
+   "big-rook"
+  ],
+  [
+   "democracy",
+   "queens-gambit"
+  ],
+  [
+   "big-rook",
+   "big-bishop"
+  ]
+ ],
+ "ruleBlocked": {
+  "monochromeChess": [
+   "horse-riding",
+   "horde"
+  ],
+  "machoChess": [
+   "reverse-pawns"
+  ],
+  "diagonalChessBlocksExclusiveOpening": [
+   "big-rook",
+   "london-system",
+   "horde"
+  ],
+  "largeOpeningCardsBlockedByRules": {
+   "cards": [
+    "big-rook",
+    "big-bishop"
+   ],
+   "rules": [
+    "diagonal-chess",
+    "chess-960",
+    "chess-344200",
+    "chess-n-pow-30",
+    "chess-45-pow-30"
+   ]
+  }
+ },
+ "aiHumanDraftExcludedNotApplied": [
+  "stealth",
+  "hallucination"
+ ],
+ "ruleTicketExcludedRuleIds": [
+  "chess-960",
+  "chess-344200",
+  "chess-n-pow-30",
+  "diagonal-chess"
+ ],
+ "ruleCardIds": [
+  "capture-the-flag",
+  "platform",
+  "chess-960",
+  "monochrome-chess",
+  "chess-344200",
+  "cool-guy",
+  "acceleration",
+  "revelation",
+  "football",
+  "monster",
+  "crown",
+  "conveyor",
+  "black-hole",
+  "winter-kingdom",
+  "macho-chess",
+  "recycling",
+  "rule-bombs",
+  "periodic-collapse",
+  "portal",
+  "mistake",
+  "saturation",
+  "transcendence",
+  "diagonal-chess",
+  "chess-n-pow-30",
+  "camouflage-color",
+  "high-ground",
+  "highway"
+ ],
+ "engineRuleCandidates": [
+  {
+   "id": "monochrome-chess",
+   "effect": "monochromeChess"
+  },
+  {
+   "id": "revelation",
+   "effect": "revelation"
+  },
+  {
+   "id": "football",
+   "effect": "football"
+  },
+  {
+   "id": "monster",
+   "effect": "monsterRule"
+  },
+  {
+   "id": "black-hole",
+   "effect": "blackHole"
+  },
+  {
+   "id": "rule-bombs",
+   "effect": "ruleBombs"
+  },
+  {
+   "id": "saturation",
+   "effect": "saturation"
+  },
+  {
+   "id": "periodic-collapse",
+   "effect": "periodicCollapse"
+  },
+  {
+   "id": "portal",
+   "effect": "portal"
+  },
+  {
+   "id": "crown",
+   "effect": "crownRule"
+  },
+  {
+   "id": "conveyor",
+   "effect": "conveyorRule"
+  },
+  {
+   "id": "mistake",
+   "effect": "mistake"
+  },
+  {
+   "id": "transcendence",
+   "effect": "transcendence"
+  },
+  {
+   "id": "camouflage-color",
+   "effect": "camouflageRule"
+  },
+  {
+   "id": "winter-kingdom",
+   "effect": "winterKingdom"
+  },
+  {
+   "id": "macho-chess",
+   "effect": "machoChess"
+  },
+  {
+   "id": "high-ground",
+   "effect": "highGround"
+  },
+  {
+   "id": "highway",
+   "effect": "highway"
+  },
+  {
+   "id": "recycling",
+   "effect": "recycling"
+  },
+  {
+   "id": "platform",
+   "effect": "platformRule"
+  }
+ ],
+ "engineRuleExcluded": [
+  "chess-960",
+  "chess-344200",
+  "diagonal-chess"
+ ],
+ "idsInGroupsButNotInCardDefs": [],
+ "cards": [
+  {
+   "id": "majesty",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "majesty",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "infiltration",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "infiltration",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "killer-king",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "killerKing",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "campfire",
+   "category": "PIECE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "campfire",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "outpost",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "outpost",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "hedgehog",
+   "category": "PIECE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "hedgehog",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "nullification",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "nullification",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "recurrence",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "recurrence",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "princess",
+   "category": "OPENING",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "princess",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "resolve",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "resolve",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "vanguard",
+   "category": "OPENING",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "vanguard",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "reversal",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "reversal",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "miracle",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "miracle",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "big-bishop",
+   "category": "OPENING",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "bigBishop",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "overtake",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "overtake",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "capture-the-flag",
+   "category": "RULE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "captureTheFlag",
+   "siteStars": 0,
+   "isRule": true,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "highlander",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "highlander",
+   "siteStars": 5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "thief",
+   "category": "OPENING",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "thief",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "disassembly",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "disassembly",
+   "siteStars": 2,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "false-start",
+   "category": "OPENING",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "falseStart",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "proficiency",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "proficiency",
+   "siteStars": 2.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "locust-swarm",
+   "category": "OPENING",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "locustSwarm",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "long-en-passant",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "longEnPassant",
+   "siteStars": 2,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "extinction",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "extinction",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "symmetry",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "symmetry",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "brutus",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "brutus",
+   "siteStars": 4.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "clockwork",
+   "category": "PIECE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "clockwork",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "mutation",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "mutation",
+   "siteStars": 2.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "parrot",
+   "category": "PIECE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "parrot",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "paladin",
+   "category": "PIECE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "paladin",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "octopus",
+   "category": "PIECE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "octopus",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "metal",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "metal",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "siege-ram",
+   "category": "PIECE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "siegeRam",
+   "siteStars": 2.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "replay",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "replayMove",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "frontline-response",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "frontlineResponse",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "hypocrisy",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "hypocrisy",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "relay",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "relay",
+   "siteStars": 2.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "suspicious-potion",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "suspiciousPotion",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "field-promotion",
+   "category": "OPENING",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "fieldPromotion",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "cleanup",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "cleanupPieces",
+   "siteStars": 2,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "magic-girl",
+   "category": "PIECE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "magicGirl",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "berserker",
+   "category": "PIECE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "berserker",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "slime",
+   "category": "PIECE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "slime",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "siren",
+   "category": "PIECE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "siren",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "trickster",
+   "category": "PIECE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "trickster",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "gomoku",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "gomoku",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "undead",
+   "category": "PIECE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "undead",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "king-of-the-hill",
+   "category": "OPENING",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "kingOfTheHill",
+   "siteStars": 2.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "loyalist",
+   "category": "OPENING",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "loyalist",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "black-magic",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "blackMagic",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "parry",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "parry",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "fleeting-dream",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "fleetingDream",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "empty-lunchbox",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "emptyLunchbox",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "geneva-convention",
+   "category": "OPENING",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "genevaConvention",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "platform",
+   "category": "RULE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "platformRule",
+   "siteStars": null,
+   "isRule": true,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "armistice",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "armistice",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "poisoned-pawn",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "poisonedPawn",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "portal-gun",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "portalGun",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "exhaustion",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "exhaustion",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "missionary",
+   "category": "PIECE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "missionary",
+   "siteStars": 2.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "mistake-card",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "mistakeCard",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "democracy",
+   "category": "OPENING",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "democracy",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "summon-colossus",
+   "category": "OPENING",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "summonColossus",
+   "siteStars": 5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "big-rook",
+   "category": "OPENING",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "bigRook",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "chess-960",
+   "category": "RULE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "chess960",
+   "siteStars": 2,
+   "isRule": true,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "monochrome-chess",
+   "category": "RULE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "monochromeChess",
+   "siteStars": 2,
+   "isRule": true,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "chess-344200",
+   "category": "RULE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "chess344200",
+   "siteStars": 2,
+   "isRule": true,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "cool-guy",
+   "category": "RULE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "coolGuy",
+   "siteStars": 2,
+   "isRule": true,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "merchant-guild",
+   "category": "OPENING",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "merchantGuild",
+   "siteStars": 5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "mongolian-gambit",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "mongolianGambit",
+   "siteStars": 5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "reformation",
+   "category": "PIECE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "reformation",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "london-system",
+   "category": "OPENING",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "londonSystem",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "qxe1",
+   "category": "OPENING",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "qxe1",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "last-stand",
+   "category": "OPENING",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "lastStand",
+   "siteStars": 2,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "early-promotion",
+   "category": "OPENING",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "earlyPromotion",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "holdout",
+   "category": "OPENING",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "holdout",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "fast-growth",
+   "category": "OPENING",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "fastGrowth",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "constitutional-monarchy",
+   "category": "PIECE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "constitutionalMonarchy",
+   "siteStars": 1.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "shotgun-king",
+   "category": "GUN",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "shotgunKing",
+   "siteStars": 5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": true
+  },
+  {
+   "id": "retreat",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "retreat",
+   "siteStars": 2.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "sprint",
+   "category": "OPENING",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "pawnSprint",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "fianchetto",
+   "category": "OPENING",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "fianchetto",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "dutch",
+   "category": "OPENING",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "dutch",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "pawn-conversion",
+   "category": "OPENING",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "pawnConversion",
+   "siteStars": 2,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "leap",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "pawnLeap",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "horde",
+   "category": "OPENING",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "horde",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "jester",
+   "category": "PIECE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "jester",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "initiative",
+   "category": "OPENING",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "initiative",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "en-passant-bang",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "enPassantBang",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "evasion",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "evasion",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "random-roulette",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "randomRoulette",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "premove",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "freeMove",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "icbm",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "icbm",
+   "siteStars": 2,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "guard",
+   "category": "OPENING",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "guard",
+   "siteStars": 2,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "reaper",
+   "category": "PIECE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "reaper",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "trojan-horse",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "trojanHorse",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "mad-horse",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "madHorse",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "freeze",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "freeze",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "sacrifice",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "sacrifice",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "clone",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "clonePassive",
+   "siteStars": 5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "joker",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "joker",
+   "siteStars": 4.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "vanish",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "vanish",
+   "siteStars": 4.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "promotion-rush",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "promotionRush",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "substitution",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "substitution",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "chain",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "chain",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "ghost",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "ghost",
+   "siteStars": 4.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "corner-kick",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "cornerKick",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "conversion",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "conversion",
+   "siteStars": 2.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "basic-training",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "basicTraining",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "taunt",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "taunt",
+   "siteStars": 2.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "reverse-pawns",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "reversePawns",
+   "siteStars": 2,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "hallucination",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "hallucination",
+   "siteStars": 2,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "blue-jeans",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "blueJeans",
+   "siteStars": 5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "spy",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "spy",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "conscription",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "conscription",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "local-conscription",
+   "category": "PIECE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "localConscription",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "barricade",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "barricade",
+   "siteStars": 2.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "queen-cavalry",
+   "category": "OPENING",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "queenCavalry",
+   "siteStars": 2,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "chameleon-mutation",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "chameleonMutation",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "chimera",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "chimera",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "alekhine-machine-gun",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "alekhineMachineGun",
+   "siteStars": 2.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "eastern-policy",
+   "category": "PIECE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "easternPolicy",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "suicide-bomber",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "suicideBomber",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "bribe",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "bribe",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "horse-riding",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "horseRiding",
+   "siteStars": 2.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "eagle",
+   "category": "PIECE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "eagle",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "log",
+   "category": "PIECE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "log",
+   "siteStars": 2.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "encouragement",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "encouragement",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "queens-gambit",
+   "category": "OPENING",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "queensGambit",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "martyrdom",
+   "category": "OPENING",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "martyrdom",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "amazon",
+   "category": "PIECE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "amazon",
+   "siteStars": 4.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "ordination",
+   "category": "PIECE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "ordination",
+   "siteStars": 2,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "pegasus",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "pegasus",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "racing-king",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "racingKing",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "radical-charge",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "radicalCharge",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "hook",
+   "category": "PIECE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "hook",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "switcheroo",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "switcheroo",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "herald",
+   "category": "PIECE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "herald",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "stealth",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "stealth",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "acceleration",
+   "category": "RULE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "acceleration",
+   "siteStars": 5,
+   "isRule": true,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "grasshopper",
+   "category": "PIECE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "grasshopper",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "dragon",
+   "category": "PIECE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "dragon",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "palace",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "palace",
+   "siteStars": 4.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "knightmate",
+   "category": "OPENING",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "knightmate",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "socialism",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "socialism",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "collapse",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "collapse",
+   "siteStars": 4.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "ultimatum",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "ultimatum",
+   "siteStars": 4.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "prophecy",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "prophecy",
+   "siteStars": 4.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "assassin",
+   "category": "PIECE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "assassin",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "wizard",
+   "category": "PIECE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "wizard",
+   "siteStars": 5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "dice",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "dice",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "revelation",
+   "category": "RULE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "revelation",
+   "siteStars": 1.5,
+   "isRule": true,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "football",
+   "category": "RULE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "football",
+   "siteStars": null,
+   "isRule": true,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "monster",
+   "category": "RULE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "monsterRule",
+   "siteStars": null,
+   "isRule": true,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "crown",
+   "category": "RULE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "crownRule",
+   "siteStars": null,
+   "isRule": true,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "conveyor",
+   "category": "RULE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "conveyorRule",
+   "siteStars": null,
+   "isRule": true,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "black-hole",
+   "category": "RULE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "blackHole",
+   "siteStars": null,
+   "isRule": true,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "winter-kingdom",
+   "category": "RULE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "winterKingdom",
+   "siteStars": null,
+   "isRule": true,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "macho-chess",
+   "category": "RULE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "machoChess",
+   "siteStars": null,
+   "isRule": true,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "recycling",
+   "category": "RULE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "recycling",
+   "siteStars": null,
+   "isRule": true,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "rule-bombs",
+   "category": "RULE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "ruleBombs",
+   "siteStars": null,
+   "isRule": true,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "periodic-collapse",
+   "category": "RULE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "periodicCollapse",
+   "siteStars": null,
+   "isRule": true,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "portal",
+   "category": "RULE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "portal",
+   "siteStars": null,
+   "isRule": true,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "mistake",
+   "category": "RULE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "mistake",
+   "siteStars": null,
+   "isRule": true,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "saturation",
+   "category": "RULE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "saturation",
+   "siteStars": null,
+   "isRule": true,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "transcendence",
+   "category": "RULE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "transcendence",
+   "siteStars": null,
+   "isRule": true,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "diagonal-chess",
+   "category": "RULE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "diagonalChess",
+   "siteStars": null,
+   "isRule": true,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "chess-n-pow-30",
+   "category": "RULE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "chessNPow30",
+   "siteStars": null,
+   "isRule": true,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "camouflage-color",
+   "category": "RULE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "camouflageRule",
+   "siteStars": null,
+   "isRule": true,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "elephant-escape",
+   "category": "OPENING",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "elephantEscape",
+   "siteStars": 2.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "feudal-contract",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "feudalContract",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "imperial-studies",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "imperialStudies",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "religious-victory",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "religiousVictory",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "overwhelm",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "overwhelm",
+   "siteStars": 4.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "bina-mate",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "binaMate",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "iron-monarch",
+   "category": "OPENING",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "ironMonarch",
+   "siteStars": 4.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "exile",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "exile",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "royal-shield",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "royalShield",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "underground-bunker",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "undergroundBunker",
+   "siteStars": 2.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "castling",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "freeCastling",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "canceling",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "canceling",
+   "siteStars": 5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "snipe",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "bishopSnipe",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "witch-trial",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "witchTrial",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "windmill",
+   "category": "PIECE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "windmill",
+   "siteStars": 2.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "backward-knight",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "backwardKnight",
+   "siteStars": 2.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "file-surge",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "fileSurge",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "rook-lift",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "rookLift",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "fanatical-ritual",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "fanaticalRitual",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "knightmaster",
+   "category": "PIECE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "knightmaster",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "standard-bearer",
+   "category": "PIECE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "standardBearer",
+   "siteStars": 2.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "apprentice-knights",
+   "category": "OPENING",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "apprenticeKnights",
+   "siteStars": 1.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "checker",
+   "category": "OPENING",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "checker",
+   "siteStars": 1.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "disarm",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "disarm",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "last-resistance",
+   "category": "END",
+   "categorySource": "card.phase",
+   "effect": "lastResistance",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "coronation",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "coronation",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "underpromotion",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "underpromotion",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "stake",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "stake",
+   "siteStars": 2.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "final-weapon",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "finalWeapon",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "charge",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "charge",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "royal-command",
+   "category": "MIDDLE",
+   "categorySource": "card.phase",
+   "effect": "royalCommand",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "severance",
+   "category": "MIDDLE",
+   "categorySource": "card.phase",
+   "effect": "severance",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "inertia",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "inertia",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "ice-sheet",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "iceSheet",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "injury",
+   "category": "MIDDLE",
+   "categorySource": "card.phase",
+   "effect": "injury",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "breakthrough-order",
+   "category": "MIDDLE",
+   "categorySource": "card.phase",
+   "effect": "breakthroughOrder",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "panic",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "panic",
+   "siteStars": 2,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "scarecrow",
+   "category": "MIDDLE",
+   "categorySource": "card.phase",
+   "effect": "scarecrow",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "rule-ticket",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "ruleTicket",
+   "siteStars": 2.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "insight",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "insight",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "pawn-storm",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "pawnStorm",
+   "siteStars": 2.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "queen-afterimage",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "queenAfterimage",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "white-box",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "whiteBox",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "black-box",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "blackBox",
+   "siteStars": 2.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "trolley",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "trolley",
+   "siteStars": 5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "quantum-mechanics",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "quantumMechanics",
+   "siteStars": 2.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "schrodinger-pawns",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "schrodingerPawns",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "reposition",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "reposition",
+   "siteStars": 2.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "emergency-evacuation",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "emergencyEvacuation",
+   "siteStars": 2.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "traitor",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "traitor",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "othello",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "othello",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "necromancy",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "necromancy",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "death-squad",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "deathSquad",
+   "siteStars": 2.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "desperado",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "desperado",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "moving",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "moving",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "cleanup-sacrifice",
+   "category": "END",
+   "categorySource": "card.phase",
+   "effect": "cleanupSacrifice",
+   "siteStars": 1.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "submerge",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "submerge",
+   "siteStars": 2,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "gale",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "gale",
+   "siteStars": 2.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "idol",
+   "category": "PIECE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "idol",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "homecoming",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "homecoming",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "otherworld",
+   "category": "OPENING",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "otherworld",
+   "siteStars": 3.5,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "twins",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "twins",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "judgment",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "judgment",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "lobster",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "lobster",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "calling-card",
+   "category": "OPENING",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "callingCard",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "frenzy",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "frenzy",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "zugzwang",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "zugzwang",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "vip",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "vip",
+   "siteStars": 3,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "baby-bear",
+   "category": "END",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "babyBear",
+   "siteStars": 4,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "high-ground",
+   "category": "RULE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "highGround",
+   "siteStars": 0,
+   "isRule": true,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "highway",
+   "category": "RULE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "highway",
+   "siteStars": 0,
+   "isRule": true,
+   "deleted": false,
+   "excludedFromDraft": false
+  },
+  {
+   "id": "vortex",
+   "category": "MIDDLE",
+   "categorySource": "CARD_CATEGORY_GROUPS",
+   "effect": "vortex",
+   "siteStars": 2,
+   "isRule": false,
+   "deleted": false,
+   "excludedFromDraft": false
+  }
+ ]
+}

@@ -34,6 +34,10 @@
 - [ ] 확장 15,239차원 포팅(`extension/nnue.js`): 대전을 통과하는 모델이 나온 뒤.
 - [ ] 사용자 확인 필요: `.claude/settings.json`(브라우저 읽기 도구 6개 허용, 미커밋) 커밋 여부, 자가대국 스케줄 재개 여부.
 
+**사이트식 덱 배분 (2026-09-26 추가, 옵트인)**: `SELFPLAY_SITE_DRAFT=normal|chaos|grand|mix`를 켜면 자가대국(과 `nnue/match-two-models.js`)이 사이트 드래프트 방식으로 덱을 받습니다. 끄면(기본) 기존 [3,6]장 균등 추출과 바이트 단위로 같습니다. 구현 `tools/site-draft/`(draft.js, `extract-draft-data.js`가 사이트 번들에서 뽑은 `draft-data.json`, `draft.test.js`, `smoke.js`).
+- 규칙: 별점 가중 없이 균등, 선택은 제시된 카드 중 무작위. 일반 = 3단계(OPENING/MIDDLE/END) x 3장 제시 x 1장 선택 = 3장, 카오스 = 3단계 x 3묶음(2장) 제시 x 1묶음 선택 = 6장, 그랜드 = 공용 풀(기본 사이트 값 28장, `SELFPLAY_GRAND_POOL=24` 등으로 변경) 흑 선공 교대 6장씩. 공용 RULE 카드 확률은 일반/카오스 40%, 그랜드 20%(`SELFPLAY_RULE_PROB`로 덮어씀), 엔진이 구현한 규칙만 적용. `SELFPLAY_DRAFT_MODE_WEIGHTS=normal:1,chaos:1,grand:1`은 mix의 가정값(사이트 실제 비율 모름).
+- **이 플래그로 만든 데이터는 기존 데이터와 섞지 않습니다**(카드 분포가 다름: 손패 크기, 카테고리 비율, 규칙 카드 유무). 별도 브랜치/이름으로 보관하고 따로 학습/비교합니다. 사이트가 바뀌면 `node tools/site-draft/extract-draft-data.js`를 다시 돌리고 `node tools/site-draft/draft.test.js`로 확인합니다.
+
 **Twist 측 새 도구(2026-09-26 기준 master에 있음)**
 - 측정: `tools/league/`(stats.js, league.js, run-ladder.js, match-summary.js), `match.yml`에 `shards`(1~20)와 점수/Elo/SPRT 요약과 `match-result` 아티팩트. 승격 규칙은 `PLAN.md`(SPRT + 핸드코딩 대비 점수).
 - 학습: `SPARSE_INPUT=1`(희소 저장, 128만 포지션까지), `EPOCHS_CAP`/`PATIENCE`/`CHUNK_SIZE`/`ABLATE_L2` 환경 변수를 `nnue-train.yml` overrides(`sparseInput`, `epochsCap`, `patience`, `chunkSize`, `ablateL2`)로 전달, Node 힙 12GB, 실행별 진행 로그를 이슈 #5 댓글로 5분마다 갱신.

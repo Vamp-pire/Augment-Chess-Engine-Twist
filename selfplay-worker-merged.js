@@ -389,7 +389,11 @@ function drawSelfPlayCards(handSize, rng) {
 }
 
 function makeSelfPlayDeck(color, rng, handSize) {
-  return drawSelfPlayCards(handSize, rng).map((effect, i) => ({
+  return buildSelfPlayDeck(color, rng, drawSelfPlayCards(handSize, rng));
+}
+
+function buildSelfPlayDeck(color, rng, effects) {
+  return effects.map((effect, i) => ({
     id: effect,
     instanceId: `${color}-${effect}-${i}`,
     effect,
@@ -397,6 +401,26 @@ function makeSelfPlayDeck(color, rng, handSize) {
     used: false,
     recovering: false
   }));
+}
+
+// Opt-in site-style deck dealing (2026-09-26): SELFPLAY_SITE_DRAFT=normal|chaos|grand|mix.
+// Unset (default) = the original [3,6]-card uniform draw below, byte-identical.
+// See tools/site-draft/draft.js and TODO.md ("Site-style draft"). Datasets made
+// with this flag are a different card distribution -- do NOT mix with old data.
+const SITE_DRAFT_ENV = process.env.SELFPLAY_SITE_DRAFT ? require("./tools/site-draft/draft.js").readEnv() : null;
+let siteDrafter = null;
+function dealSiteDraft(state, rng) {
+  const draftLib = require("./tools/site-draft/draft.js");
+  if (!siteDrafter) siteDrafter = draftLib.createDrafter({ enginePool: SELFPLAY_CARD_POOL, ruleProb: SITE_DRAFT_ENV.ruleProb, grandPool: SITE_DRAFT_ENV.grandPool });
+  const mode = draftLib.pickMode(SITE_DRAFT_ENV.mode, rng, SITE_DRAFT_ENV.weights);
+  const dealt = siteDrafter.deal(rng, mode);
+  const effectOf = (id) => draftLib.engineEffectOf(draftLib.DATA.cards.find((c) => c.id === id));
+  state.deckSlots = {
+    white: buildSelfPlayDeck("white", rng, dealt.decks.white.map(effectOf)),
+    black: buildSelfPlayDeck("black", rng, dealt.decks.black.map(effectOf))
+  };
+  state.siteDraftInfo = { mode, ruleId: dealt.ruleId, whiteIds: dealt.decks.white, blackIds: dealt.decks.black };
+  return dealt;
 }
 
 function makeInitialState(rng) {
@@ -410,12 +434,22 @@ function makeInitialState(rng) {
   state.mode = "play";
   state.turn = "white";
   state.actionsRemaining = 1;
-  const handSize = SELFPLAY_HAND_SIZES[Math.floor(rng() * SELFPLAY_HAND_SIZES.length)];
-  state.deckSlots = { white: makeSelfPlayDeck("white", rng, handSize), black: makeSelfPlayDeck("black", rng, handSize) };
+  let siteDealt = null;
+  if (SITE_DRAFT_ENV) {
+    siteDealt = dealSiteDraft(state, rng);
+  } else {
+    const handSize = SELFPLAY_HAND_SIZES[Math.floor(rng() * SELFPLAY_HAND_SIZES.length)];
+    state.deckSlots = { white: makeSelfPlayDeck("white", rng, handSize), black: makeSelfPlayDeck("black", rng, handSize) };
+  }
   state.captures = { white: [], black: [] };
   state.aiSearchNoCards = false; // cards enabled in self-play as of 2026-09-11 (see SELFPLAY_CARD_POOL above)
   state.aiFastEval = true; // throughput over per-move quality for data generation
   engine.setWorkerBoardDimensions(state);
+  // Site opening RULE card (board-wide rule applied before the first move).
+  if (siteDealt && siteDealt.ruleId) {
+    if (!engine.applyWorkerAdditionalRuleCard) throw new Error("engine-merged.js does not export applyWorkerAdditionalRuleCard");
+    engine.applyWorkerAdditionalRuleCard(state, siteDealt.ruleId, "white");
+  }
   return state;
 }
 
@@ -938,7 +972,8 @@ function playOneGame({ searchDepth, searchTimeMs, maxPlies, seed, flexibleBudget
     outcome,
     record,
     positions: record.length,
-    ...(siteResult ? { siteRuleTermination: siteResult.reason } : {})
+    ...(siteResult ? { siteRuleTermination: siteResult.reason } : {}),
+    ...(state.siteDraftInfo ? { siteDraft: state.siteDraftInfo } : {})
   };
 }
 
@@ -954,5 +989,5 @@ if (parentPort) {
   const result = playOneGame(workerData);
   parentPort.postMessage({ ...result, ms: Date.now() - startedAt });
 } else {
-  module.exports = { playOneGame, makeRng };
+  module.exports = { playOneGame, makeRng, makeInitialState, SELFPLAY_CARD_POOL };
 }
