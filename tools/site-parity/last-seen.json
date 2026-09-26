@@ -1,8 +1,8 @@
 {
-  "mainBundle": "main-DYyN_QDn.js",
-  "mainBundleBytes": 11991167,
-  "aiWorkerSha256": "368fedba03dd2c145d82c7732c74ae071ebc95cdaf64ca9609a434af8a57ccc4",
-  "aiWorkerBytes": 960998,
+  "mainBundle": "main-saUeM6OL.js",
+  "mainBundleBytes": 12157993,
+  "aiWorkerSha256": "5f73282964575ff2c63a863b1a2d1c9778d8109900e7f8d5c4e6fb5ec97340ea",
+  "aiWorkerBytes": 968604,
   "updateLogVersion": "2026-09-19-0310-balance-remakes-v1",
-  "checkedAt": "2026-09-19T01:19:39.595Z"
+  "checkedAt": "2026-09-26T01:51:57.190Z"
 }
