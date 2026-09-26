@@ -8,6 +8,7 @@ node parity-playout.js  [engine|-] [GAMES=30] [seed=4242] [PLIES=40]   # multi-p
 node check-site-update.js [--save]           # CHANGED/UNCHANGED vs last-seen.json (bundle name + worker SHA-256); exit 0, or 2 on network error
 node make-fast-worker.js [--skip=a,b|--only=a,b]   # .cache/real-worker.js + anchored perf patches -> .cache/real-worker-fast.js (fails if an anchor isn't matched exactly once)
 node diff-fast-worker.js [GAMES=300] [seed=1] [PLIES=120]   # fast vs original worker: byte-identical actions/states/results required (want: TOTAL divergences=0)
+node gen-reference-fixtures.js --out=<dir> [--seed=..] [--worker=orig|fast]   # reference fixtures from the site worker (oracle-v1 superset, deterministic); --verify=<dir> replays them, --serve = run-differential.js candidate
 ```
 
 `real-worker-fast.js` is the site's own rules code with behaviour-preserving speedups (~3.7x plies/s on random playouts), for use as
