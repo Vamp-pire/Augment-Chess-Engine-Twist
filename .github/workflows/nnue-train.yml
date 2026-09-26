@@ -101,7 +101,7 @@ jobs:
               nnueVariant: 'NNUE_VARIANT', ablatePlyFeature: 'ABLATE_PLY_FEATURE',
               fullPieceState: 'FULL_PIECE_STATE', starTotalFeatures: 'STAR_TOTAL_FEATURES',
               tdBootstrapWeights: 'TD_BOOTSTRAP_WEIGHTS', tdBootstrapBlend: 'TD_BOOTSTRAP_BLEND',
-              ablateDeepUnits: 'ABLATE_DEEP_UNITS', ablateWarmStart: 'ABLATE_WARM_START',
+              ablateDeepUnits: 'ABLATE_DEEP_UNITS', ablateWarmStart: 'ABLATE_WARM_START', ablateL2: 'ABLATE_L2',
               ablateOversample: 'ABLATE_OVERSAMPLE', ablateBlend: 'ABLATE_BLEND',
               ablateBlunder: 'ABLATE_BLUNDER',
               blendByDepth: 'BLEND_BY_DEPTH', blendDepthMap: 'BLEND_DEPTH_MAP',

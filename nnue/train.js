@@ -612,7 +612,7 @@ async function loadData(dataFile = DATA_FILE) {
 // architecture. See main()'s use of EPOCHS_CAP/PATIENCE for the other half
 // of the old/new toggle (linear reuses the "old" schedule).
 const VARIANT = process.env.NNUE_VARIANT === "old" ? "old" : process.env.NNUE_VARIANT === "linear" ? "linear" : "new";
-const L2 = 0.001;
+const L2 = process.env.ABLATE_L2 !== undefined ? Number(process.env.ABLATE_L2) : 0.001; // scale down with hidden width: the L2 penalty grows with parameter count (width 256 at 0.001 makes it dominate the loss)
 const DROPOUT_RATE = VARIANT === "new" ? 0.2 : 0;
 const LEARNING_RATE = VARIANT === "new" ? 0.0002 : 0.001;
 // EPOCHS_CAP/PATIENCE env override (2026-09-25); unset keeps the per-variant defaults.
