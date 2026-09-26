@@ -59,6 +59,7 @@ on:
 
 permissions:
   contents: write
+  issues: write
 
 concurrency:
   # Only one promote run at a time; experiments (promote=false) never queue.
@@ -195,6 +196,27 @@ jobs:
             git show "origin/gha-segments-16cards:${p}" > "td-bootstrap-weights.json"
             export TD_BOOTSTRAP_WEIGHTS="$GITHUB_WORKSPACE/td-bootstrap-weights.json"
           fi
+          # Best-effort progress logger: one issue comment per run, refreshed every 5
+          # minutes, so epoch/loss lines can be read while the job is still running
+          # (Actions only serves job logs after the job ends). It must never fail the run.
+          export GH_TOKEN="${{ github.token }}"
+          PROGRESS_ISSUE=5
+          CID=""
+          post_progress() {
+            TXT=$(tail -n 600 "$GITHUB_WORKSPACE/train.log" 2>/dev/null | grep -E "positions loaded|encoding [0-9]+|epoch [0-9]+ loss|stopped early|sign-agreement|Error|ERR_" | tail -n 30)
+            FENCE='```'
+            BODY="Run ${{ github.run_id }} | $1"$'\n\n'"$FENCE"$'\n'"$TXT"$'\n'"$FENCE"$'\n\n'"updated $(TZ=Asia/Seoul date '+%m-%d %H:%M') KST"
+            if [ -z "$CID" ] && [ -s "$RUNNER_TEMP/progress_cid" ]; then CID=$(cat "$RUNNER_TEMP/progress_cid"); fi
+            if [ -z "$CID" ]; then
+              CID=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PROGRESS_ISSUE/comments" -f body="$BODY" --jq .id 2>/dev/null) || CID=""
+              [ -n "$CID" ] && echo "$CID" > "$RUNNER_TEMP/progress_cid"
+            else
+              gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$CID" -f body="$BODY" >/dev/null 2>&1 || true
+            fi
+          }
+          ( post_progress "started"; while true; do sleep 300; post_progress "running"; done ) >/dev/null 2>&1 &
+          LOGPID=$!
+          trap 'kill $LOGPID 2>/dev/null; post_progress finished >/dev/null 2>&1 || true' EXIT
           cd nnue
           node --max-old-space-size=12288 train.js 2>&1 | tee ../train.log
 
