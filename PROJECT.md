@@ -50,6 +50,7 @@ node tools/ci/golden-eval.js               # 평가값 회귀 검사 (의도한 
 node tools/ci/nnue-parity.js               # 확장 NNUE == 학습 NNUE
 node tools/site-parity/parity-actions.js - 400   # 사이트 워커와 수 목록 대조 (네트워크 필요)
 node tools/site-parity/check-site-update.js      # 사이트가 업데이트됐는지
+node tools/site-parity/update-site.js            # 사이트 업데이트 때 한 번에(감지 -> 속도 패치 검증 -> 대조 -> 보고)
 NOSAVE=1 node tools/perf/eval-equiv.js 600 # 속도 개선 후 평가 출력 동일 확인
 node nnue/match-two-models.js <A> <B> 10   # 모델 대전 (A/B는 가중치 경로 또는 handcoded)
 ```
@@ -93,6 +94,15 @@ node nnue/match-two-models.js <A> <B> 10   # 모델 대전 (A/B는 가중치 경
   엔진을 고치면 이 사본도 갱신하고 `node tools/ci/nnue-parity.js`를 돌립니다.
 - 확장의 `nnue.js` 인코더(기물 40종, 카드 184장, 입력 5509)는 `nnue/encode.js`와 **항상 같아야** 합니다(CI가 검사).
 - 사이트가 업데이트되면 `tools/site-parity/`로 엔진과 대조하고, `site-oracle/README.md` 절차로 번들을 갱신합니다.
+
+## 사이트 업데이트 때 하는 일
+
+`node tools/site-parity/update-site.js` 한 줄이 아래 3단계를 합니다(자세한 설명, 종료 코드, 요청 제한 장치는 `tools/site-parity/README.md`).
+1. 메인 페이지로 감지하고 새 워커/번들을 받음(6시간 잠금, 실행당 요청 5회 상한, 재시도 없음)
+2. 속도 패치(`make-fast-worker.js`) 적용 후 `diff-fast-worker.js`로 차이 0 확인
+3. 대조 3종을 새 워커와 이전 워커에 돌려 카드별 불일치 수를 비교하고, `known-mismatches.json`에 없는 것을 보고
+
+사람이 개입할 때: 패치 앵커가 안 맞을 때, 또는 새 불일치가 3개 이상일 때(기준은 `known-mismatches.json`의 `humanThreshold`, 조정 가능). 엔진 이식은 모아서 나중에 해도 되고, 옛 규칙으로 만든 자가대국 데이터는 새 규칙으로 작게 돌린 데이터로 보충하면 됩니다. `--save`를 주지 않으면 `last-seen.json`은 바뀌지 않습니다.
 - 브랜치를 만들지 않고 master에 바로 커밋/푸시합니다. 인코딩 캐시 키에는 엔진 해시(salt)가 들어갑니다(`nnue-train.yml`의 `cache=auto`).
 
 ## 모델 라인업

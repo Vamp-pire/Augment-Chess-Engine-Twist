@@ -4,6 +4,9 @@
 
 ## 2026-09-27
 
+### 도구
+- `tools/site-parity/update-site.js`: 사이트 업데이트 때 감지 -> 속도 패치 검증 -> 새/이전 워커 대조 -> 보고를 한 번에. 사이트 요청 안전장치(`net-guard.js`: 실행당 5회 상한, 6시간 잠금, 재시도 없음, User-Agent) 추가, `check-site-update.js`/`fetch-real-worker.js`도 이를 사용.
+
 ### 엔진
 - 사이트 9/27 패치(cards-factory-v1, 9월 26일 카탈로그 재조정) 반영: 마이너 기물 재분류(클락워크/앵무새/마법사/모집병/트릭스터 포함), randomRoulette 대상 목록, 마녀재판(의심) 2수, checker 카드(3번째 줄 a·b·g·h 파일에 체커 4개 소환), 사회주의 때 허수아비/아기곰이 폰처럼 이동, 팔라딘 등이 폰처럼 포획, pawnLeap이 모든 적 기물을 넘음, resolve 뒤 쉬는 턴, checkerKing 값, 도둑 카드는 수배(wanted) 표시 후 턴 종료 시 체포, lastStand와 elephantEscape 구현. 기본 켜짐(`state.september26Rebalance === false`가 옛 규칙).
 - 옛 사이트 불일치 몇 개도 같이 수정: overtake 한 턴만, vanguard 대각선만, 트릭스터 능력 목록 순서, 백과사전 기물값, locustSwarm 슬라임 제외.
