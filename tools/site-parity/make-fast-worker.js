@@ -165,13 +165,16 @@ const PATCHES = [
     // filter pass only isWorkerMoveAllowed runs, and its call closure (audited) writes nothing
     // those read (its only shared write is piece.monoShade = shade-of-own-square, idempotent and
     // never read there), so each value is computed lazily once per piece -- in the original order
-    // and only on the paths where the original evaluates it.
+    // and only on the paths where the original evaluates it. (2026-09-27 re-anchor: the site added
+    // grapplerBindingAllowsMove as the first check; it is a read-only per-move predicate of
+    // (board, piece, from, move), so the memo version keeps it as the first per-move check, unmemoized.)
     name: "move-allowed-memo",
     find: `      generateMovesForPiece(boardState, piece, row, col).filter((move) => isWorkerMoveAllowed(boardState, piece, row, col, move)).forEach((move) => {`,
     replace: `      const moveAllowedMemo = {};
       generateMovesForPiece(boardState, piece, row, col).filter((move) => isWorkerMoveAllowedMemo(moveAllowedMemo, boardState, piece, row, col, move)).forEach((move) => {`,
     also: [[`  function isWorkerMoveAllowed(boardState, piece, row, col, move) {
     if (!move) return false;
+    if (!grapplerBindingAllowsMove(boardState.board, piece, { row, col }, move)) return false;
     if (workerIdolEncoreRepeatBlocked(boardState, piece)) return false;
     const forcedExtraMove = piece?.color ? activeWorkerForcedExtraMove(boardState, piece.color) : null;
     if (forcedExtraMove && forcedExtraMove.piece !== piece) return false;
@@ -187,6 +190,7 @@ const PATCHES = [
   }
 `, `  function isWorkerMoveAllowed(boardState, piece, row, col, move) {
     if (!move) return false;
+    if (!grapplerBindingAllowsMove(boardState.board, piece, { row, col }, move)) return false;
     if (workerIdolEncoreRepeatBlocked(boardState, piece)) return false;
     const forcedExtraMove = piece?.color ? activeWorkerForcedExtraMove(boardState, piece.color) : null;
     if (forcedExtraMove && forcedExtraMove.piece !== piece) return false;
@@ -202,6 +206,7 @@ const PATCHES = [
   }
   function isWorkerMoveAllowedMemo(memo, boardState, piece, row, col, move) {
     if (!move) return false;
+    if (!grapplerBindingAllowsMove(boardState.board, piece, { row, col }, move)) return false;
     if (memo.idolBlocked === void 0) memo.idolBlocked = workerIdolEncoreRepeatBlocked(boardState, piece);
     if (memo.idolBlocked) return false;
     if (memo.forcedExtraMove === void 0) memo.forcedExtraMove = piece?.color ? activeWorkerForcedExtraMove(boardState, piece.color) : null;
