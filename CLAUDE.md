@@ -14,7 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **가속 (Accelerate, 팀 저장소 `sungjeahyun100/Accelerate-alpha-zero-style-Augment-Chess-bot-`)** — 로컬 clone이 없으면 `gh api "repos/<repo>/contents/<경로>?ref=develop" --jq .content | base64 -d`로 읽거나 스크래치패드에 clone:
 1. `README.md`, `docs/ARCHITECTURE.md`, `docs/ROADMAP.md`(Phase 0~10 상태), `docs/DECISIONS.md`(확정 D-XXX와 열린 질문 O-XXX 구분), `docs/GAME-RULES.md`, `CHANGELOG.md`
-2. `gh pr list --repo <repo> --state open`으로 열린 PR 확인(2026-09-26 기준 #17, #23, #24)
+2. `gh pr list --repo <repo> --state open`으로 열린 PR 확인(2026-09-27 기준 열린 PR 없음, #17/#23/#24는 병합됨)
 
 ## 명령 (`PROJECT.md`의 "자주 쓰는 명령"에 없는 것 위주)
 

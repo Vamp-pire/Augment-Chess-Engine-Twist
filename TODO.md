@@ -30,7 +30,8 @@
 - [ ] 새 정보원 확보: 정답이 핸드코딩의 복사본이라 새 정보가 없다는 것이 1순위 가설. 사이트의 실제 기보나 사이트 AI와의 대국 데이터 활용. 사이트 운영자 동의 증빙(NOTICE.md 인용, Discord 2026-09-19) 저장이 선행되어야 함.
 - [ ] 사이트 규칙 자가대국 자동화: 사이트 감시 → 원본 받기 → 패치(`make-fast-worker.js`) → 동일성 대조(`diff-fast-worker.js`) → 자가대국이 사이트 규칙 사용, 실패 시 원본으로 후퇴 + 알림. 취소됐던 사이트 규칙 시험(run 35977727355) 재실행. 빠른 버전은 원본 대비 3.7배(초당 98 → 362수, 차이 0건), 목표 2.5배 달성.
 - [ ] 더 빠른 사이트 규칙: 허수아비 강제 포획 O(n²) 계산(전체의 약 14%)은 동등성을 증명하지 못해 미적용.
-- [ ] 엔진 vs 사이트 규칙 불일치(이번 사이트 업데이트와 무관하게 이전부터): `recurrence` 카드 대상 좌표, `randomRoulette`, `symmetry` 포획 수, 게임 시작 시 `blackMagic` 카드 노출, 그 밖에 falseStart/binaMate/zugzwang 후보. 목록은 Accelerate PR #23의 known-differences.json 참고.
+- [ ] 사이트 2026-09-27 업데이트(cards-factory-v1, 9월26일 카탈로그 재조정: checker 소환 칸, conveyor factory 등) 반영 안 됨. `real-worker.js`는 새 버전으로 받았으나(이전 것은 `.prev`) `last-seen.json`은 저장 안 함. 빠른 워커 재생성은 패치 앵커 `move-allowed-memo` 불일치로 실패(재앵커 필요). 수 목록 대조 400판 중 16건 차이(card checker 4, traitor 2, sacrifice 2, extinction 1 등), 적용 대조 13건 차이.
+- [ ] 엔진 vs 사이트 규칙 불일치(이 업데이트 이전부터): `recurrence` 카드 대상 좌표, `randomRoulette`, `symmetry` 포획 수, 게임 시작 시 `blackMagic` 카드 노출, 그 밖에 falseStart/binaMate/zugzwang 후보. 목록은 Accelerate PR #23의 known-differences.json 참고.
 - [ ] 확장 15,239차원 포팅(`extension/nnue.js`): 대전을 통과하는 모델이 나온 뒤.
 - [ ] 사용자 확인 필요: `.claude/settings.json`(브라우저 읽기 도구 6개 허용, 미커밋) 커밋 여부, 자가대국 스케줄 재개 여부.
 
@@ -45,8 +46,9 @@
 - 사이트 감시: `last-seen.json`은 2026-09-26 갱신(번들 main-saUeM6OL, aiWorker 5f7328296457). 이번 번들 변경은 규칙 동작을 바꾸지 않음(80판 + 320 국면 대조 차이 0).
 
 **Accelerate 팀 저장소(가속) 상태**
-- 열린 PR: #17(cpp 스케치 Phase A~G, 판단 코드 주석 처리), #23(정답 축 통합: 오라클 동기화 + 정답지 + 정답 기준 문서, 기존 #18 #19 #20 대체), #24(대화 양식 축 통합: encoding 근거 + bridge 프로토콜 초안, 기존 #21 #22 대체). 모두 리뷰 대기, 병합하지 않음. 본문에 `@sungjeahyun100`(구독좋아요님) 멘션.
-- 닫힘: #16(Rust 초안, #17 이후 다시 옮기기로 보류), #18~#22(통합됨). 병합됨: #7~#9, #13~#15.
+- 열린 PR 없음(2026-09-27 확인). #23(정답 축)과 #24(대화 양식 축)은 9/26 21:56 KST, #17(cpp 스케치)은 9/27 03:12 KST에 구독좋아요님이 병합. #17 병합 뒤 구독좋아요님이 develop에 직접 커밋 2개(main 함수 추가, parent-distance activation) 추가함.
+- #17 리뷰에서 남긴 열린 질문 5개(중복 action 합치기, 시작==도착 action, MustCapture/NoCapture 해석, CATCH 자식 기준점, validateExternalAction 범위)는 답 없이 병합돼 미결.
+- 닫힘: #16(Rust 초안), #18~#22(통합됨). 병합됨: #7~#9, #13~#15, #17, #23, #24.
 - 결정 대기: O-001(encoding 위치), O-002(정답 기준을 사이트 원본으로). 로드맵은 Phase 0만 완료.
 - 규칙: 사이트 코드는 Accelerate에 넣지 않음(운영자 동의 증빙 미저장). 관리자 권한이 필요한 요청(머지된 브랜치 자동 삭제, 브랜치 보호, Pages, Copilot 리뷰)은 구독좋아요에게 요청해야 함.
 
