@@ -103,3 +103,45 @@ Applied later: F3 (noteThiefMove + disassembleMovedQueen in swap paths, 2026-09-
 F5 (parrot memory guard) is NOT a bug: the site's real game state always starts with `parrotMovement: { white: null, black: null }` (main bundle), so real games record from the first move exactly like the engine. The divergence came from test states that lacked the field; `common.js` now adds it and the parrot divergences disappear. Do NOT add the guard: self-play states are built without the field and parrots would never move.
 Original note: F5 (parrot memory guard — could change self-play behaviour; needs a decision).
 Playout (seed 4242, 60x40): 27 divergences before -> 11 after; the rest are locustSwarm (expected), random-target brutus/freeze, parrot (F5).
+
+## 2026-09-27 site update (cards-factory-v1; aiWorker sha256 5fb657416d6e..., main-BrJfQMgo.js)
+
+The site added the "September 26 catalog" (SEPTEMBER26_CATALOG_HASH). `usesSeptember26Rebalance(state)` is true when the hash is
+absent, so new games use the new rules; the engine now does the same by default (`state.september26Rebalance === false` = old rules).
+Method: `diff -u real-worker.prev.js real-worker.js` (2389 lines, 131 hunks) read in full; counts below are engine vs site worker.
+`REAL_WORKER_PATH=tools/site-parity/.cache/real-worker.prev.js` runs the same scripts against the previous worker (baseline);
+`SEED_RANDOM=1 parity-playout.js` makes playouts deterministic (Math.random re-seeded per side and ply).
+
+Ported (all in `engine-merged.js`, copied to `extension/engine.js`): minor-piece reclassification (knight, bishop, camel + clockwork, parrot, wizard,
+recruiter, trickster: extinction/grasshopper/campfire/reversal/scarecrow targets, clockwork+parrot cards, `clearFormerMinorAbilityState`), randomRoulette/
+majesty/blueJeans major list, witchTrial 2 (card + suspiciousPotion), checker card (four checkers on files a, b, g, h of the third rank), socialism
+(scarecrow/babyBear move like pawns, slime-locked stays locked, paladin/campfire/recruiter/guard/idol capture like pawns), pawnLeap over any enemy
+piece, resolve credit rest turn, checkerKing values (3 -> 2 table, 300 -> 200 AI value), thief card marks the queen `wanted` and arrests use
+`resolveWantedArrests` (tickThiefArrests skips thieves), lastStand and elephantEscape (no effect in the old worker, implemented now).
+Also fixed because they were old, trivial and unambiguous: overtake ends with the turn, vanguard diagonal-only + unique-front-pawn, trickster ability list
+order, encyclopedia values (paladin 4, octopus 5, brutus 10, clockwork 5, parrot 5, thief 9, missionary 2), locustSwarm not for slime-locked pieces.
+Not ported (no such card/piece/mode in the engine): d4, e4, solidarity, bishop-infiltration, synchronization, assembly, vigilance, roller, greek gift, wanted card,
+brainwash, taboo, grappler, revolving door, don quixote, medium, potionEffects bookkeeping, campaign conveyorFactory, catalogHash gating,
+`nonCapture` flags on sacrifice-like removals (only feed medium/vigilance).
+
+Counts (old = HEAD engine vs previous worker; before = HEAD engine vs new worker; after = final engine vs new worker):
+
+| test | old | before | after |
+|---|---|---|---|
+| parity-actions 400 (differing boards) | 12 (recurrence 13, traitor 2, sacrifice 2, randomRoulette 4) | 16 (new: checker 4, extinction 1; randomRoulette now 3) | 5 (recurrence 13 only) |
+| parity-apply 300 (differing actions) | 6 (zugzwang, blackMagic 3, randomRoulette 2) | 13 (+move 4, lastStand, elephantEscape, falseStart) | 7 (zugzwang 1, blackMagic 3, randomRoulette 2, falseStart 1) |
+| parity-apply 800, seed 4711 | 28 | 32 | 20 (randomRoulette 8, zugzwang 4, falseStart 4, blackMagic 3, brutus-betrayal move 1) |
+| parity-playout 100x40 seed 4242, SEED_RANDOM | 29 | 41 | 17 |
+| parity-playout 100x40 seed 777, SEED_RANDOM | 33 | 47 | 36 |
+
+Remaining playout divergences are the known old classes: recurrence target, blackMagic exposure at start, symmetry, randomRoulette outcome, missionary,
+falseStart, zugzwang (engine allows the card more often), collapse/king timing, locustSwarm as an in-game card, and the brutus-betrayal restriction filter.
+"after" is not strictly comparable to "old": a playout stops at its first divergence, so fixing an early class exposes later ones.
+
+golden-eval: 80 of 800 hashes changed on purpose. Cause (checked by forcing `minorPieceTypesForCatalog` back to knight/bishop/camel: 0 of 800 differ):
+cardsSelf/cardsEnemy count more legal reversal/campfire/clockwork card targets when the board has clockwork/parrot/wizard/recruiter/trickster pieces.
+`tools/perf/eq-exotic.js` (4000 exotic states) shows 330 diffs and 0 with the reclassification off; `tools/perf/eval-equiv.js` (selfplay positions) shows 12 diffs,
+all in positions whose hand holds the checker card (new checker rules). `tools/perf/engine-orig.js` (git-ignored local reference) was refreshed to the new engine so
+those two checks are green again; it is not a rule reference.
+Fast worker: only `move-allowed-memo` needed a re-anchor (the site added `grapplerBindingAllowsMove`, a read-only per-move predicate, as the first check of
+`isWorkerMoveAllowed`); the other six anchors matched and their reasoning was re-checked against the changed callees. `diff-fast-worker.js 80 4242 120`: 0 divergences.

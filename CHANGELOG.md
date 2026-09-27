@@ -2,6 +2,14 @@
 
 이 저장소의 눈에 띄는 변경을 날짜순으로 기록합니다(최신이 위).
 
+## 2026-09-27
+
+### 엔진
+- 사이트 9/27 패치(cards-factory-v1, 9월 26일 카탈로그 재조정) 반영: 마이너 기물 재분류(클락워크/앵무새/마법사/모집병/트릭스터 포함), randomRoulette 대상 목록, 마녀재판(의심) 2수, checker 카드(3번째 줄 a·b·g·h 파일에 체커 4개 소환), 사회주의 때 허수아비/아기곰이 폰처럼 이동, 팔라딘 등이 폰처럼 포획, pawnLeap이 모든 적 기물을 넘음, resolve 뒤 쉬는 턴, checkerKing 값, 도둑 카드는 수배(wanted) 표시 후 턴 종료 시 체포, lastStand와 elephantEscape 구현. 기본 켜짐(`state.september26Rebalance === false`가 옛 규칙).
+- 옛 사이트 불일치 몇 개도 같이 수정: overtake 한 턴만, vanguard 대각선만, 트릭스터 능력 목록 순서, 백과사전 기물값, locustSwarm 슬라임 제외.
+- `golden-eval` 의도적 갱신(800개 중 80개 변경, 마이너 기물 재분류 때문). 확장 `engine.js` 사본 동기화.
+- 사이트 대조 도구: `REAL_WORKER_PATH`(이전 워커와 비교), `SEED_RANDOM=1`(결정적 플레이아웃), 빠른 워커 재앵커.
+
 ## 2026-09-20
 
 ### 엔진

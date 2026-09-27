@@ -23,6 +23,9 @@ Automation: `.github/workflows/site-watch.yml` runs daily (and on demand). It ru
 `site-watch-report`. Read-only: it never commits, opens issues, or updates `last-seen.json` (do `check-site-update.js --save` yourself after
 reviewing). Network errors only produce a warning.
 
+Env switches: `REAL_WORKER_PATH=<file>` (all parity scripts) runs against another worker copy, e.g. `.cache/real-worker.prev.js` (the version before the last
+`fetch-real-worker.js --force`) to get a baseline of old counts; `SEED_RANDOM=1` (parity-playout) re-seeds Math.random identically before each side applies an action.
+
 Caveats when reading multi-ply diffs:
 - The site's worker does NOT model some cards. Example: `locustSwarm` is an OPENING card; the worker only honours it via its
   opening-setup path, so playing it as an in-game card has no effect there, while our engine applies it. Diffs after such cards are expected.

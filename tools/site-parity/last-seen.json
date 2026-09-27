@@ -1,8 +1,8 @@
 {
-  "mainBundle": "main-saUeM6OL.js",
-  "mainBundleBytes": 12157993,
-  "aiWorkerSha256": "5f73282964575ff2c63a863b1a2d1c9778d8109900e7f8d5c4e6fb5ec97340ea",
-  "aiWorkerBytes": 968604,
-  "updateLogVersion": "2026-09-19-0310-balance-remakes-v1",
-  "checkedAt": "2026-09-26T01:51:57.190Z"
+  "mainBundle": "main-BrJfQMgo.js",
+  "mainBundleBytes": 12592812,
+  "aiWorkerSha256": "5fb657416d6eb0f3426009301f610f8cdb98a3566b03498b0a17c073e144f7f9",
+  "aiWorkerBytes": 1032217,
+  "updateLogVersion": "2026-09-27-cards-factory-v1",
+  "checkedAt": "2026-09-27T01:19:48.684Z"
 }

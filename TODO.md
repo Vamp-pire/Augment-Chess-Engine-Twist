@@ -1,7 +1,7 @@
 # TODO
 
 역할: 남은 일과 사용자 몫만 적는 문서입니다. 계획과 기준은 `PLAN.md`, 실험 결과와 발견은 `ExperimentNote.md`, 프로젝트 지도는 `PROJECT.md`입니다.
-마지막 갱신: 2026-09-26.
+마지막 갱신: 2026-09-27.
 
 - [x] WASM PoC (2026-09-22): `positionalScore` 축소판을 AssemblyScript로 포팅해 벤치마크 — 결과 애매(0.94x~1.43x, 오차범위 안), 압도적 이득 없음. 상세는 `docs/WASM-POC-RESULT.md`.
 - [x] Texel tuning 도구 (2026-09-22): `tools/tune/texel-tune.js` — `evaluateState`의 8개 손튜닝 계수(material 1.35, *Enemy 0.88/0.72/0.65/0.82/0.82/0.92/0.9)를 자가대국 결과로 재적합. 스트리밍 로딩(RAM 안전), sigmoid(score/K)+MSE, Adam + 기본값으로의 L2 정규화(노이즈로 인한 발산 방지 위해 추가). `selfplay-data.merged-engine-local-depth3.jsonl`(6474국면)로 로컬 검증: MSE 0.1358→0.1106(18.6%↓), 승부 국면 부호 일치율 66.3%→68.0%. 엔진 파일은 건드리지 않음 — `tools/tune/tuned-eval.js`가 `evaluateStateComponents`로 재계산해 `options.evalFn`에 꽂는 방식. 결과는 `tools/tune/weights.json`.
@@ -31,8 +31,9 @@
 - [ ] 새 정보원 확보: 정답이 핸드코딩의 복사본이라 새 정보가 없다는 것이 1순위 가설. 사이트의 실제 기보나 사이트 AI와의 대국 데이터 활용. 사이트 운영자 동의 증빙(NOTICE.md 인용, Discord 2026-09-19) 저장이 선행되어야 함.
 - [ ] 사이트 규칙 자가대국 자동화: 사이트 감시 → 원본 받기 → 패치(`make-fast-worker.js`) → 동일성 대조(`diff-fast-worker.js`) → 자가대국이 사이트 규칙 사용, 실패 시 원본으로 후퇴 + 알림. 취소됐던 사이트 규칙 시험(run 35977727355) 재실행. 빠른 버전은 원본 대비 3.7배(초당 98 → 362수, 차이 0건), 목표 2.5배 달성.
 - [ ] 더 빠른 사이트 규칙: 허수아비 강제 포획 O(n²) 계산(전체의 약 14%)은 동등성을 증명하지 못해 미적용.
-- [ ] 사이트 2026-09-27 업데이트(cards-factory-v1, 9월26일 카탈로그 재조정: checker 소환 칸, conveyor factory 등) 반영 안 됨. `real-worker.js`는 새 버전으로 받았으나(이전 것은 `.prev`) `last-seen.json`은 저장 안 함. 빠른 워커 재생성은 패치 앵커 `move-allowed-memo` 불일치로 실패(재앵커 필요). 수 목록 대조 400판 중 16건 차이(card checker 4, traitor 2, sacrifice 2, extinction 1 등), 적용 대조 13건 차이.
-- [ ] 엔진 vs 사이트 규칙 불일치(이 업데이트 이전부터): `recurrence` 카드 대상 좌표, `randomRoulette`, `symmetry` 포획 수, 게임 시작 시 `blackMagic` 카드 노출, 그 밖에 falseStart/binaMate/zugzwang 후보. 목록은 Accelerate PR #23의 known-differences.json 참고.
+- [x] 사이트 2026-09-27 업데이트(cards-factory-v1, 9월26일 카탈로그 재조정) 반영(로컬 커밋, 푸시 전): 빠른 워커 재앵커(`move-allowed-memo`, 사이트가 `grapplerBindingAllowsMove`를 첫 검사로 추가, `diff-fast-worker.js 80 4242 120` 차이 0), 엔진에 재조정 규칙 이식(기본 켜짐, `state.september26Rebalance === false`면 옛 규칙), `extension/engine.js` 동기화, `last-seen.json` 갱신(번들 main-BrJfQMgo, aiWorker 5fb657416d6e). 수 목록 대조 400판 16건 → 5건(전부 recurrence), 적용 대조 300건 13 → 7건(전부 아래 옛 목록). golden-eval은 의도적으로 갱신(마이너 기물 재분류 때문에 800개 중 80개, 그것만 되돌리면 옛 값과 100% 같음). **모델 영향**: 입력 인코더는 그대로지만 cardsSelf/cardsEnemy 값이 바뀐 국면(reversal/campfire/clockwork 카드를 쥔 채 clockwork/parrot/wizard/recruiter/trickster가 있을 때, checker 카드를 쥘 때)이 있어 기존 데이터/모델은 옛 규칙 기준. 인코딩 캐시는 엔진 해시 salt 때문에 자동으로 새로 만들어짐. 상세 근거는 `tools/site-parity/TRIAGE.md` 2026-09-27 절.
+- [ ] 사이트 9/27 새 카드/기물은 엔진에 없음(이식 안 함): d4, e4, solidarity, bishop-infiltration, synchronization, assembly, vigilance, roller, greek gift, wanted(카드), brainwash, taboo, grappler, revolving door, don quixote, medium, 물약 효과 기록(`potionEffects`), 캠페인 `conveyorFactory` 시작 배치, `catalogHash` 게이트(엔진은 항상 새 카탈로그). 엔진 카드 풀에 없어서 자가대국에는 안 나오지만 사이트 실전 대조에는 필요해질 수 있음.
+- [ ] 엔진 vs 사이트 규칙 불일치(남은 것, 이 업데이트와 무관한 옛 것): `recurrence` 카드 대상 좌표, `randomRoulette` 결과(무작위), `symmetry` 포획 수/이동, 게임 시작 시 `blackMagic` 카드 노출, `falseStart`, `zugzwang`(엔진이 카드를 더 허용), `missionary` 카드 적용, `binaMate`, `collapse` 뒤 왕 판정 시점, `brutus` 배신(사이트는 이동 제한 필터와 `parrotBaseMoves` 인자를 씀), 엔진 `forceWorkerTurnEnd`가 사이트보다 단순(도둑/보호 틱 등 누락). 목록은 Accelerate PR #23의 known-differences.json 참고. 이번에 우연히 고친 옛 차이: overtake 한 턴만, vanguard 대각선만/맨 앞 폰 1개 조건, 트릭스터 능력 목록 순서, 백과사전 기물값(paladin/octopus/brutus/clockwork/parrot/thief, missionary 2), locustSwarm 슬라임 제외.
 - [ ] 확장 15,239차원 포팅(`extension/nnue.js`): 대전을 통과하는 모델이 나온 뒤.
 - [ ] 사용자 확인 필요: `.claude/settings.json`(브라우저 읽기 도구 6개 허용, 미커밋) 커밋 여부, 자가대국 스케줄 재개 여부.
 
@@ -44,7 +45,7 @@
 - 측정: `tools/league/`(stats.js, league.js, run-ladder.js, match-summary.js), `match.yml`에 `shards`(1~20)와 점수/Elo/SPRT 요약과 `match-result` 아티팩트. 승격 규칙은 `PLAN.md`(SPRT + 핸드코딩 대비 점수).
 - 학습: `SPARSE_INPUT=1`(희소 저장, 128만 포지션까지), `EPOCHS_CAP`/`PATIENCE`/`CHUNK_SIZE`/`ABLATE_L2` 환경 변수를 `nnue-train.yml` overrides(`sparseInput`, `epochsCap`, `patience`, `chunkSize`, `ablateL2`)로 전달, Node 힙 12GB, 실행별 진행 로그를 이슈 #5 댓글로 5분마다 갱신.
 - 사이트 규칙: `tools/site-parity/make-fast-worker.js`, `diff-fast-worker.js`(원본과 바이트 단위 대조), `gen-reference-fixtures.js`(사이트 원본으로 정답지 생성).
-- 사이트 감시: `last-seen.json`은 2026-09-26 갱신(번들 main-saUeM6OL, aiWorker 5f7328296457). 이번 번들 변경은 규칙 동작을 바꾸지 않음(80판 + 320 국면 대조 차이 0).
+- 사이트 감시: `last-seen.json`은 2026-09-27 갱신(번들 main-BrJfQMgo, aiWorker 5fb657416d6e, 업데이트 로그 2026-09-27-cards-factory-v1). 참고용 정답지도 다시 생성해 확인함(스크래치에 생성, 349개 국면, 원본/빠른 워커 모두 검증 차이 0, 다른 저장소에는 복사하지 않음).
 
 **Accelerate 팀 저장소(가속) 상태**
 - 열린 PR 없음(2026-09-27 확인). #23(정답 축)과 #24(대화 양식 축)은 9/26 21:56 KST, #17(cpp 스케치)은 9/27 03:12 KST에 구독좋아요님이 병합. #17 병합 뒤 구독좋아요님이 develop에 직접 커밋 2개(main 함수 추가, parent-distance activation) 추가함.
