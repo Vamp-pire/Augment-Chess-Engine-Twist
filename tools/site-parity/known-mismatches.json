@@ -1,0 +1,30 @@
+{
+  "updated": "2026-09-27",
+  "source": "TODO.md (\"엔진 vs 사이트 규칙 불일치\") and TRIAGE.md (2026-09-19 and 2026-09-27 sections)",
+  "humanThreshold": 3,
+  "regressionSlack": {
+    "min": 3,
+    "ratio": 0.5
+  },
+  "notes": [
+    "Keys are card ids (parity-actions/parity-apply byAction keys without the 'card:' prefix; parity-playout byCause keys after 'after '). 'move' = a plain move, not a card.",
+    "A mismatch is NEW when its key is not listed here. A listed key still counts as 'increased' when its count with the new worker exceeds the count with the previous worker by more than max(min, ratio*old) in the same test.",
+    "humanThreshold: update-site.js says 'human review required' when new + increased mismatches reach this number (adjustable). Engine porting can be batched.",
+    "When a mismatch is fixed or accepted, edit this file (add/remove ids) and keep the reason short."
+  ],
+  "known": {
+    "recurrence": "target coordinates differ (engine vs site); old, unrelated to the 2026-09-27 update",
+    "randomRoulette": "random outcome, not comparable",
+    "symmetry": "capture count / movement differ",
+    "blackMagic": "card exposure at game start differs",
+    "falseStart": "old difference",
+    "zugzwang": "engine allows the card more often than the site",
+    "missionary": "card application differs",
+    "binaMate": "old difference",
+    "collapse": "king-check timing after collapse differs",
+    "brutus": "betrayal: the site uses a move-restriction filter and parrotBaseMoves argument",
+    "locustSwarm": "OPENING card; the site worker has no in-game effect, engine applies it (expected)",
+    "move": "AMBIGUOUS bucket: plain-move divergences (brutus-betrayal restriction, collapse/king timing, engine forceWorkerTurnEnd simpler than the site: thief/protection ticks). Watched through the 'increased' rule only.",
+    "start": "AMBIGUOUS bucket (parity-playout): the action lists already differ before the first ply (initial hand: blackMagic exposure at game start, zugzwang, falseStart...). Watched through the 'increased' rule only."
+  }
+}
