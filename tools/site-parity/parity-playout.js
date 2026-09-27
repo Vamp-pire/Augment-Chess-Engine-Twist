@@ -1,5 +1,7 @@
 // Multi-ply playouts: same random action (matched by normalized content) in both; stop at first divergence and classify.
 // Usage: node parity-playout.js [engine|-] [GAMES=30] [seed=4242] [PLIES=40]
+// SEED_RANDOM=1 re-seeds Math.random identically before each side applies an action, so random-target effects
+// (brutus, freeze, roulette, ...) draw the same numbers in both code bases (the default leaves them unaligned).
 const C = require("./common"); const { real } = C; const args = C.parseArgs(); const eng = require(args.engine);
 const GAMES = args.N || 30, PLIES = args.plies, rng = C.rngMaker(args.seed || C.defaultSeed(3));
 const SPECIAL = ["amazon","cardinal","grasshopper","hook","camel","berserker","thief","paladin","octopus","clockwork","brutus","checker","campfire","princess","scarecrow","slime","trickster"];
@@ -35,7 +37,8 @@ for (let g = 0; g < GAMES; g++) {
     const act = (cards.length && rng() < 0.3) ? cards[Math.floor(rng()*cards.length)] : la[Math.floor(rng()*la.length)];
     const ea = lb[nb.indexOf(C.norm(act))]; // match by normalized content, not list index
     if (act.type === "card") cardPlies++;
-    const ra = real.applyAction(A, JSON.parse(JSON.stringify(act)), col), rb = eng.applyAction(B, JSON.parse(JSON.stringify(ea)), col);
+    const reseed = () => { if (process.env.SEED_RANDOM) Math.random = C.rngMaker(args.seed * 1000003 + g * 1009 + p); };
+    reseed(); const ra = real.applyAction(A, JSON.parse(JSON.stringify(act)), col); reseed(); const rb = eng.applyAction(B, JSON.parse(JSON.stringify(ea)), col);
     plies++; hist.push(col + " " + desc(act));
     if (ra.ok !== rb.ok || (ra.ok && sig(A) !== sig(B))) {
       const x = sig(A).split("\n"), y = sig(B).split("\n"); const k = x.findIndex((s, j) => s !== y[j]);

@@ -1,7 +1,7 @@
 // Shared harness for the parity tests.
 globalThis.self = globalThis; globalThis.addEventListener = () => {};
 const fs = require("fs"), path = require("path");
-const REAL_PATH = path.join(__dirname, ".cache", "real-worker.js");
+const REAL_PATH = process.env.REAL_WORKER_PATH ? path.resolve(process.env.REAL_WORKER_PATH) : path.join(__dirname, ".cache", "real-worker.js"); // REAL_WORKER_PATH=.cache/real-worker.prev.js compares against the previous site version
 if (!fs.existsSync(REAL_PATH)) { console.error("Missing " + REAL_PATH + " -- run: node fetch-real-worker.js"); process.exit(1); }
 const real = require(REAL_PATH);
 const ENGINE_DEFAULT = path.resolve(__dirname, "..", "..", "engine-merged.js");
