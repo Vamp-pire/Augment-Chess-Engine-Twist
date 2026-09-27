@@ -98,8 +98,42 @@
   function usesInternalSixFixes(state) {
     return state?.internalSixFixes !== false;
   }
+  // The overtake card lasts only for the turn it is played (site default; older catalogs kept it for the whole game).
+  function usesActiveOvertake(state) {
+    return state?.overtakeTurnOnly !== false;
+  }
+  // Vanguard pawns get diagonal quiet steps only (no straight step, no diagonal capture) since the September 19 site patch.
+  function usesVanguardDiagonalStep(state) {
+    return state?.vanguardDiagonalOnly !== false;
+  }
   function usesThiefRequiredJump(state) {
     return state?.thiefRequiredJump === true;
+  }
+  // 2026-09-27 site patch (cards-factory-v1, "September 26 catalog rebalance"). The real site gates these
+  // rules on profile.catalogHash === SEPTEMBER26_CATALOG_HASH, and treats an ABSENT hash as the new catalog;
+  // the engine never sets a hash, so (same convention as the gates above) the new rules are the default
+  // and state.september26Rebalance === false selects the pre-rebalance rules.
+  function usesSeptember26Rebalance(state) {
+    return state?.september26Rebalance !== false;
+  }
+  const BASE_MINOR_PIECE_TYPES = Object.freeze(["knight", "bishop", "camel"]);
+  const RECLASSIFIED_MINOR_PIECE_TYPES = Object.freeze([...BASE_MINOR_PIECE_TYPES, "clockwork", "parrot", "wizard", "recruiter", "trickster"]);
+  function minorPieceTypesForCatalog(state) {
+    return usesSeptember26Rebalance(state) ? RECLASSIFIED_MINOR_PIECE_TYPES : BASE_MINOR_PIECE_TYPES;
+  }
+  function isMinorPieceTypeForCatalog(type, state) {
+    return minorPieceTypesForCatalog(state).includes(type);
+  }
+  // Turning a wizard/trickster into another piece drops the mana/ammo/... that only that ability used.
+  function clearFormerMinorAbilityState(attributes, formerType, nextType) {
+    if (!attributes || formerType === nextType) return attributes;
+    if (formerType === "wizard" || formerType === "trickster") {
+      for (const key of ["mana", "maxMana"]) delete attributes[key];
+    }
+    if (formerType === "trickster") {
+      for (const key of ["ammo", "maxAmmo", "facing", "gold", "windmillMode", "logDir", "logRollAfterTurn", "logRollAfterPly", "heraldJumpUnlocked", "heraldJumpLockPly", "babyBearGrowAtTurn", "babyBearGrowthDueTurn", "bearRetaliationsRemaining", "reaperCaptures", "tricksterMoveType", "tricksterPreviousAbilityForTurn"]) delete attributes[key];
+    }
+    return attributes;
   }
   function crossesReservedScarecrow(from, move, entries = []) {
     if (!from || !move || move.colossusBody || move.colossusAttack || move.shotgunBlast || move.shotgunSnipe || move.setLogDirection || move.merchantBuy) return false;
@@ -122,7 +156,7 @@
     return state?.extinctionMinorTargets !== false;
   }
   function extinctionTargetTypeAllowed(type, state) {
-    return !usesMinorExtinction(state) || ["knight", "bishop", "camel"].includes(type);
+    return !usesMinorExtinction(state) || isMinorPieceTypeForCatalog(type, state);
   }
   const usesEnemyOnlyRadiance = usesMinorExtinction;
   function usesRookParrotTarget(state) {
@@ -245,6 +279,38 @@
     const direction = thiefMoveDirection(from, to.portalEntry || extraCells[0] || to);
     if (direction) item.thiefLastDirection = direction;
   }
+  // 2026-09-27: unique board entries (one per piece, big pieces once), first cell encountered as row/col.
+  function expansionBoardEntries(board) {
+    const entries = [], byId = /* @__PURE__ */ new Map();
+    board.forEach((line, row) => line.forEach((item, col) => {
+      if (!item) return;
+      const id = item.id || item;
+      let entry = byId.get(id);
+      if (!entry) {
+        entry = { item, cells: [], row, col };
+        byId.set(id, entry);
+        entries.push(entry);
+      }
+      entry.cells.push({ row, col });
+    }));
+    return entries;
+  }
+  // "Wanted" pieces (the thief card marks its queen wanted) are removed at the end of their owner's turn once they
+  // are no longer submerged. Since the September 26 rebalance this replaces the thief-type arrest in tickThiefArrests.
+  function resolveWantedArrests(state, endingColor, remove) {
+    const due = expansionBoardEntries(state.board).filter(({ item }) => item.color === endingColor && item.wanted && !item.submerged);
+    const removed = [];
+    for (const entry of due) if (state.board[entry.row]?.[entry.col] === entry.item && remove(entry.row, entry.col, opponent(endingColor))) removed.push(entry);
+    return removed;
+  }
+  function resolveWorkerWantedArrests(boardState, color) {
+    return resolveWantedArrests(boardState, color, (row, col, capturer) => {
+      const item = get(boardState, row, col);
+      if (!item) return null;
+      forceWorkerRemovePieceAt(boardState, row, col, capturer, capturer);
+      return item;
+    });
+  }
   function tickThiefArrests(board, color, state) {
     const removed = [];
     for (const entry of uniqueBoardPieces(board)) {
@@ -253,7 +319,7 @@
         delete entry.item.thiefVisited;
         delete entry.item.thiefLastDirection;
         const ability = entry.item.type === "trickster" ? entry.item.tricksterMoveType : entry.item.type;
-        if (ability !== "thief" || entry.item.submerged) continue;
+        if (usesSeptember26Rebalance(state) || ability !== "thief" || entry.item.submerged) continue;
         removed.push(entry);
         for (const line of board) for (let c = 0; c < line.length; c++) if (entry.item.id && line[c]?.id === entry.item.id || line[c] === entry.item) line[c] = null;
         continue;
@@ -328,6 +394,7 @@
         item2.type = "thief";
         item2.moved = true;
         item2.submerged = true;
+        if (usesSeptember26Rebalance(boardState)) item2.wanted = { by: color };
         return { ok: true };
       }
       const item = get(boardState, target?.row, target?.col);
@@ -380,7 +447,7 @@
     return String(type || "").replace(/[A-Z]/g, (c) => "-" + c.toLowerCase());
   }
   function parrotTransformTypes(state) {
-    return usesRookParrotTarget(state) ? ["rook"] : ["bishop", "knight", "camel"];
+    return usesRookParrotTarget(state) ? ["rook"] : minorPieceTypesForCatalog(state).filter((type) => type !== "parrot");
   }
   function rememberedBaseMovement(item, previous = null) {
     if (!item) return null;
@@ -411,7 +478,8 @@
       item = rooks.length ? rooks[Math.min(rooks.length - 1, Math.floor(random() * rooks.length))] : null;
     }
     const rookTarget = card2.id === "brutus" || card2.id === "parrot" && usesRookParrotTarget(state);
-    if (!item || item.color !== color || isRoyal(item) || !(rookTarget ? item.type === "rook" : ["bishop", "knight", "camel"].includes(item.type))) return { ok: false, message: card2.id === "brutus" ? "변경할 아군 룩이 없습니다." : rookTarget ? "변경할 아군 룩을 선택하세요." : "아군 마이너 피스를 선택하세요." };
+    if (!item || item.color !== color || isRoyal(item) || !(rookTarget ? item.type === "rook" : minorPieceTypesForCatalog(state).filter((type) => type !== card2.id).includes(item.type))) return { ok: false, message: card2.id === "brutus" ? "변경할 아군 룩이 없습니다." : rookTarget ? "변경할 아군 룩을 선택하세요." : "아군 마이너 피스를 선택하세요." };
+    clearFormerMinorAbilityState(item, item.type, card2.id);
     item.type = card2.id;
     item.moved = true;
     item.freshNoCaptureUntil = (Number(state.turnsTaken?.[item.color]) || 0) + 1;
@@ -659,7 +727,7 @@
     }
     return { ok: true, message: `${card2.name || card2.id} 효과가 적용되었습니다.` };
   }
-  function threeMoveAllowed(board, item, row, col, move, { movementType = pieceAbilityType(item), teleport = false, secondary = false, enemyOnlyRadiance = true, hookPathRange = true, allSquaresRadiance = true } = {}) {
+  function threeMoveAllowed(board, item, row, col, move, { movementType = pieceAbilityType(item), teleport = false, secondary = false, enemyOnlyRadiance = true, hookPathRange = true, allSquaresRadiance = true, socialistPawnCapture = false } = {}) {
     if (!item || !move) return false;
     const to = move.portalLanding && move.portalExit ? move.portalExit : move;
     if (!Number.isInteger(to.row) || !Number.isInteger(to.col)) return true;
@@ -673,7 +741,7 @@
     if (!secondary && target && (move.relaySwap || move.substitutionSwap || move.dragonSwap || move.switcherooMove)) {
       if (!threeMoveAllowed(board, target, to.row, to.col, { row, col }, { teleport: true, secondary: true, enemyOnlyRadiance, hookPathRange, allSquaresRadiance })) return false;
     }
-    if (threeType(pieceAbilityType(item)) === "paladin" && !move.crownGroundCapture && (move.capture || move.jumpCapture || target && target.color !== item.color && !["crown", "wall"].includes(threeType(target.type)))) return false;
+    if (threeType(pieceAbilityType(item)) === "paladin" && !socialistPawnCapture && !move.crownGroundCapture && (move.capture || move.jumpCapture || target && target.color !== item.color && !["crown", "wall"].includes(threeType(target.type)))) return false;
     if (lightSquare(row, col) || !boardHasPaladin(board)) return true;
     const lit = radianceCells(board, enemyOnlyRadiance ? item.color : null, { allSquares: allSquaresRadiance }), blocked = (r, c) => lit.has(`${r},${c}`);
     const landing = move.highlightCells || [to];
@@ -989,9 +1057,9 @@
   function septemberNullificationBlocks(target, attacker) {
     return Boolean(target?.type !== "scarecrow" && target?.nullification && attacker && target.color !== attacker.color && target.type === attacker.type);
   }
-  function septemberVanguardPawn(piece, row, pawns) {
+  function septemberVanguardPawn(piece, row, pawns, requireUnique = true) {
     if (piece?.type !== "pawn" || !["white", "black"].includes(piece.color)) return false;
-    return !pawns.some((other) => other.color === piece.color && (piece.color === "white" ? other.row < row : other.row > row));
+    return (!requireUnique || pawns.filter((other) => other.color === piece.color && other.row === row).length === 1) && !pawns.some((other) => other.color === piece.color && (piece.color === "white" ? other.row < row : other.row > row));
   }
   function septemberPrincessHasQueenMovement(color, pieces) {
     return !pieces.some((piece) => piece.color === color && piece.type === "queen" && piece.regencyHeir !== true);
@@ -1085,22 +1153,32 @@
     if (!state.resolveReady) state.resolveReady = { white: false, black: false };
     state.resolveReady[color] = true;
   }
-  function septemberConsumeResolveMove(state, color, movedType) {
+  function septemberConsumeResolveMove(state, color, movedType, pieceId) {
     if (movedType !== "pawn" || !state.resolve?.[color] || !state.resolveReady?.[color]) return false;
     state.resolveReady[color] = false;
     if (!state.resolveSpentTurn) state.resolveSpentTurn = {};
     state.resolveSpentTurn[color] = Number(state.turnsTaken?.[color]) || 0;
     if (!state.resolveMoveCredit) state.resolveMoveCredit = { white: false, black: false };
     state.resolveMoveCredit[color] = true;
+    if (usesSeptember26Rebalance(state)) {
+      state.resolveCreditPieceId ||= {};
+      state.resolveCreditPieceId[color] = pieceId;
+    }
     return true;
   }
   function septemberUseResolveCredit(state, color) {
     if (!state.resolveMoveCredit?.[color]) return false;
     state.resolveMoveCredit[color] = false;
+    if (usesSeptember26Rebalance(state)) {
+      const piece = state.board.flat().find((p) => p?.id === state.resolveCreditPieceId?.[color]);
+      if (piece) piece.idolEncoreRestTurn = Number(state.turnsTaken?.[color]) || 0;
+      if (state.resolveCreditPieceId) delete state.resolveCreditPieceId[color];
+    }
     state.enPassant = null;
     return true;
   }
   function septemberFinishResolveTurn(state, color) {
+    if (state.resolveCreditPieceId) delete state.resolveCreditPieceId[color];
     if (state.resolveReady) state.resolveReady[color] = false;
     if (state.resolveMoveCredit) state.resolveMoveCredit[color] = false;
   }
@@ -1237,7 +1315,7 @@
     "queen": 9,
     "rook": 5,
     "bishop": 3,
-    "missionary": 3,
+    "missionary": 2,
     "knight": 3,
     "pawn": 1,
     "protestant": 3,
@@ -1264,7 +1342,7 @@
     "recruiter": 9,
     "squire": 1,
     "checker": 1,
-    "checkerKing": 3,
+    "checkerKing": 2,
     "wizard": 9,
     "alfil": 1,
     "windmill": 4,
@@ -1279,6 +1357,12 @@
     "siren": 9,
     "trickster": 5,
     "undead": 4,
+    "paladin": 4,
+    "octopus": 5,
+    "brutus": 10,
+    "clockwork": 5,
+    "parrot": 5,
+    "thief": 9,
     "campfire": 4,
     "hedgehog": 9,
     "princess": 6,
@@ -1291,6 +1375,7 @@
     const raw = typeof pieceOrType === "string" ? pieceOrType : pieceOrType?.type;
     const type = canonicalChessNPow30PieceType(String(raw ?? "").replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()));
     if (!usesSeptember18Balance(state) && ["grasshopper", "checker", "checkerKing", "campfire"].includes(type)) return type === "checker" ? 2 : type === "checkerKing" ? 4 : 5;
+    if (type === "checkerKing" && !usesSeptember26Rebalance(state)) return 3;
     return Object.hasOwn(ENCYCLOPEDIA_PIECE_VALUES, type) ? ENCYCLOPEDIA_PIECE_VALUES[type] : null;
   }
   const LEGACY_CHESS_N_POW_30_PIECE_TYPES = Object.freeze([
@@ -1414,10 +1499,21 @@
     "idol"
   ]);
   new Set(CHESS_N_POW_30_RANGED_TYPES);
-  const TRICKSTER_MOVEMENT_TYPES = Object.freeze(
-    CHESS_N_POW_30_PIECE_TYPES.filter((type) => !["trickster", "log", "babyBear"].includes(type))
+  // Same members as CHESS_N_POW_30_PIECE_TYPES minus trickster/log/babyBear, but in the site's ORDER (older pieces first,
+  // then thief, brutus, clockwork, parrot, paladin, octopus): workerStableIndex() picks a trickster ability by list position.
+  const PRE_INTERNAL_TRICKSTER_MOVEMENT_TYPES = Object.freeze(
+    PRE_LATEST_CHESS_N_POW_30_PIECE_TYPES.filter((type) => !["trickster", "log", "babyBear"].includes(type))
   );
-  Object.freeze(TRICKSTER_MOVEMENT_TYPES.filter((type) => !["campfire", "hedgehog", "princess"].includes(type)));
+  const TRICKSTER_MOVEMENT_TYPES = Object.freeze([
+    ...PRE_INTERNAL_TRICKSTER_MOVEMENT_TYPES,
+    "thief",
+    "brutus",
+    "clockwork",
+    "parrot",
+    "paladin",
+    "octopus"
+  ]);
+  Object.freeze(PRE_INTERNAL_TRICKSTER_MOVEMENT_TYPES.filter((type) => !["campfire", "hedgehog", "princess"].includes(type)));
   function tricksterAbilityType$1(piece) {
     if (piece?.type !== "trickster") return "";
     return TRICKSTER_MOVEMENT_TYPES.includes(piece.tricksterMoveType) ? piece.tricksterMoveType : "";
@@ -2521,7 +2617,12 @@
     const span = Math.max(1, Math.floor(Number(interval) || PERIODIC_COLLAPSE_INTERVAL));
     return (Math.floor(current / span) + 1) * span;
   }
+  // 2026-09-27: post-rebalance list (clockwork/parrot/recruiter/wizard/trickster are minor pieces now; grappler is a
+  // new site piece the engine does not implement). The pre-rebalance list below is the site's previous one
+  // (it also fixes the engine's old list, which lacked clockwork/octopus/parrot).
   const RANDOM_ROULETTE_MAJOR_TYPES = Object.freeze([
+    "octopus",
+    "grappler",
     "hedgehog",
     "princess",
     "bigBishop",
@@ -2533,21 +2634,19 @@
     "bigRook",
     "herald",
     "jester",
-    "recruiter",
     "hook",
     "primeMinister",
     "assassin",
-    "wizard",
     "windmill",
     "crown",
     "bear",
     "magicGirl",
     "berserker",
     "siren",
-    "trickster",
     "reaper",
     "undead"
   ]);
+  const PRE_REBALANCE_RANDOM_ROULETTE_MAJOR_TYPES = Object.freeze(["clockwork", "octopus", "parrot", ...RANDOM_ROULETTE_MAJOR_TYPES.filter((type) => !["octopus", "grappler"].includes(type)), "recruiter", "wizard", "trickster"]);
   const RANDOM_ROULETTE_PIECE_TYPES = Object.freeze([
     "pawn",
     "knight",
@@ -2602,6 +2701,10 @@
     "princess"
   ]);
   const RANDOM_ROULETTE_MAJOR_TYPE_SET = new Set(RANDOM_ROULETTE_MAJOR_TYPES);
+  const PRE_REBALANCE_RANDOM_ROULETTE_MAJOR_TYPE_SET = new Set(PRE_REBALANCE_RANDOM_ROULETTE_MAJOR_TYPES);
+  function isMajorPieceTypeForCatalog(type, state = null) {
+    return (state && !usesSeptember26Rebalance(state) ? PRE_REBALANCE_RANDOM_ROULETTE_MAJOR_TYPE_SET : RANDOM_ROULETTE_MAJOR_TYPE_SET).has(type);
+  }
   const RANDOM_ROULETTE_LARGE_TYPE_SET = /* @__PURE__ */ new Set(["colossus", "bigRook", "bigBishop"]);
   const IRON_MONARCH_KING_TYPES = /* @__PURE__ */ new Set(["king", "royalKnight", "shotgunKing", "darkWizard"]);
   const IRON_MONARCH_CAPTURE_TYPES = /* @__PURE__ */ new Set(["pawn", "fanatic"]);
@@ -2635,9 +2738,9 @@
     if (isCollapsedAtDepth(row, col, rowCount, colCount, depth)) return true;
     return normalizeCollapsedCells(collapsedCells, rowCount, colCount).some((cell) => cell.row === row && cell.col === col);
   }
-  function isRandomRouletteTargetPiece(piece) {
+  function isRandomRouletteTargetPiece(piece, state = null) {
     return Boolean(
-      piece && ["white", "black"].includes(piece.color) && !piece.regencyHeir && !piece.crownRoyal && RANDOM_ROULETTE_MAJOR_TYPE_SET.has(piece.type)
+      piece && ["white", "black"].includes(piece.color) && !piece.regencyHeir && !piece.crownRoyal && isMajorPieceTypeForCatalog(piece.type, state)
     );
   }
   function randomRouletteOutcomeTypes(currentType = "", allowLarge = true) {
@@ -3413,7 +3516,6 @@
     "substitution",
     "switcheroo"
   ]);
-  const MAJOR_PIECE_TYPES = new Set(RANDOM_ROULETTE_MAJOR_TYPES);
   const SHOTGUN_BLAST_AMMO_COST = 2;
   const SHOTGUN_SNIPE_AMMO_COST = 3;
   let workerBoardRows = 8;
@@ -3424,7 +3526,7 @@
     standardBearer: 220,
     guard: 150,
     checker: 240,
-    checkerKing: 300,
+    checkerKing: 200,
     recruiter: 410,
     fanatic: 120,
     wall: 0,
@@ -5365,13 +5467,14 @@
     return moves;
   }
   function generateMovesForPiece(boardState, piece, row, col, options = {}) {
-    if (piece?.type === "scarecrow") return [];
+    if (piece?.type === "scarecrow" && !(usesSeptember26Rebalance(boardState) && boardState.socialism?.[piece.color] > 0)) return [];
+    if (usesSeptember26Rebalance(boardState) && boardState.socialism?.[piece?.color] > 0 && isSlimeSpecialMovementLocked(piece)) return [];
     if (boardState.democracy?.[piece.color] && boardState.zugzwang?.[piece.color] && !findWorkerKingRole(boardState, piece.color)) boardState.zugzwang[piece.color] = false;
     if (workerIdolEncoreRepeatBlocked(boardState, piece)) return [];
     if (isWorkerUndergroundBunkerKing(piece) || isPoisonStunned(piece) || isExhaustionMoveBlocked(boardState.exhaustion, piece)) return [];
     if ((septemberCounterLimit(piece.type) > 0 || pieceHasAbility(piece, "hedgehog")) && (Number(boardState.turnsTaken?.[piece.color]) || 0) < (Number(piece.bearMoveLockedUntilTurn) || 0)) return [];
-    if (piece.type === "clockwork" && !clockworkHasNeighbor(piece, row, col, (r, c) => get(boardState, r, c))) return [];
-    if (piece.type === "babyBear") return [];
+    if (pieceHasAbility(piece, "clockwork") && !clockworkHasNeighbor(piece, row, col, (r, c) => get(boardState, r, c))) return [];
+    if (piece.type === "babyBear" && !(usesSeptember26Rebalance(boardState) && boardState.socialism?.[piece.color] > 0)) return [];
     const type = renderType(piece);
     if (boardState.zugzwang?.[piece.color] && !isWorkerZugzwangTargetKing(boardState, piece)) return [];
     let moves = [];
@@ -5511,7 +5614,7 @@
     if (!slimeSpecialMovementLocked && isPromotionRushActive(piece, boardState.turnsTaken?.[piece.color] || 0)) {
       moves = uniqueMoves([...moves, ...workerPromotionRushMoves(boardState, piece, row, col)]);
     }
-    if (boardState.locustSwarm?.[piece.color] && locustReady(piece, row, col, boardState)) moves = uniqueMoves([...moves, ...grasshopperMoves(boardState, row, col, piece.color)]);
+    if (!slimeSpecialMovementLocked && boardState.locustSwarm?.[piece.color] && locustReady(piece, row, col, boardState)) moves = uniqueMoves([...moves, ...grasshopperMoves(boardState, row, col, piece.color)]);
     const availableSubstitutions = slimeSpecialMovementLocked ? [] : workerSubstitutionMoves(boardState, piece);
     if (availableSubstitutions.length) {
       moves = uniqueMoves([...availableSubstitutions, ...moves]);
@@ -5563,7 +5666,7 @@
     moves = moves.filter((move) => !crossesReservedScarecrow({ row, col }, move, [...boardState.pendingScarecrows || [], ...usesSeptember18Balance(boardState) ? piecesMatching(boardState, (p) => p.type === "scarecrow" && !p.scarecrowReserved).map(({ row: row2, col: col2 }) => ({ row: row2, col: col2, solid: true })) : []]));
     moves = moves.filter((move) => !workerMoveLandingCellsForQuantum(move).some((cell) => isWorkerPortalMovementReservedSquare(boardState, cell.row, cell.col) || isWorkerPendingSpawnReservedSquare(boardState, cell.row, cell.col)));
     moves = moves.filter((move) => thiefMoveAllowed(piece, move, boardState, { row, col }));
-    moves = moves.filter((move) => threeMoveAllowed(boardState.board, piece, row, col, move, { allSquaresRadiance: usesSeptember18Balance(boardState), enemyOnlyRadiance: usesEnemyOnlyRadiance(boardState), movementType: pieceHasAbility(piece, "parrot") ? boardState.parrotMovement?.[piece.color]?.type : pieceAbilityType(piece) }));
+    moves = moves.filter((move) => threeMoveAllowed(boardState.board, piece, row, col, move, { allSquaresRadiance: usesSeptember18Balance(boardState), enemyOnlyRadiance: usesEnemyOnlyRadiance(boardState), movementType: pieceHasAbility(piece, "parrot") ? boardState.parrotMovement?.[piece.color]?.type : pieceAbilityType(piece), socialistPawnCapture: usesSeptember26Rebalance(boardState) && boardState.socialism?.[piece.color] > 0 && !isWorkerRoyalIdentityPiece(boardState, piece) && !isSlimeSpecialMovementLocked(piece) }));
     moves = applyWorkerScarecrowCaptureRules(boardState, piece, row, col, moves, options);
     return moves.flatMap((move) => {
       const destination = workerPortalMoveDestination(move);
@@ -7295,6 +7398,7 @@
     if (!isWorkerVanguardPawn(boardState, piece, row)) return moves;
     const dir = pawnDir(boardState, color);
     for (const extra of leapMoves(boardState, row, col, color, [[dir, -1], [dir, 0], [dir, 1]])) {
+      if (usesVanguardDiagonalStep(boardState) && (extra.col === col || get(boardState, extra.row, extra.col))) continue;
       if (moves.some((move) => move.row === extra.row && move.col === extra.col)) continue;
       const adjacent = get(boardState, row, extra.col);
       const specialCapture = extra.col !== col && adjacent?.color === opponent(color) && (boardState.enPassantFrenzy?.[color] || adjacent.type === "pawn" && enPassantRightEntries(boardState.enPassant).some((entry) => entry.color !== color && entry.row === extra.row && entry.col === extra.col));
@@ -7371,7 +7475,7 @@
         if (boardState.breakthroughPawns?.[color] && canWorkerCaptureTarget(color, forwardTarget, piece, boardState)) {
           moves.push({ row: one, col });
         }
-        if (boardState.pawnLeap?.[color] && piece?.type === "pawn" && forwardTarget?.color === opponent(color) && forwardTarget.type === "pawn" && inBounds(two, col, boardState) && !movementTarget(two, col) && !isWorkerCrownGroundSquare(boardState, two, col)) {
+        if (boardState.pawnLeap?.[color] && piece?.type === "pawn" && forwardTarget?.color === opponent(color) && (usesSeptember26Rebalance(boardState) || forwardTarget.type === "pawn") && inBounds(two, col, boardState) && !movementTarget(two, col) && !isWorkerCrownGroundSquare(boardState, two, col)) {
           moves.push({ row: two, col, pawnLeap: true });
         }
       }
@@ -7481,7 +7585,12 @@
       const oneCol = col + dc;
       if (!inBounds(one, oneCol, boardState)) return;
       if (isWorkerCrownGroundSquare(boardState, one, oneCol)) return;
-      if (movementTarget(one, oneCol)) return;
+      const leapTarget = movementTarget(one, oneCol);
+      if (leapTarget) {
+        const two = row + dir * 2, twoCol = col + dc * 2;
+        if (usesSeptember26Rebalance(boardState) && boardState.pawnLeap?.[color] && piece.type === "pawn" && dir === pawnDir(boardState, color) && leapTarget.color === opponent(color) && inBounds(two, twoCol, boardState) && !movementTarget(two, twoCol) && !isWorkerCrownGroundSquare(boardState, two, twoCol)) moves.push({ row: two, col: twoCol, pawnLeap: true });
+        return;
+      }
       moves.push({ row: one, col: oneCol });
       if (!piece?.moved && doubleStepRows.includes(row)) {
         const two = row + dir * 2;
@@ -8118,14 +8227,14 @@
     if (card.id === "metal") return workerPositionsOf(boardState, (p) => p.color === color && !p.metalized && !isWorkerKingRole(boardState, p) && workerIsIceSheetRangedPiece(boardState, p));
     if (card.id === "thief" && usesThiefRemake(boardState)) return thiefQueenCandidates(boardState.board, color, (item) => isWorkerKingRole(boardState, item)).length ? [null] : [];
     if (card.id === "brutus") return workerCountPiecesOf(boardState, color, "rook") > 0 ? [null] : [];
-    if (["clockwork", "parrot"].includes(card.id)) return workerPositionsOf(boardState, (p) => p.color === color && (card.id === "parrot" ? parrotTransformTypes(boardState) : ["knight", "bishop", "camel"]).includes(p.type) && !isWorkerKingRole(boardState, p));
+    if (["clockwork", "parrot"].includes(card.id)) return workerPositionsOf(boardState, (p) => p.color === color && (card.id === "parrot" ? parrotTransformTypes(boardState) : minorPieceTypesForCatalog(boardState).filter((type) => type !== "clockwork")).includes(p.type) && !isWorkerKingRole(boardState, p));
     if (INTERNAL_EIGHT_PASSIVE_EFFECTS.includes(card.effect)) return boardState[card.effect]?.[color] ? [] : [null];
     if (card.effect === "disassembly") return boardState.disassembly?.[color] ? [] : [null];
     if (card.effect === "extinction") return piecesMatching(boardState, (p) => p.color === color && !isWorkerRoyalIdentityPiece(boardState, p) && extinctionTargetTypeAllowed(p.type, boardState)).map(({ row, col }) => ({ row, col }));
     if (SEPTEMBER_PASSIVE_EFFECTS.includes(card.effect) && card.effect !== "bigBishop") return boardState[card.effect]?.[color] ? [] : [null];
     const effect = card.effect || "";
     const enemy = opponent(color);
-    if (usesSeptember18Balance(boardState) && ["campfire", "reversal", "scarecrow"].includes(effect)) return piecesMatching(boardState, (piece) => piece.color === color && (effect === "scarecrow" ? !["wall", "football", "blackHole", "coffin"].includes(piece.type) : ["knight", "bishop", "camel"].includes(piece.type) && !isWorkerKingRole(boardState, piece))).map(({ row, col }) => ({ row, col }));
+    if (usesSeptember18Balance(boardState) && ["campfire", "reversal", "scarecrow"].includes(effect)) return piecesMatching(boardState, (piece) => piece.color === color && (effect === "scarecrow" ? !["wall", "football", "blackHole", "coffin"].includes(piece.type) : isMinorPieceTypeForCatalog(piece.type, boardState) && !isWorkerKingRole(boardState, piece))).map(({ row, col }) => ({ row, col }));
     if (["siegeRam", "magicGirl", "berserker", "slime", "trickster", "campfire", "princess"].includes(effect)) {
       return piecesMatching(boardState, (piece) => piece.color === color && piece.type === "rook" && !isWorkerRoyalIdentityPiece(boardState, piece)).sort((a, b) => pieceValue(a.piece) - pieceValue(b.piece)).map(({ row, col }) => ({ row, col })).slice(0, 20);
     }
@@ -8190,7 +8299,7 @@
       return piecesMatching(boardState, (piece) => isPromotionRushEligiblePiece(piece, color)).map(({ row, col }) => ({ row, col })).slice(0, 20);
     }
     if (effect === "randomRoulette") {
-      return piecesMatching(boardState, (piece) => isRandomRouletteTargetPiece(piece)).map(({ row, col }) => ({ row, col })).slice(0, 20);
+      return piecesMatching(boardState, (piece) => isRandomRouletteTargetPiece(piece, boardState)).map(({ row, col }) => ({ row, col })).slice(0, 20);
     }
     if (effect === "freeMove") {
       const candidates = [];
@@ -8381,7 +8490,7 @@
       if (bishops.length < 2) return [];
       return bishops.map(({ row, col }) => ({ row, col })).slice(0, 20);
     }
-    const spec = card.effect === "grasshopper" && legacyGrasshopperTargetStates.has(boardState) ? { side: "own", types: ["rook"] } : workerCardTargetSpec(card);
+    const spec = card.effect === "grasshopper" && legacyGrasshopperTargetStates.has(boardState) ? { side: "own", types: ["rook"] } : workerCardTargetSpec(card, boardState);
     const targets = [];
     forEachPiece(boardState, (piece, row, col) => {
       if (piece.type === "wall" || piece.type === "football" || piece.type === "colossus") return;
@@ -8663,11 +8772,11 @@
       piece && piece.color === color && !piece.basicTraining && !BASIC_TRAINING_FORBIDDEN_TYPES.has(piece.type) && !["wall", "football", "blackHole", "colossus", "bigRook", "bigBishop"].includes(piece.type)
     );
   }
-  function isWorkerMajorPiece(piece) {
-    return Boolean(piece?.color && piece.regencyHeir !== true && MAJOR_PIECE_TYPES.has(piece.type));
+  function isWorkerMajorPiece(piece, boardState) {
+    return Boolean(piece?.color && piece.regencyHeir !== true && isMajorPieceTypeForCatalog(piece.type, boardState));
   }
   function workerMajorPieces(boardState) {
-    return piecesMatching(boardState, (piece) => isWorkerMajorPiece(piece));
+    return piecesMatching(boardState, (piece) => isWorkerMajorPiece(piece, boardState));
   }
   function workerRandomRouletteLargeAnchors(boardState, piece, row, col) {
     const origin = workerIsLargePiece(piece) ? { row: piece.anchorRow, col: piece.anchorCol } : { row, col };
@@ -8730,7 +8839,7 @@
     }
   }
   function applyWorkerRandomRoulette(boardState, card, target, row, col, color, aiColor) {
-    if (!isRandomRouletteTargetPiece(target)) return { ok: false, score: 0 };
+    if (!isRandomRouletteTargetPiece(target, boardState)) return { ok: false, score: 0 };
     const largeAnchors = workerRandomRouletteLargeAnchors(boardState, target, row, col);
     const outcomeTypes = randomRouletteOutcomeTypes(target.type, largeAnchors.length > 0);
     if (!outcomeTypes.length) return { ok: false, score: 0 };
@@ -9032,7 +9141,7 @@
       return open >= 4;
     }
     if (effect === "cleanupPieces") return piecesMatching(boardState, (piece) => piece.color === color && !isWorkerRoyalIdentityPiece(boardState, piece) && !workerIsLargePiece(piece) && !["wall", "football", "blackHole", "monster", "coffin"].includes(piece.type)).length > 0;
-    if (usesSeptember18Balance(boardState) && ["campfire", "reversal"].includes(effect)) return piecesMatching(boardState, (piece) => piece.color === color && ["knight", "bishop", "camel"].includes(piece.type) && !isWorkerKingRole(boardState, piece)).length > 0;
+    if (usesSeptember18Balance(boardState) && ["campfire", "reversal"].includes(effect)) return piecesMatching(boardState, (piece) => piece.color === color && isMinorPieceTypeForCatalog(piece.type, boardState) && !isWorkerKingRole(boardState, piece)).length > 0;
     if (["siegeRam", "magicGirl", "berserker", "slime", "trickster", "campfire", "princess"].includes(effect)) return workerCountPiecesOf(boardState, color, "rook") > 0;
     if (["siren", "undead", "hedgehog"].includes(effect)) return piecesMatching(boardState, (piece) => isWorkerQueenIdentity(piece, color)).length > 0;
     if (effect === "suspiciousPotion") return piecesMatching(boardState, (piece) => COLORS.includes(piece.color) && !workerIsLargePiece(piece) && !["wall", "football", "blackHole", "monster", "coffin"].includes(piece.type)).length > 0;
@@ -9206,7 +9315,7 @@
     return true;
   }
   function isWorkerSeptemberMajestyDestinationBlocked(boardState, item, destinations) {
-    if (!item?.color || !boardState.majesty?.[opponent(item.color)] || !isWorkerMajorPiece(item)) return false;
+    if (!item?.color || !boardState.majesty?.[opponent(item.color)] || !isWorkerMajorPiece(item, boardState)) return false;
     const royalCells = piecesMatching(boardState, (other) => other.color === opponent(item.color) && isWorkerKingRole(boardState, other));
     return septemberMajestyBlocks({ enabled: true, major: true, destinations, royalCells });
   }
@@ -9553,7 +9662,7 @@
     }
     return false;
   }
-  function workerCardTargetSpec(card) {
+  function workerCardTargetSpec(card, boardState) {
     const effect = card?.effect || "";
     const target = card?.target || "";
     if (["campfire", "princess"].includes(effect)) return { side: "own", types: ["rook"], nonKing: true };
@@ -9574,7 +9683,7 @@
     if (effect === "missionary") return { side: "own", types: ["bishop"] };
     if (effect === "poisonedPawn") return { side: "own", types: ["pawn"] };
     if (effect === "freeCastling") return { side: "own", types: ["rook"] };
-    if (effect === "grasshopper") return { side: "own", types: ["knight", "bishop", "camel"] };
+    if (effect === "grasshopper") return { side: "own", types: minorPieceTypesForCatalog(boardState) };
     if (["herald", "dragon"].includes(effect)) return { side: "own", types: ["rook"] };
     if (["localConscription", "queensGambit", "babyBear"].includes(effect)) return { side: "own", types: ["queen"] };
     if (["wizard", "merchantGuild", "jester", "constitutionalMonarchy", "reaper", "amazon", "idol"].includes(effect)) return { side: "own", types: ["queen"] };
@@ -10224,9 +10333,9 @@
     forEachPiece(boardState, (piece) => {
       if (!piece || !["white", "black"].includes(piece.color) || seen.has(piece)) return;
       if (usesSeptember18Balance(boardState)) {
-        if (!isWorkerMajorPiece(piece)) return;
+        if (!isWorkerMajorPiece(piece, boardState)) return;
         const cells = workerCrownPieceCells(boardState, piece);
-        if (piecesMatching(boardState, (other) => other !== piece && isWorkerMajorPiece(other)).some(({ piece: other }) => cells.some((a) => workerCrownPieceCells(boardState, other).some((b) => Math.max(Math.abs(a.row - b.row), Math.abs(a.col - b.col)) <= 1)))) return;
+        if (piecesMatching(boardState, (other) => other !== piece && isWorkerMajorPiece(other, boardState)).some(({ piece: other }) => cells.some((a) => workerCrownPieceCells(boardState, other).some((b) => Math.max(Math.abs(a.row - b.row), Math.abs(a.col - b.col)) <= 1)))) return;
       } else if (workerPieceHasAdjacentAlly(boardState, piece)) return;
       seen.add(piece);
       doomed.push(piece);
@@ -11231,6 +11340,7 @@
     completeThreeTurn(boardState.board, color);
     resolveWorkerSubmergedPieces(boardState);
     tickThiefArrests(boardState.board, color, boardState);
+    resolveWorkerWantedArrests(boardState, color);
     if (boardState.disassembly) boardState.disassembly[color] = false;
     if (updateWorkerCaptureFlags(boardState, color)) return;
     resolveWorkerDoubleCheckThreats(boardState, color);
@@ -11308,6 +11418,7 @@
       if (boardState.mode === "gameover") return;
     }
     if (boardState.reversal) boardState.reversal[color] = false;
+    if (usesActiveOvertake(boardState) && boardState.overtake) boardState.overtake[color] = false;
     septemberFinishResolveTurn(boardState, color);
     boardState.turnsTaken[color] = (Number(boardState.turnsTaken[color]) || 0) + 1;
     if (!boardState.freeMoveCaptureLock) boardState.freeMoveCaptureLock = { white: false, black: false };
@@ -11874,6 +11985,7 @@
     }
     if (!legacyCompletedTurnEffectsStates.has(boardState)) {
       if (boardState.reversal) boardState.reversal[color] = false;
+      if (usesActiveOvertake(boardState) && boardState.overtake) boardState.overtake[color] = false;
       septemberFinishResolveTurn(boardState, color);
     }
     boardState.turnsTaken[color] = (Number(boardState.turnsTaken[color]) || 0) + 1;
@@ -12819,7 +12931,7 @@
     if (piece.locustOrigin) piece.locustUsed = true;
     noteThiefMove(piece, from, move, boardState, [portalEntry, portalExit]);
     disassembleMovedQueen(boardState, piece, from, move, movedAsType, internalWorkerCallbacks(boardState));
-    septemberConsumeResolveMove(boardState, color, movedAsType);
+    septemberConsumeResolveMove(boardState, color, movedAsType, piece.id);
     if (movedAbilityType === "slime" && move.slimeMove && !get(boardState, from.row, from.col)) {
       const spawned = workerCreatePiece(color, "slime", boardState, from.row, from.col);
       spawned.id = `${color}-slime-spawn-${Number(boardState.moveCount) || 0}-${from.row}-${from.col}`;
@@ -13527,17 +13639,17 @@
     const target = action.target ? get(boardState, action.target.row, action.target.col) : null;
     if (card.effect === "captureTheFlag" && boardState.captureTheFlag) return { ok: false, score: 0 };
     if (card.effect === "miracle" && !workerMiracleTargets(boardState, color).length) return { ok: false, score: 0 };
-    if (card.effect === "reversal" && usesSeptember18Balance(boardState) && (!target || target.color !== color || !["knight", "bishop", "camel"].includes(target.type) || isWorkerKingRole(boardState, target))) return { ok: false, score: 0 };
+    if (card.effect === "reversal" && usesSeptember18Balance(boardState) && (!target || target.color !== color || !isMinorPieceTypeForCatalog(target.type, boardState) || isWorkerKingRole(boardState, target))) return { ok: false, score: 0 };
     if (card.effect === "reversal" && boardState.reversal?.[color]) return { ok: false, score: 0 };
     if (card.effect === "recurrence" && !workerRecurrenceTarget(boardState, target, color)) return { ok: false, score: 0 };
     if (card.effect === "nullification" && !workerNullificationTarget(target, color)) return { ok: false, score: 0 };
     if (card.effect === "outpost" && !workerOutpostTarget(boardState, target, action.target?.row, action.target?.col, color)) return { ok: false, score: 0 };
-    if (card.effect === "grasshopper" && (!target || target.color !== color || !(legacyGrasshopperTargetStates.has(boardState) ? ["rook"] : ["knight", "bishop", "camel"]).includes(target.type))) {
+    if (card.effect === "grasshopper" && (!target || target.color !== color || !(legacyGrasshopperTargetStates.has(boardState) ? ["rook"] : minorPieceTypesForCatalog(boardState)).includes(target.type))) {
       return { ok: false, score: 0 };
     }
     const rookTransformEffects = ["siegeRam", "magicGirl", "berserker", "slime", "trickster", "campfire", "princess"];
     const queenTransformEffects = ["siren", "undead", "hedgehog"];
-    if (rookTransformEffects.includes(card.effect) && (!target || target.color !== color || !(card.effect === "campfire" && usesSeptember18Balance(boardState) ? ["knight", "bishop", "camel"] : ["rook"]).includes(target.type) || isWorkerRoyalIdentityPiece(boardState, target))) {
+    if (rookTransformEffects.includes(card.effect) && (!target || target.color !== color || !(card.effect === "campfire" && usesSeptember18Balance(boardState) ? minorPieceTypesForCatalog(boardState) : ["rook"]).includes(target.type) || isWorkerRoyalIdentityPiece(boardState, target))) {
       return { ok: false, score: 0 };
     }
     if (queenTransformEffects.includes(card.effect) && !isWorkerQueenIdentity(target, color)) {
@@ -13702,7 +13814,7 @@
       else if (effect.id === "parry") target.parry = { chance: PARRY_CHANCE };
       else if (effect.id === "submerge") target.submerged = true;
       else if (effect.id === "chimera") target.chimera = true;
-      else if (effect.id === "witchTrial") target.witchTrial = { by: hostileColor, remaining: 3 };
+      else if (effect.id === "witchTrial") target.witchTrial = { by: hostileColor, remaining: usesSeptember26Rebalance(boardState) ? 2 : 3 };
       else if (effect.id === "stake") target.staked = { by: target.color, remaining: 4 };
       else if (effect.id === "callingCard") target.callingCard = { by: hostileColor };
       else if (effect.id === "emptyLunchbox") target.emptyLunchbox = { by: hostileColor, deadlineTurn: (Number(boardState.turnsTaken?.[target.color]) || 0) + 3 };
@@ -14658,6 +14770,23 @@
         if (piece.color === color && !["wall", "football"].includes(piece.type)) piece.repositionSecondMove = { used: false };
       });
       score += color === aiColor ? 160 : -160;
+    } else if (card.effect === "lastStand") {
+      // 2026-09-27: these two cards had no effect in the previous site worker; they are implemented now.
+      const pawns = piecesMatching(boardState, (item) => item.color === color && item.type === "pawn");
+      if (!pawns.length) return { ok: false, score: 0 };
+      for (const { piece } of pawns) piece.type = "fanatic";
+      score += (color === aiColor ? 1 : -1) * pawns.length * 90;
+    } else if (card.effect === "elephantEscape") {
+      const names = boardState.diagonalChess ? DIAGONAL_CHESS_CARD_SQUARES.elephantEscape[color] : null;
+      const cells = names ? names.map((name) => ({ row: boardRowCount(boardState) - Number(name.slice(1)), col: name.charCodeAt(0) - 97 })) : [0, boardColCount(boardState) - 1].map((col) => ({ row: color === "white" ? boardRowCount(boardState) - 3 : 2, col }));
+      if (!cells.every(({ row, col }) => workerOpenPlacementSquare(boardState, row, col, color))) return { ok: false, score: 0 };
+      for (const { row, col } of cells) {
+        const item = workerCreatePiece(color, "alfil", boardState, row, col);
+        item.moved = true;
+        markWorkerFreshNoCapture(boardState, item);
+        set(boardState, row, col, item);
+      }
+      score += (color === aiColor ? 1 : -1) * 240;
     } else if (card.effect === "apprenticeKnights") {
       const changed = applyWorkerApprenticeKnights(boardState, color);
       if (!changed) return { ok: false, score: 0 };
@@ -14783,7 +14912,7 @@
         return { ok: false, score: 0 };
       }
       const trialScore = workerWitchTrialTargetScore(boardState, target, action.target?.row, action.target?.col, color);
-      target.witchTrial = !usesSeptember18Balance(boardState) ? { by: color, remaining: 3 } : { by: color, countBy: color, remaining: 3 };
+      target.witchTrial = !usesSeptember18Balance(boardState) ? { by: color, remaining: 3 } : { by: color, countBy: color, remaining: usesSeptember26Rebalance(boardState) ? 2 : 3 };
       score += (color === aiColor ? 1 : -1) * trialScore;
     } else if (card.effect === "suicideBomber") {
       if (!target || target.color !== color || !["pawn", "fanatic"].includes(target.type) || target.explosive || target.feudalContractId) {
@@ -15608,6 +15737,7 @@
       undead: "undead"
     };
     if (transforms[effect]) {
+      clearFormerMinorAbilityState(piece, piece.type, transforms[effect]);
       piece.type = transforms[effect];
       if (effect === "hedgehog") piece.bearRetaliationsRemaining = 3;
       piece.moved = true;
@@ -15658,11 +15788,32 @@
     const rank = workerSecondRankLabel(boardState, color);
     return new Set([files[0], files[files.length - 1]].filter(Boolean).map((file) => `${file}${rank}`));
   }
+  // 2026-09-27: the checker card now summons four checkers on the third rank from the player's own edge, files
+  // a, b, g, h (row rows-3 for white, row 2 for black); it needs all four squares open.
+  function checkerSummonCells(board, color) {
+    const rows = board.length, cols = board[0]?.length || 0;
+    if (rows < 3 || cols < 4) return [];
+    const row = color === "white" ? rows - 3 : 2;
+    return [0, 1, cols - 2, cols - 1].map((col) => ({ row, col }));
+  }
   function workerHasCheckerCandidate(boardState, color) {
+    if (usesSeptember26Rebalance(boardState)) return checkerSummonCells(boardState.board, color).length === 4 && checkerSummonCells(boardState.board, color).every(({ row, col }) => workerOpenPlacementSquare(boardState, row, col, color) && !workerSeptember12PlacementCrownBlocked(boardState, row, col) && !isBlackHoleCell(boardState, row, col));
+    color = opponent(color); // pre-rebalance site behaviour (checker converted the opponent's edge pawns)
     const origins = workerEdgePawnOrigins(boardState, color);
     return piecesMatching(boardState, (piece, row, col) => piece.color === color && piece.type === "pawn" && origins.has(piece.origin || workerSquareName(boardState, row, col))).length > 0;
   }
   function applyWorkerChecker(boardState, color) {
+    if (usesSeptember26Rebalance(boardState)) {
+      if (!workerHasCheckerCandidate(boardState, color)) return 0;
+      for (const { row, col } of checkerSummonCells(boardState.board, color)) {
+        const item = workerCreatePiece(color, "checker", boardState, row, col);
+        item.moved = true;
+        markWorkerFreshNoCapture(boardState, item);
+        set(boardState, row, col, item);
+      }
+      return 4;
+    }
+    color = opponent(color); // pre-rebalance site behaviour
     const origins = workerEdgePawnOrigins(boardState, color);
     let changed = 0;
     forEachPiece(boardState, (piece, row, col) => {
@@ -16563,7 +16714,7 @@
     const dc = targetCol2 - col;
     if (type === "missionary") return Math.abs(dr) === 1 && Math.abs(dc) === 1 && Boolean(target && target.color !== piece.color && COLORS.includes(target.color));
     if (isWorkerInitiativeCaptureLocked(boardState, piece?.color)) return false;
-    if (isWorkerVanguardPawn(boardState, piece, row) && dr === pawnDir(boardState, piece.color) && Math.abs(dc) <= 1) return true;
+    if (!usesVanguardDiagonalStep(boardState) && isWorkerVanguardPawn(boardState, piece, row) && dr === pawnDir(boardState, piece.color) && Math.abs(dc) <= 1) return true;
     if (["pawn", "squire", "standardBearer"].includes(type)) {
       if (type === "pawn" && hasWorkerAdjacentKnightmaster(boardState, row, col, piece.color)) {
         return hasWorkerCaptureReadyAdjacentKnightmaster(boardState, row, col, piece.color) && workerKnightDeltasForMove(boardState, row, col, piece.color).some(([r, c]) => dr === r && dc === c);
@@ -17310,6 +17461,7 @@
     if (source.resolveReady) cloned.resolveReady = clonePlain(source.resolveReady);
     if (source.resolveSpentTurn) cloned.resolveSpentTurn = clonePlain(source.resolveSpentTurn);
     if (source.resolveMoveCredit) cloned.resolveMoveCredit = clonePlain(source.resolveMoveCredit);
+    if (source.resolveCreditPieceId) cloned.resolveCreditPieceId = clonePlain(source.resolveCreditPieceId);
     if (source.pendingRecurrences?.length) cloned.pendingRecurrences = clonePlain(source.pendingRecurrences);
     if (campaignAuthorityV1States.has(source)) campaignAuthorityV1States.add(cloned);
     if (legacyCompletedTurnEffectsStates.has(source)) legacyCompletedTurnEffectsStates.add(cloned);
@@ -17454,7 +17606,8 @@
   function canWorkerCaptureTarget(color, target, attacker = null, boardState = null, options = {}) {
     if (septemberNullificationBlocks(target, attacker)) return false;
     const attackerType = attacker ? pieceAbilityType(attacker) || renderType(attacker) || attacker.type : "";
-    if (["campfire", "paladin"].includes(attackerType)) return false;
+    const socialistPawnCapture = Boolean(attacker && usesSeptember26Rebalance(boardState) && boardState?.socialism?.[color] > 0 && !isWorkerRoyalIdentityPiece(boardState, attacker) && attacker.type !== "crown" && !isSlimeSpecialMovementLocked(attacker));
+    if (["campfire", "paladin"].includes(attackerType) && !socialistPawnCapture) return false;
     if (target?.metalized && target.type !== "scarecrow" && !options.forceCapture) return false;
     const actualAttacker = attacker || { color, type: attackerType };
     if (actualAttacker.color === color && isChaosChessCaptureBlocked(boardState?.chaosNoCaptureUntilHalfTurn, boardState?.turnsTaken)) return false;
@@ -17469,7 +17622,7 @@
       });
       if (frontlineResponseBlocksCapture(true, target, attackerSquare, targetSquare, attackerType) && !(pieceHasAbility(actualAttacker, "primeMinister") && primeMinisterHasDiagonalCapturePath(attackerSquare, targetSquare, (row, col) => inBounds(row, col, boardState) && !get(boardState, row, col) && !isWorkerCollapsedSquare(boardState, row, col) && !workerPortalExitAt(boardState, row, col)))) return false;
     }
-    return Boolean(target && (options.ignoreFreeMoveLock || !isFreeMoveCaptureBlocked(boardState?.freeMoveCaptureLock, actualAttacker, target)) && !isArmisticeCaptureBlocked(boardState?.armistice, actualAttacker, target) && !(attacker && !options.ignoreSaturation && isWorkerSaturationCaptureLocked(boardState, attacker)) && (!["recruiter", "guard"].includes(attackerType) || options.allowBasicTrainingCapture && attacker?.basicTraining || hasWorkerRoyalCommandCaptureAccess(boardState, attacker)) && !isOverwhelmCaptureBlocked(boardState?.overwhelm, actualAttacker, target) && !(attacker && isWorkerCardNoCaptureActive(boardState, attacker)) && !(attacker && isWorkerQuantumCaptureLocked(boardState, attacker)) && (attackerType !== "idol" || attacker?.crownBearer) && !target.submerged && (target.color !== color || options.allowFriendly) && target.type !== "wall" && target.type !== "football" && (target.type !== "monster" || attackerType === "darkWizard") && !pieceHasAbility(target, "guard") && target.captureRestriction !== "immune" && !(attacker?.frenzy && isRoyalPiece(target)) && !isDesperadoRoyalCaptureBlocked(attacker, target) && (target.type === "scarecrow" || !target.protected) && !isWorkerEncouragedTarget(boardState, target) && !isFrozenPiece(target) && (!attacker || canTimePhaseInteract(boardState, attacker, target)) && !(attacker?.type === "timeTraveler" && timeTravelerState(boardState)?.attackEnabledFor !== attacker.color) && (!pieceHasAbility(target, "jester") && target.captureRestriction !== "royal-only" || attackerType !== "jester" && (attacker?.crownBearer || isWorkerNativeKing(attacker) || isWorkerRegencyRoyalHeir(boardState, attacker))));
+    return Boolean(target && (options.ignoreFreeMoveLock || !isFreeMoveCaptureBlocked(boardState?.freeMoveCaptureLock, actualAttacker, target)) && !isArmisticeCaptureBlocked(boardState?.armistice, actualAttacker, target) && !(attacker && !options.ignoreSaturation && isWorkerSaturationCaptureLocked(boardState, attacker)) && (!["recruiter", "guard"].includes(attackerType) || socialistPawnCapture || options.allowBasicTrainingCapture && attacker?.basicTraining || hasWorkerRoyalCommandCaptureAccess(boardState, attacker)) && !isOverwhelmCaptureBlocked(boardState?.overwhelm, actualAttacker, target) && !(attacker && isWorkerCardNoCaptureActive(boardState, attacker)) && !(attacker && isWorkerQuantumCaptureLocked(boardState, attacker)) && (attackerType !== "idol" || attacker?.crownBearer || socialistPawnCapture) && !target.submerged && (target.color !== color || options.allowFriendly) && target.type !== "wall" && target.type !== "football" && (target.type !== "monster" || attackerType === "darkWizard") && !pieceHasAbility(target, "guard") && target.captureRestriction !== "immune" && !(attacker?.frenzy && isRoyalPiece(target)) && !isDesperadoRoyalCaptureBlocked(attacker, target) && (target.type === "scarecrow" || !target.protected) && !isWorkerEncouragedTarget(boardState, target) && !isFrozenPiece(target) && (!attacker || canTimePhaseInteract(boardState, attacker, target)) && !(attacker?.type === "timeTraveler" && timeTravelerState(boardState)?.attackEnabledFor !== attacker.color) && (!pieceHasAbility(target, "jester") && target.captureRestriction !== "royal-only" || attackerType !== "jester" && (attacker?.crownBearer || isWorkerNativeKing(attacker) || isWorkerRegencyRoyalHeir(boardState, attacker))));
   }
   function canWorkerRadicalChargeCaptureTarget(boardState, color, target, attacker = null) {
     return Boolean(
