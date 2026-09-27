@@ -5192,7 +5192,7 @@
   function orderActions(actions, boardState, perspectiveColor, scoreFn) {
     const score = typeof scoreFn === "function" ? scoreFn : actionOrderingScore;
     const reuse = ATTACK_MEMO !== null && ATTACK_MEMO.board === boardState;
-    if (!reuse) ATTACK_MEMO = { board: boardState, map: /* @__PURE__ */ new Map(), pieces: null, cols: -1, encouraged: /* @__PURE__ */ new Map(), ranged: /* @__PURE__ */ new Map(), attackers: /* @__PURE__ */ new Map() };
+    if (!reuse) ATTACK_MEMO = { board: boardState, map: /* @__PURE__ */ new Map(), pieces: null, cols: -1, rows: -1, dimCols: -1, campfire: -1, encouraged: /* @__PURE__ */ new Map(), ranged: /* @__PURE__ */ new Map(), attackers: /* @__PURE__ */ new Map() };
     try {
       return actions.map((action, index) => ({ action, index, score: score(action, boardState, perspectiveColor) })).sort((a, b) => b.score - a.score || a.index - b.index).map((entry) => entry.action);
     } finally {
@@ -15835,7 +15835,7 @@
   // what evaluateState returns, only how the computation is organized.
   function evaluateStateComponents(boardState, aiColor) {
     if (ATTACK_MEMO !== null) return evaluateStateComponentsRaw(boardState, aiColor);
-    ATTACK_MEMO = { board: boardState, map: /* @__PURE__ */ new Map(), pieces: null, cols: -1, encouraged: /* @__PURE__ */ new Map(), ranged: /* @__PURE__ */ new Map(), attackers: /* @__PURE__ */ new Map() };
+    ATTACK_MEMO = { board: boardState, map: /* @__PURE__ */ new Map(), pieces: null, cols: -1, rows: -1, dimCols: -1, campfire: -1, encouraged: /* @__PURE__ */ new Map(), ranged: /* @__PURE__ */ new Map(), attackers: /* @__PURE__ */ new Map() };
     try {
       return evaluateStateComponentsRaw(boardState, aiColor);
     } finally {
@@ -15943,7 +15943,7 @@
     // Same per-call attack memo evaluateStateComponents uses: the board is not
     // modified while this runs, so many pieces share one attacker list / attack cache.
     if (ATTACK_MEMO !== null) return hangingMaterialRiskRaw(boardState, color);
-    ATTACK_MEMO = { board: boardState, map: /* @__PURE__ */ new Map(), pieces: null, cols: -1, encouraged: /* @__PURE__ */ new Map(), ranged: /* @__PURE__ */ new Map(), attackers: /* @__PURE__ */ new Map() };
+    ATTACK_MEMO = { board: boardState, map: /* @__PURE__ */ new Map(), pieces: null, cols: -1, rows: -1, dimCols: -1, campfire: -1, encouraged: /* @__PURE__ */ new Map(), ranged: /* @__PURE__ */ new Map(), attackers: /* @__PURE__ */ new Map() };
     try {
       return hangingMaterialRiskRaw(boardState, color);
     } finally {
@@ -15983,7 +15983,9 @@
   }
   function workerBestCaptureThreat(boardState, targetPiece, targetRow2, targetCol2) {
     const byColor = opponent(targetPiece?.color);
-    const cells = workerThreatTargetCells(boardState, targetPiece, targetRow2, targetCol2);
+    // Perf: a normal (one-cell) target needs no cell array / closure.
+    const targetType = targetPiece?.type;
+    const cells = targetType === "colossus" || targetType === "bigRook" || targetType === "bigBishop" ? workerThreatTargetCells(boardState, targetPiece, targetRow2, targetCol2) : null;
     const memo = ATTACK_MEMO;
     if (memo !== null && memo.board === boardState) {
       // Same result as the scan below: the first (in scan order) attacker with the minimal pieceValue.
@@ -16001,7 +16003,7 @@
       if (sorted !== null) {
         for (let i = 0; i < sorted.length; i += 1) {
           const e = sorted[i];
-          if (cells.some((cell) => attacksSquare(boardState, e.piece, e.row, e.col, cell.row, cell.col))) return { piece: e.piece, row: e.row, col: e.col };
+          if (cells === null ? attacksSquare(boardState, e.piece, e.row, e.col, targetRow2, targetCol2) : cells.some((cell) => attacksSquare(boardState, e.piece, e.row, e.col, cell.row, cell.col))) return { piece: e.piece, row: e.row, col: e.col };
         }
         return null;
       }
@@ -16009,7 +16011,7 @@
     let best = null;
     forEachPiece(boardState, (piece, row, col) => {
       if (piece.color !== byColor || piece.type === "wall" || isFrozenPiece(piece) || isWorkerStakedPiece(piece)) return;
-      if (!cells.some((cell) => attacksSquare(boardState, piece, row, col, cell.row, cell.col))) return;
+      if (!(cells === null ? attacksSquare(boardState, piece, row, col, targetRow2, targetCol2) : cells.some((cell) => attacksSquare(boardState, piece, row, col, cell.row, cell.col)))) return;
       if (!best || pieceValue(piece) < pieceValue(best.piece)) best = { piece, row, col };
     });
     return best;
@@ -16677,46 +16679,144 @@
     return ammo >= SHOTGUN_SNIPE_AMMO_COST && (targetRow2 === row || targetCol2 === col || Math.abs(targetRow2 - row) === Math.abs(targetCol2 - col)) && clearRay(boardState, row, col, targetRow2, targetCol2);
   }
   // Perf: per-evaluateStateComponents-call memo of attacksSquare (pure w.r.t. an unmutated board).
+  // memo.map: attacker piece -> cache entry. Everything cached in an entry depends only on (boardState, piece) [pre, geo, bt, missionary,
+  // kingRole, adjacent-knightmaster for the attacker cell] or is a per-target result; the board is not mutated while the memo
+  // is valid (set() drops the whole memo).
   function attacksSquare(boardState, piece, row, col, targetRow2, targetCol2) {
     const memo = ATTACK_MEMO;
     if (memo === null || memo.board !== boardState || !(row >= 0 && row < 64 && col >= 0 && col < 64 && targetRow2 >= 0 && targetRow2 < 64 && targetCol2 >= 0 && targetCol2 < 64) || (row | 0) !== row || (col | 0) !== col || (targetRow2 | 0) !== targetRow2 || (targetCol2 | 0) !== targetCol2) return attacksSquareRaw(boardState, piece, row, col, targetRow2, targetCol2);
-    let m = memo.map.get(piece);
-    if (m === void 0) { m = /* @__PURE__ */ new Map(); memo.map.set(piece, m); }
+    let e = memo.map.get(piece);
+    if (e === void 0) {
+      if (memo.rows === -1) { memo.rows = boardRowCount(boardState); memo.dimCols = boardColCount(boardState); }
+      e = { pre: -1, geo: 0, bt: -1, missionary: -1, kingRole: -1, akmRow: -1, akmCol: -1, akm: false, ar: row, ac: col, t: null, m: null };
+      initAttackEntry(boardState, piece, e);
+      memo.map.set(piece, e);
+    }
+    // pre 1: the piece can never attack.
+    if (e.pre === 1) return false;
+    const geo = e.geo;
+    if (geo !== 0) {
+      // Necessary geometry of the plain piece types; a basic-training piece (bt) captures diagonal neighbours whatever its type, so it is
+      // excluded for geo 1/2/4 (the pawn branch of attacksSquareCore returns before that rule).
+      const dr0 = targetRow2 - row, dc0 = targetCol2 - col;
+      if (geo === 1) {
+        if (dr0 !== 0 && dc0 !== 0 && dr0 !== dc0 && dr0 !== -dc0 && e.bt === 0) return false;
+      } else if (geo === 2) {
+        if (e.bt === 0 && !(dr0 === 1 || dr0 === -1 ? dc0 === 2 || dc0 === -2 : (dr0 === 2 || dr0 === -2) && (dc0 === 1 || dc0 === -1))) return false;
+      } else if (geo === 3) {
+        if (dr0 > 1 || dr0 < -1 || dc0 > 1 || dc0 < -1) {
+          if (e.akmRow !== row || e.akmCol !== col) { e.akm = hasWorkerAdjacentKnightmaster(boardState, row, col, piece.color); e.akmRow = row; e.akmCol = col; }
+          if (!e.akm) return false;
+        }
+      } else if (geo === 4) {
+        if (e.bt === 0 && (dr0 > 1 || dr0 < -1 || dc0 > 1 || dc0 < -1 || dr0 === 0 && dc0 === 0)) return false;
+      }
+    }
+    // Results for the attacker cell seen first go into a flat per-target array (1 = false, 2 = true); anything else (another attacker cell,
+    // a non-boolean result) uses the keyed Map.
+    if (row === e.ar && col === e.ac && targetRow2 < memo.rows && targetCol2 < memo.dimCols) {
+      let t = e.t;
+      if (t === null) t = e.t = new Uint8Array(memo.rows * memo.dimCols);
+      const idx = targetRow2 * memo.dimCols + targetCol2;
+      const c = t[idx];
+      if (c !== 0) return c === 2;
+      const v = attacksSquareCore(boardState, piece, row, col, targetRow2, targetCol2, e);
+      if (v === true) { t[idx] = 2; return v; }
+      if (v === false) { t[idx] = 1; return v; }
+      return v;
+    }
+    let m = e.m;
+    if (m === null) m = e.m = /* @__PURE__ */ new Map();
     const key = ((row * 64 + col) * 64 + targetRow2) * 64 + targetCol2;
     let v = m.get(key);
-    if (v === void 0) { v = attacksSquareRaw(boardState, piece, row, col, targetRow2, targetCol2); m.set(key, v); }
+    if (v === void 0) { v = attacksSquareCore(boardState, piece, row, col, targetRow2, targetCol2, e); m.set(key, v); }
     return v;
   }
+  // Fills the (boardState, piece)-only part of a cache entry.
+  function initAttackEntry(boardState, piece, e) {
+    // pre: 1 = can never attack (hedgehog/campfire/frozen/stunned/dice/bunker/staked/manner lock), 2 = attacks only via basic training / royal command (guard), 0 = free
+    let pre;
+    if (piece.type === "hedgehog" && Number(boardState.turnsTaken?.[piece.color]) < Number(piece.bearMoveLockedUntilTurn)) pre = 1;
+    else if (pieceHasAbility(piece, "campfire")) pre = 1;
+    else if (isFrozenPiece(piece) || isPoisonStunned(piece) || isDiceLockedPiece(boardState, piece)) pre = 1;
+    else if (isWorkerUndergroundBunkerKing(piece)) pre = 1;
+    else if (isWorkerStakedPiece(piece)) pre = 1;
+    else if (isWorkerMannerCaptureLocked(boardState, piece)) pre = 1;
+    else pre = pieceHasAbility(piece, "guard") ? 2 : 0;
+    e.pre = pre;
+    // geo: cheap necessary-geometry test for the plainest piece types (1 = rook/bishop/queen line, 2 = knight, 3 = pawn, 4 = king); only when no
+    // board rule can add a capture path (highway, portals, imperial studies, killer king, vanguard, bishop snipe, corner kick, king knight).
+    let geo = 0;
+    if (pre !== 1) {
+      const color = piece.color;
+      if (!boardState.highway && !(boardState.portalRule === true || boardState.portalRule?.enabled) && !boardState.imperialStudies?.[color] && !boardState.killerKing?.[color] && !boardState.vanguard?.[color]) {
+        const t = renderType(piece);
+        if (t === "rook" || t === "queen" && !piece.regencyHeir || t === "bishop" && !boardState.bishopSnipe?.[color]) geo = 1;
+        else if (t === "knight" && !boardState.cornerKick?.[color]) geo = 2;
+        else if (t === "pawn") geo = 3;
+        else if (t === "king" && !boardState.kingKnight?.[color]) geo = 4;
+      }
+    }
+    e.geo = geo;
+    e.bt = hasWorkerBasicTrainingMove(piece) ? 1 : 0;
+    e.missionary = pieceHasAbility(piece, "missionary") ? 1 : 0;
+  }
   function attacksSquareRaw(boardState, piece, row, col, targetRow2, targetCol2) {
-    if (piece.type === "hedgehog" && Number(boardState.turnsTaken?.[piece.color]) < Number(piece.bearMoveLockedUntilTurn)) return false;
-    if (pieceHasAbility(piece, "campfire")) return false;
-    const basicTrainingCapture = isWorkerBasicTrainingPawnCapture(boardState, piece, row, col, targetRow2, targetCol2);
-    const royalCommandCapture = hasWorkerRoyalCommandCaptureAccess(boardState, piece);
-    if (pieceHasAbility(piece, "guard") && !basicTrainingCapture && !royalCommandCapture) return false;
-    if (isFrozenPiece(piece) || isPoisonStunned(piece) || isDiceLockedPiece(boardState, piece)) return false;
-    if (isWorkerUndergroundBunkerKing(piece)) return false;
-    if (isWorkerStakedPiece(piece)) return false;
-    if (isWorkerMannerCaptureLocked(boardState, piece)) return false;
+    return attacksSquareCore(boardState, piece, row, col, targetRow2, targetCol2, null);
+  }
+  const ATTACK_OPTS_BTC = Object.freeze({ allowBasicTrainingCapture: true });
+  const ATTACK_OPTS_NO_BTC = Object.freeze({ allowBasicTrainingCapture: false });
+  // e (optional) is the per-piece cache entry of the per-evaluation ATTACK_MEMO (already initialised by initAttackEntry).
+  function attacksSquareCore(boardState, piece, row, col, targetRow2, targetCol2, e) {
+    let basicTrainingCapture;
+    let missionary, kingRole;
+    if (e !== null) {
+      if (e.pre === 1) return false;
+      basicTrainingCapture = e.bt === 1 ? isWorkerBasicTrainingPawnCapture(boardState, piece, row, col, targetRow2, targetCol2) : false;
+      if (e.pre === 2 && !basicTrainingCapture && !hasWorkerRoyalCommandCaptureAccess(boardState, piece)) return false;
+      missionary = e.missionary === 1;
+    } else {
+      if (piece.type === "hedgehog" && Number(boardState.turnsTaken?.[piece.color]) < Number(piece.bearMoveLockedUntilTurn)) return false;
+      if (pieceHasAbility(piece, "campfire")) return false;
+      basicTrainingCapture = isWorkerBasicTrainingPawnCapture(boardState, piece, row, col, targetRow2, targetCol2);
+      const royalCommandCapture = hasWorkerRoyalCommandCaptureAccess(boardState, piece);
+      if (pieceHasAbility(piece, "guard") && !basicTrainingCapture && !royalCommandCapture) return false;
+      if (isFrozenPiece(piece) || isPoisonStunned(piece) || isDiceLockedPiece(boardState, piece)) return false;
+      if (isWorkerUndergroundBunkerKing(piece)) return false;
+      if (isWorkerStakedPiece(piece)) return false;
+      if (isWorkerMannerCaptureLocked(boardState, piece)) return false;
+      missionary = pieceHasAbility(piece, "missionary");
+    }
     const type = renderType(piece);
     const target = get(boardState, targetRow2, targetCol2);
     if (type === "siegeRam") {
       return workerSiegeRamMoves(boardState, piece, row, col).some((move) => move.highlightCells?.some((cell) => cell.row === targetRow2 && cell.col === targetCol2));
     }
-    if (target && isIndirectAttackImmunePiece(target) && ["colossus", "shotgunKing"].includes(type)) return false;
+    if (target && isIndirectAttackImmunePiece(target) && (type === "colossus" || type === "shotgunKing")) return false;
     if (isFrozenPiece(target)) return false;
-    if (!pieceHasAbility(piece, "missionary") && target && !canWorkerCaptureTarget(piece.color, target, piece, boardState, {
-      allowBasicTrainingCapture: basicTrainingCapture
-    })) return false;
-    if (isWorkerHighGroundCaptureBlocked(boardState, piece, row, col, { row: targetRow2, col: targetCol2, basicTrainingCapture })) return false;
-    if (isWorkerKingRole(boardState, piece) && workerImperialStudyMoves(boardState, row, col, piece).some((move) => move.row === targetRow2 && move.col === targetCol2)) return true;
-    if (workerKillerKingMoves(boardState, row, col, piece).some((move) => move.row === targetRow2 && move.col === targetCol2)) return true;
+    if (!missionary && target && !canWorkerCaptureTarget(piece.color, target, piece, boardState, basicTrainingCapture ? ATTACK_OPTS_BTC : ATTACK_OPTS_NO_BTC)) return false;
+    if (Array.isArray(boardState.highGround) && boardState.highGround.length && isWorkerHighGroundCaptureBlocked(boardState, piece, row, col, { row: targetRow2, col: targetCol2, basicTrainingCapture })) return false;
+    if (e !== null) {
+      kingRole = e.kingRole;
+      if (kingRole === -1) kingRole = e.kingRole = isWorkerKingRole(boardState, piece) ? 1 : 0;
+      kingRole = kingRole === 1;
+    } else kingRole = isWorkerKingRole(boardState, piece);
+    if (kingRole && workerImperialStudyMoves(boardState, row, col, piece).some((move) => move.row === targetRow2 && move.col === targetCol2)) return true;
+    if (boardState.killerKing?.[piece.color] && workerKillerKingMoves(boardState, row, col, piece).some((move) => move.row === targetRow2 && move.col === targetCol2)) return true;
     const dr = targetRow2 - row;
     const dc = targetCol2 - col;
     if (type === "missionary") return Math.abs(dr) === 1 && Math.abs(dc) === 1 && Boolean(target && target.color !== piece.color && COLORS.includes(target.color));
     if (isWorkerInitiativeCaptureLocked(boardState, piece?.color)) return false;
     if (!usesVanguardDiagonalStep(boardState) && isWorkerVanguardPawn(boardState, piece, row) && dr === pawnDir(boardState, piece.color) && Math.abs(dc) <= 1) return true;
     if (["pawn", "squire", "standardBearer"].includes(type)) {
-      if (type === "pawn" && hasWorkerAdjacentKnightmaster(boardState, row, col, piece.color)) {
+      let adjacentKnightmaster = false;
+      if (type === "pawn") {
+        if (e !== null) {
+          if (e.akmRow !== row || e.akmCol !== col) { e.akm = hasWorkerAdjacentKnightmaster(boardState, row, col, piece.color); e.akmRow = row; e.akmCol = col; }
+          adjacentKnightmaster = e.akm;
+        } else adjacentKnightmaster = hasWorkerAdjacentKnightmaster(boardState, row, col, piece.color);
+      }
+      if (adjacentKnightmaster) {
         return hasWorkerCaptureReadyAdjacentKnightmaster(boardState, row, col, piece.color) && workerKnightDeltasForMove(boardState, row, col, piece.color).some(([r, c]) => dr === r && dc === c);
       }
       const dir = pawnDir(boardState, piece.color);
@@ -16755,7 +16855,7 @@
     if (type === "coffin") return false;
     if (type === "timeTraveler") return timeTravelerState(boardState)?.attackEnabledFor === piece.color && Math.max(Math.abs(dr), Math.abs(dc)) === 1;
     if (type === "darkWizard") return piece.darkMagicCircle ? workerDarkMagicCircleContains(boardState, piece, row, col, targetRow2, targetCol2) && Math.abs(dr) + Math.abs(dc) === 1 : Math.max(Math.abs(dr), Math.abs(dc)) === 1;
-    if (type === "recruiter") return royalCommandCapture && Math.max(Math.abs(dr), Math.abs(dc)) === 1;
+    if (type === "recruiter") return hasWorkerRoyalCommandCaptureAccess(boardState, piece) && Math.max(Math.abs(dr), Math.abs(dc)) === 1;
     if (["bigRook", "bigBishop"].includes(type)) return workerBigRookAttacksSquare(boardState, piece, row, col, targetRow2, targetCol2);
     if (type === "colossus") {
       return colossusAttackSectors(boardState, row, col, piece.color).some((sector) => sector.some((cell) => cell.row === targetRow2 && cell.col === targetCol2));
@@ -17638,10 +17738,23 @@
     }
     return isWorkerEncouragedTargetRaw(boardState, target);
   }
+  // Perf: septemberBoardCampfireProtects can only be true if some board cell holds a campfire (or a campfire-mode trickster);
+  // scanning for that once per evaluation replaces building the full septemberBoardEntries map for every target.
+  function boardMayHaveCampfire(boardState) {
+    const memo = ATTACK_MEMO;
+    const useMemo = memo !== null && memo.board === boardState;
+    if (useMemo && (memo.campfire === 0 || memo.campfire === 1)) return memo.campfire === 1;
+    let found = false;
+    boardState.board.forEach((line) => line.forEach((item) => {
+      if (item && (item.type === "campfire" || item.type === "trickster" && item.tricksterMoveType === "campfire")) found = true;
+    }));
+    if (useMemo) memo.campfire = found ? 1 : 0;
+    return found;
+  }
   function isWorkerEncouragedTargetRaw(boardState, target) {
     if (target?.type === "scarecrow") return false;
     if (target?.outpostProtected) return true;
-    if (boardState && !target?.editorRoyal && !isWorkerKingRole(boardState, target) && septemberBoardCampfireProtects(boardState.board, target)) return true;
+    if (boardState && boardMayHaveCampfire(boardState) && !target?.editorRoyal && !isWorkerKingRole(boardState, target) && septemberBoardCampfireProtects(boardState.board, target)) return true;
     if (!boardState || !target || !boardState.encouragement?.[target.color]) return false;
     let targetSquare = null;
     let kingSquare = null;
@@ -18119,6 +18232,7 @@
       const memo = ATTACK_MEMO;
       memo.map = /* @__PURE__ */ new Map();
       memo.pieces = null;
+      memo.campfire = -1;
       memo.encouraged = /* @__PURE__ */ new Map();
       memo.ranged = /* @__PURE__ */ new Map();
       memo.attackers = /* @__PURE__ */ new Map();
