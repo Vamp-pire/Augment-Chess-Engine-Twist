@@ -11,7 +11,7 @@ function load(src, name) {
   const marker = 'if (typeof module !== "undefined") module.exports = globalThis.__engineMerged;';
   if (!t.includes(marker)) throw new Error("marker");
   t = t.replace(marker, () => marker + "\n" + inj);
-  const out = TMP + "/attacks-pair-equiv-" + name + ".js"; fs.writeFileSync(out, t); return require(out);
+  const out = TMP + "/attacks-pair-equiv-" + process.pid + "-" + name + ".js"; fs.writeFileSync(out, t); return require(out);
 }
 const O = load(SP + "/engine-orig.js", "old"), N = load(NEWP, "new");
 const OT = O.__T, NT = N.__T;
@@ -89,12 +89,14 @@ if (mode === "all" || mode === "exotic") {
     put("king", "white"); put("king", "black");
     const cnt = 4 + ri(22); for (let k = 0; k < cnt; k++) put(rng() < 0.5 ? ["pawn", "pawn", "knight", "rook", "bishop", "queen", "knightmaster", "campfire", "standardBearer", "guard", "recruiter"][ri(11)] : TYPES[ri(TYPES.length)], rng() < 0.5 ? "white" : "black");
     const flagIdx = []; const nf = ri(5); for (let k = 0; k < nf; k++) flagIdx.push(ri(FLAGS.length));
+    const withCards = rng() < 0.6; const drec = JSON.parse(lines[ri(lines.length)]); const decks = { white: drec.deckSlots?.white || [], black: drec.deckSlots?.black || [] };
     const seedSave = seed; const turn = rng() < 0.5 ? "white" : "black";
-    const build = (e) => { seed = seedSave; const s = e.cloneState({}); s.board = JSON.parse(JSON.stringify(b)); s.mode = "play"; s.turn = turn; s.actionsRemaining = 1; s.deckSlots = { white: [], black: [] }; s.captures = { white: [], black: [] }; s.aiSearchNoCards = true; s.turnsTaken = { white: 10, black: 10 }; s.moveCount = 20; flagIdx.forEach(i => FLAGS[i](s)); e.setWorkerBoardDimensions(s); return s; };
+    const build = (e) => { seed = seedSave; const s = e.cloneState({}); s.board = JSON.parse(JSON.stringify(b)); s.mode = "play"; s.turn = turn; s.actionsRemaining = 1; s.deckSlots = JSON.parse(JSON.stringify(decks)); s.captures = { white: [], black: [] }; s.aiSearchNoCards = !withCards; s.turnsTaken = { white: 10, black: 10 }; s.moveCount = 20; flagIdx.forEach(i => FLAGS[i](s)); e.setWorkerBoardDimensions(s); return s; };
     const so = build(O), sn = build(N);
     compare(so, sn, "exotic#" + n + " flags" + flagIdx);
     seed = (seedSave * 7 + 13) >>> 0;
   }
 }
 console.log(JSON.stringify(stats)); samples.forEach(s => console.log("DIFF", s));
+for (const n of ["old", "new"]) { try { fs.unlinkSync(TMP + "/attacks-pair-equiv-" + process.pid + "-" + n + ".js"); } catch (x) {} }
 process.exit(stats.diffs ? 1 : 0);
