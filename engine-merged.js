@@ -17124,6 +17124,15 @@
     state.ultimatum = normalizeUltimatum(state.ultimatum);
     return state;
   }
+  function shallowObj(v) {
+    if (v === null || typeof v !== "object" || Array.isArray(v)) return { ...v || {} };
+    const out = {};
+    for (const k in v) {
+      if (k === "__proto__") return { ...v };
+      if (Object.prototype.hasOwnProperty.call(v, k)) out[k] = v[k];
+    }
+    return out;
+  }
   function cloneState(source) {
     const largePieceClones = /* @__PURE__ */ new Map();
     const board = Array.isArray(source.board) ? source.board.map((row) => row.map((piece) => {
@@ -17132,6 +17141,7 @@
       if (!largePieceClones.has(piece.id)) largePieceClones.set(piece.id, clonePiece(piece));
       return largePieceClones.get(piece.id);
     })) : emptyBoard();
+    const rowCount = boardRowCount(source), colCount = boardColCount(source);
     const cloned = {
       // Campaign states cross JSON boundaries, so a 2x2 piece arrives as four
       // equal objects with one id. Rejoin those cells before applying any rule:
@@ -17145,8 +17155,6 @@
         white: (source.captures?.white || []).map(clonePiece),
         black: (source.captures?.black || []).map(clonePiece)
       },
-      ...source.temporaryQueens ? { temporaryQueens: clonePlain(source.temporaryQueens) } : {},
-      ...source.necromancy ? { necromancy: clonePlain(source.necromancy) } : {},
       turn: source.turn,
       mode: source.mode,
       aiSearchNoCards: Boolean(source.aiSearchNoCards),
@@ -17155,11 +17163,11 @@
       campaign: clonePlain(source.campaign || null),
       acceleration: Boolean(source.acceleration),
       actionsRemaining: Math.max(1, Number(source.actionsRemaining) || 1),
-      idolEncoreUsedByPiece: { ...source.idolEncoreUsedByPiece || {} },
+      idolEncoreUsedByPiece: shallowObj(source.idolEncoreUsedByPiece),
       draftDelete: Boolean(source.draftDelete),
       collapsed: Boolean(source.collapsed),
-      collapseDepth: normalizeCollapseDepth(source.collapseDepth, boardRowCount(source), boardColCount(source), Boolean(source.collapsed)),
-      collapsedCells: normalizeCollapsedCells(source.collapsedCells, boardRowCount(source), boardColCount(source)),
+      collapseDepth: normalizeCollapseDepth(source.collapseDepth, rowCount, colCount, Boolean(source.collapsed)),
+      collapsedCells: normalizeCollapsedCells(source.collapsedCells, rowCount, colCount),
       periodicCollapse: clonePlain(source.periodicCollapse || null),
       ruleBombs: clonePlain(source.ruleBombs || []),
       saturationRule: Boolean(source.saturationRule),
@@ -17180,38 +17188,36 @@
       binaMate: { ...source.binaMate || { white: false, black: false } },
       overwhelm: { ...source.overwhelm || { white: false, black: false } },
       effects: clonePlain(source.effects || {}),
-      regency: { ...source.regency || {} },
-      retreat: { ...source.retreat || {} },
-      racingKing: { ...source.racingKing || {} },
-      radicalCharge: { ...source.radicalCharge || {} },
-      encouragement: { ...source.encouragement || {} },
-      ironMonarch: { ...source.ironMonarch || {} },
-      imperialStudies: { ...source.imperialStudies || {} },
-      religiousVictory: { ...source.religiousVictory || {} },
-      backwardKnight: { ...source.backwardKnight || {} },
-      trojanHorse: { ...source.trojanHorse || {} },
-      madHorse: { ...source.madHorse || {} },
-      clonePassive: { ...source.clonePassive || {} },
+      regency: shallowObj(source.regency),
+      retreat: shallowObj(source.retreat),
+      racingKing: shallowObj(source.racingKing),
+      radicalCharge: shallowObj(source.radicalCharge),
+      encouragement: shallowObj(source.encouragement),
+      ironMonarch: shallowObj(source.ironMonarch),
+      imperialStudies: shallowObj(source.imperialStudies),
+      religiousVictory: shallowObj(source.religiousVictory),
+      backwardKnight: shallowObj(source.backwardKnight),
+      trojanHorse: shallowObj(source.trojanHorse),
+      madHorse: shallowObj(source.madHorse),
+      clonePassive: shallowObj(source.clonePassive),
       frontlineResponse: normalizeDemocracyState(source.frontlineResponse),
       relay: normalizeDemocracyState(source.relay),
       fieldPromotion: normalizeDemocracyState(source.fieldPromotion),
       gomoku: normalizeDemocracyState(source.gomoku),
       magicGirlSurge: normalizeDemocracyState(source.magicGirlSurge),
-      ...Object.values(source.magicGirlSurgeRefreshPending || {}).some(Boolean) ? { magicGirlSurgeRefreshPending: normalizeDemocracyState(source.magicGirlSurgeRefreshPending) } : {},
       moveReplay: clonePlain(source.moveReplay || { white: null, black: null }),
       sirenExposure: clonePlain(source.sirenExposure || {}),
       clonedPassiveCards: clonePlain(source.clonedPassiveCards || { white: [], black: [] }),
-      vanishing: { ...source.vanishing || {} },
-      knightInjury: { ...source.knightInjury || {} },
-      fianchetto: { ...source.fianchetto || {} },
-      ...septemberPassiveState(source),
-      pawnSprint: { ...source.pawnSprint || {} },
-      pawnConversion: { ...source.pawnConversion || {} },
-      pawnLeap: { ...source.pawnLeap || {} },
-      fileSurge: { ...source.fileSurge || {} },
-      rookLift: { ...source.rookLift || {} },
-      underpromotion: { ...source.underpromotion || {} },
-      finalWeapon: { ...source.finalWeapon || {} },
+      vanishing: shallowObj(source.vanishing),
+      knightInjury: shallowObj(source.knightInjury),
+      fianchetto: shallowObj(source.fianchetto),
+      pawnSprint: shallowObj(source.pawnSprint),
+      pawnConversion: shallowObj(source.pawnConversion),
+      pawnLeap: shallowObj(source.pawnLeap),
+      fileSurge: shallowObj(source.fileSurge),
+      rookLift: shallowObj(source.rookLift),
+      underpromotion: shallowObj(source.underpromotion),
+      finalWeapon: shallowObj(source.finalWeapon),
       highway: Boolean(source.highway),
       recycling: Boolean(source.recycling),
       coolGuy: Boolean(source.coolGuy),
@@ -17219,16 +17225,16 @@
         white: Boolean(source.manner?.white),
         black: Boolean(source.manner?.black)
       },
-      freeCastling: { ...source.freeCastling || {} },
-      switcheroo: { ...source.switcheroo || {} },
-      substitution: { ...source.substitution || {} },
-      cornerKick: { ...source.cornerKick || {} },
+      freeCastling: shallowObj(source.freeCastling),
+      switcheroo: shallowObj(source.switcheroo),
+      substitution: shallowObj(source.substitution),
+      cornerKick: shallowObj(source.cornerKick),
       chainBonds: normalizeChainBonds(source.chainBonds),
       moving: normalizeMovingState(source.moving),
-      castlingCanceled: { ...source.castlingCanceled || {} },
-      castled: { ...source.castled || {} },
-      bishopSnipe: { ...source.bishopSnipe || {} },
-      breakthroughPawns: { ...source.breakthroughPawns || {} },
+      castlingCanceled: shallowObj(source.castlingCanceled),
+      castled: shallowObj(source.castled),
+      bishopSnipe: shallowObj(source.bishopSnipe),
+      breakthroughPawns: shallowObj(source.breakthroughPawns),
       highGround: normalizeCells(source.highGround),
       appliedRuleCard: clonePlain(source.appliedRuleCard || null),
       additionalRuleCards: clonePlain(source.additionalRuleCards || []),
@@ -17236,28 +17242,22 @@
       initiative: clonePlain(source.initiative || {}),
       machoChess: Boolean(source.machoChess),
       palaces: clonePlain(source.palaces || []),
-      kingKnight: { ...source.kingKnight || {} },
-      royalKnightKing: { ...source.royalKnightKing || {} },
-      socialism: { ...source.socialism || {} },
-      taunt: { ...source.taunt || {} },
+      kingKnight: shallowObj(source.kingKnight),
+      royalKnightKing: shallowObj(source.royalKnightKing),
+      socialism: shallowObj(source.socialism),
+      taunt: shallowObj(source.taunt),
       hallucination: clonePlain(source.hallucination || { white: null, black: null }),
       prophecy: clonePlain(source.prophecy || { white: null, black: null }),
       diceLocks: clonePlain(source.diceLocks || {}),
       enPassant: clonePlain(source.enPassant || null),
       lastMove: clonePlain(source.lastMove || null),
       accelerationTrail: clonePlain(source.accelerationTrail || null),
-      ...source.captureTheFlag ? { captureTheFlag: clonePlain(source.captureTheFlag) } : {},
-      ...source.reversal ? { reversal: clonePlain(source.reversal) } : {},
-      ...source.resolveReady ? { resolveReady: clonePlain(source.resolveReady) } : {},
-      ...source.resolveSpentTurn ? { resolveSpentTurn: clonePlain(source.resolveSpentTurn) } : {},
-      ...source.resolveMoveCredit ? { resolveMoveCredit: clonePlain(source.resolveMoveCredit) } : {},
-      ...source.pendingRecurrences?.length ? { pendingRecurrences: clonePlain(source.pendingRecurrences) } : {},
       undeadResurrections: clonePlain(source.undeadResurrections || []),
-      enPassantFrenzy: { ...source.enPassantFrenzy || {} },
-      zugzwang: { ...source.zugzwang || {} },
+      enPassantFrenzy: shallowObj(source.enPassantFrenzy),
+      zugzwang: shallowObj(source.zugzwang),
       pendingPanic: clonePlain(source.pendingPanic || []),
       pendingFreeMoves: clonePlain(source.pendingFreeMoves || []),
-      freeMoveCaptureLock: { ...source.freeMoveCaptureLock || {} },
+      freeMoveCaptureLock: shallowObj(source.freeMoveCaptureLock),
       chaosNoCaptureUntilHalfTurn: Math.max(0, Math.floor(Number(source.chaosNoCaptureUntilHalfTurn) || 0)),
       pendingIcbm: normalizePendingIcbm(source.pendingIcbm),
       pendingTrojanHorse: clonePlain(source.pendingTrojanHorse || []),
@@ -17270,18 +17270,18 @@
       pendingLobsters: clonePlain(source.pendingLobsters || []),
       activeTrolley: clonePlain(source.activeTrolley || null),
       pendingPawnStorm: clonePlain(source.pendingPawnStorm || []),
-      afterimageQueen: { ...source.afterimageQueen || {} },
-      kingDead: { ...source.kingDead || {} },
-      quantumPending: { ...source.quantumPending || {} },
-      coronation: { ...source.coronation || {} },
-      earlyPromotion: { ...source.earlyPromotion || {} },
-      fastGrowth: { ...source.fastGrowth || {} },
-      turnsTaken: { ...source.turnsTaken || {} },
+      afterimageQueen: shallowObj(source.afterimageQueen),
+      kingDead: shallowObj(source.kingDead),
+      quantumPending: shallowObj(source.quantumPending),
+      coronation: shallowObj(source.coronation),
+      earlyPromotion: shallowObj(source.earlyPromotion),
+      fastGrowth: shallowObj(source.fastGrowth),
+      turnsTaken: shallowObj(source.turnsTaken),
       cardsUsedThisTurn: normalizeCardsUsedThisTurn(source.cardsUsedThisTurn),
       royalCommand: clonePlain(source.royalCommand || { white: null, black: null }),
       moveCount: Number(source.moveCount) || 0,
       fullMove: Number(source.fullMove) || 1,
-      aiSearchBonus: { ...source.aiSearchBonus || {} },
+      aiSearchBonus: shallowObj(source.aiSearchBonus),
       blackHole: normalizeCells(source.blackHole),
       winterKingdom: normalizeWinterKingdom(source.winterKingdom),
       ultimatum: normalizeUltimatum(source.ultimatum),
@@ -17289,7 +17289,7 @@
         ...hazard,
         cells: (hazard.cells || []).map((cell) => ({ row: cell.row, col: cell.col }))
       })),
-      skipTurn: { ...source.skipTurn || {} },
+      skipTurn: shallowObj(source.skipTurn),
       recentMoves: (source.recentMoves || []).map((move) => ({
         from: move.from ? { ...move.from } : null,
         to: move.to ? { ...move.to } : null,
@@ -17299,6 +17299,18 @@
       })),
       monochromeChess: Boolean(source.monochromeChess)
     };
+    // Perf: keep the big literal free of conditional spreads (a literal with >~128 props built
+    // through spreads falls into V8 dictionary mode, 10x slower); conditional keys are added after.
+    if (source.temporaryQueens) cloned.temporaryQueens = clonePlain(source.temporaryQueens);
+    if (source.necromancy) cloned.necromancy = clonePlain(source.necromancy);
+    if (Object.values(source.magicGirlSurgeRefreshPending || {}).some(Boolean)) cloned.magicGirlSurgeRefreshPending = normalizeDemocracyState(source.magicGirlSurgeRefreshPending);
+    Object.assign(cloned, septemberPassiveState(source));
+    if (source.captureTheFlag) cloned.captureTheFlag = clonePlain(source.captureTheFlag);
+    if (source.reversal) cloned.reversal = clonePlain(source.reversal);
+    if (source.resolveReady) cloned.resolveReady = clonePlain(source.resolveReady);
+    if (source.resolveSpentTurn) cloned.resolveSpentTurn = clonePlain(source.resolveSpentTurn);
+    if (source.resolveMoveCredit) cloned.resolveMoveCredit = clonePlain(source.resolveMoveCredit);
+    if (source.pendingRecurrences?.length) cloned.pendingRecurrences = clonePlain(source.pendingRecurrences);
     if (campaignAuthorityV1States.has(source)) campaignAuthorityV1States.add(cloned);
     if (legacyCompletedTurnEffectsStates.has(source)) legacyCompletedTurnEffectsStates.add(cloned);
     if (legacyReusablePlatformStates.has(source)) legacyReusablePlatformStates.add(cloned);
