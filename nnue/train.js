@@ -686,6 +686,16 @@ function buildLoraModel() {
   if (base.kWideOut.shape[0] !== OLD_SIZE) {
     throw new Error(`${LORA_BASE}: k1 input size (${OLD_SIZE}) and wideLayer input size (${base.kWideOut.shape[0]}) disagree -- not a valid weights.json`);
   }
+  // ABLATE_DEEP_UNITS has no effect in LoRA mode (deep width is fixed by the
+  // base model's own k1 shape, since the frozen old-slice layer must match
+  // it) -- fail loudly instead of silently ignoring the env var, so a stale
+  // override from a non-LoRA run doesn't look like it did nothing for a
+  // confusing reason.
+  if (process.env.ABLATE_DEEP_UNITS !== undefined && Number(process.env.ABLATE_DEEP_UNITS) !== DEEP_UNITS) {
+    throw new Error(
+      `ABLATE_DEEP_UNITS=${process.env.ABLATE_DEEP_UNITS} was set, but LoRA mode's deep width is fixed by LORA_BASE's own k1 shape (${DEEP_UNITS}) and cannot be overridden -- unset ABLATE_DEEP_UNITS or match it to ${DEEP_UNITS}.`
+    );
+  }
   console.log(
     "LoRA mode: base input size", OLD_SIZE, "-> current", INPUT_SIZE,
     "(" + NEW_SIZE, "new column(s))", ", rank", LORA_RANK, ", deep units (from base k1)", DEEP_UNITS
