@@ -619,6 +619,205 @@ const LEARNING_RATE = VARIANT === "new" ? 0.0002 : 0.001;
 const EPOCHS_CAP = process.env.EPOCHS_CAP ? Number(process.env.EPOCHS_CAP) : VARIANT === "new" ? 40 : 15;
 const PATIENCE = process.env.PATIENCE ? Number(process.env.PATIENCE) : VARIANT === "new" ? 12 : 6;
 console.log("NNUE_VARIANT:", VARIANT, `(lr=${LEARNING_RATE}, dropout=${DROPOUT_RATE}, epochs=${EPOCHS_CAP}, patience=${PATIENCE})`);
+
+// LORA_BASE=<path to a previously saved weights.json> (2026-09-28, opt-in,
+// see PLAN.md's "LoRA 도입"): instead of retraining a brand-new model from
+// scratch every time INPUT_SIZE grows (new pieces/cards) or existing
+// cards/pieces get rebalanced, freeze what already works and only pay for
+// what's new/changed. Two knobs, both applied only to k1 and wideLayer --
+// the two layers whose size scales with INPUT_SIZE:
+//  - New input columns (INPUT_SIZE grew past the base model's own input
+//    size): k1 and wideLayer split into an "old slice" [0, oldSize) --
+//    frozen, loaded from the base weights -- and a "new slice"
+//    [oldSize, INPUT_SIZE) -- fresh, trainable, zero-init so training
+//    starts identical to the base model and only the new columns' rows
+//    actually move.
+//  - Rebalanced old columns (INPUT_SIZE unchanged, old features now mean
+//    something different): a low-rank correction B*A (LORA_RANK, default
+//    8) added into k1's OLD slice only, B zero-initialized (so, like the
+//    new slice, training starts identical to the base model). wideLayer's
+//    old slice gets no such correction (spec: a 1-D output has nothing to
+//    gain from a low-rank decomposition).
+// b1/k2/b2/deepOut are small (a few hundred params total combined) so
+// they're just reloaded from the base and left fully trainable, no
+// freezing/low-rank.
+// LORA_BASE unset: buildModel() below is 100% unchanged from before this
+// feature existed -- the LoRA branch is an early return, nothing else in
+// this function is touched.
+const LORA_BASE = process.env.LORA_BASE || null;
+const LORA_RANK = process.env.LORA_RANK !== undefined ? Number(process.env.LORA_RANK) : 8;
+
+// Design note on input-splitting (2026-09-28): tf.js's functional API has
+// no public "slice this SymbolicTensor" layer, and a single Dense layer's
+// `trainable` flag applies to its WHOLE kernel -- there's no way to freeze
+// only some rows of one Dense layer. So the old/new split below uses TWO
+// separate tf.input() placeholders (old-slice, new-slice) feeding two
+// separate Dense layers whose pre-activation outputs are summed -- not one
+// input tensor sliced inside the graph. That means every place main() feeds
+// this model a batch of encoded rows has to feed an ARRAY of tensors
+// (old-slice / new-slice / bias-ones -- see loraSplitTensor() below), not a
+// single tensor. This is the simplest, least-invasive option of the ones
+// the plan named; it does NOT work with SPARSE_INPUT=1 (sparseDensifyInto
+// only ever builds one combined dense buffer per chunk, and splitting a CSR
+// sparse row into two dense slices per chunk on top of the existing sparse
+// path was judged not worth the complexity for a first implementation) --
+// LoRA mode is dense-path only. main() throws a clear error up front if
+// both LORA_BASE and SPARSE_INPUT are set, rather than silently producing
+// wrong results.
+// b1 (deep-path bias) has the same "can't freeze part of one Dense layer"
+// problem in reverse: it must stay TRAINABLE while k1's old slice (same
+// conceptual layer in the un-split model) is frozen. Solved with the
+// standard trick of representing a trainable bias as a trainable Dense
+// kernel of shape [1, DEEP_UNITS] applied to a constant column of 1s (a
+// 3rd input, "lora_bias_input") -- output = 1 * kernel = kernel, so it
+// behaves exactly like a bias vector but is an ordinary trainable Dense
+// weight, no special-cased freezing logic needed.
+function buildLoraModel() {
+  const { loadWeights } = require("./forward.js");
+  const base = loadWeights(LORA_BASE);
+  const OLD_SIZE = base.k1.shape[0];
+  const DEEP_UNITS = base.k1.shape[1];
+  const NEW_SIZE = INPUT_SIZE - OLD_SIZE;
+  if (NEW_SIZE < 0) {
+    throw new Error(
+      `LORA_BASE (${LORA_BASE}) expects ${OLD_SIZE} input columns, but the current encode.js produces only ${INPUT_SIZE} -- LoRA can only grow or keep the input size the same, never shrink it. Check FULL_PIECE_STATE/STAR_TOTAL_FEATURES env vars match how the base model was trained.`
+    );
+  }
+  if (base.kWideOut.shape[0] !== OLD_SIZE) {
+    throw new Error(`${LORA_BASE}: k1 input size (${OLD_SIZE}) and wideLayer input size (${base.kWideOut.shape[0]}) disagree -- not a valid weights.json`);
+  }
+  console.log(
+    "LoRA mode: base input size", OLD_SIZE, "-> current", INPUT_SIZE,
+    "(" + NEW_SIZE, "new column(s))", ", rank", LORA_RANK, ", deep units (from base k1)", DEEP_UNITS
+  );
+
+  const oldInput = tf.input({ shape: [OLD_SIZE], name: "lora_old_input" });
+  const newInput = NEW_SIZE > 0 ? tf.input({ shape: [NEW_SIZE], name: "lora_new_input" }) : null;
+  const biasInput = tf.input({ shape: [1], name: "lora_bias_input" });
+
+  // --- k1's old slice: frozen kernel, loaded from base (bias split out, see above) ---
+  const oldDeepLayer = tf.layers.dense({ units: DEEP_UNITS, useBias: false, trainable: false, name: "lora_old_deep" });
+  const oldDeepPre = oldDeepLayer.apply(oldInput);
+  oldDeepLayer.setWeights([tf.tensor(base.k1.data, base.k1.shape)]);
+
+  // --- b1, kept trainable, reloaded from base (see the bias-as-kernel comment above) ---
+  const b1Layer = tf.layers.dense({ units: DEEP_UNITS, useBias: false, kernelInitializer: "zeros", name: "lora_b1" });
+  const b1Out = b1Layer.apply(biasInput);
+  b1Layer.setWeights([tf.tensor(base.b1.data, [1, DEEP_UNITS])]);
+
+  // --- low-rank correction B*A on the old slice (rebalance case), B=0 init so
+  // training starts identical to the base model regardless of A's init ---
+  const loraBLayer = tf.layers.dense({ units: LORA_RANK, useBias: false, kernelInitializer: "zeros", name: "lora_B" });
+  const loraBOut = loraBLayer.apply(oldInput);
+  const loraALayer = tf.layers.dense({
+    units: DEEP_UNITS, useBias: false,
+    kernelInitializer: tf.initializers.randomNormal({ mean: 0, stddev: 0.01 }),
+    name: "lora_A"
+  });
+  const loraOut = loraALayer.apply(loraBOut);
+
+  const deepPreTerms = [oldDeepPre, b1Out, loraOut];
+
+  // --- wideLayer's old slice: frozen, no low-rank correction ---
+  const oldWideLayer = tf.layers.dense({ units: 1, useBias: false, trainable: false, name: "lora_old_wide" });
+  const oldWidePre = oldWideLayer.apply(oldInput);
+  oldWideLayer.setWeights([tf.tensor(base.kWideOut.data, base.kWideOut.shape)]);
+  const wideOutTerms = [oldWidePre];
+
+  // --- new-slice trainable layers, only when there actually are new columns ---
+  let newDeepLayer = null, newWideLayer = null;
+  if (NEW_SIZE > 0) {
+    newDeepLayer = tf.layers.dense({
+      units: DEEP_UNITS, useBias: false, kernelInitializer: "zeros",
+      kernelRegularizer: tf.regularizers.l2({ l2: L2 }), name: "lora_new_deep"
+    });
+    deepPreTerms.push(newDeepLayer.apply(newInput));
+
+    newWideLayer = tf.layers.dense({
+      units: 1, useBias: false, kernelInitializer: "zeros",
+      kernelRegularizer: tf.regularizers.l2({ l2: L2 }), name: "lora_new_wide"
+    });
+    wideOutTerms.push(newWideLayer.apply(newInput));
+  }
+
+  const deepPre = tf.layers.add().apply(deepPreTerms);
+  let deep = tf.layers.activation({ activation: "relu" }).apply(deepPre);
+  if (DROPOUT_RATE > 0) deep = tf.layers.dropout({ rate: DROPOUT_RATE }).apply(deep);
+
+  const k2Layer = tf.layers.dense({
+    units: DEEP_UNITS, activation: "relu",
+    kernelRegularizer: tf.regularizers.l2({ l2: L2 }), name: "lora_k2"
+  });
+  deep = k2Layer.apply(deep);
+  k2Layer.setWeights([tf.tensor(base.k2.data, base.k2.shape), tf.tensor(base.b2.data, base.b2.shape)]);
+  if (DROPOUT_RATE > 0) deep = tf.layers.dropout({ rate: DROPOUT_RATE }).apply(deep);
+
+  const deepOutLayer = tf.layers.dense({ units: 1, useBias: false, name: "lora_deepOut" });
+  const deepOut = deepOutLayer.apply(deep);
+  deepOutLayer.setWeights([tf.tensor(base.kDeepOut.data, base.kDeepOut.shape)]);
+
+  const wideOut = wideOutTerms.length > 1 ? tf.layers.add().apply(wideOutTerms) : wideOutTerms[0];
+  const merged = tf.layers.add().apply([deepOut, wideOut]);
+  const output = tf.layers.activation({ activation: "tanh" }).apply(merged);
+
+  const inputs = NEW_SIZE > 0 ? [oldInput, newInput, biasInput] : [oldInput, biasInput];
+  const model = tf.model({ inputs, outputs: output });
+  model.compile({ optimizer: tf.train.adam(LEARNING_RATE), loss: "meanSquaredError" });
+
+  model.__loraMeta = { oldSize: OLD_SIZE, newSize: NEW_SIZE, rank: LORA_RANK, deepUnits: DEEP_UNITS, base: LORA_BASE };
+  model.__loraLayers = { oldDeepLayer, b1Layer, loraBLayer, loraALayer, oldWideLayer, newDeepLayer, newWideLayer, k2Layer, deepOutLayer };
+  return model;
+}
+
+// Serializes a LoRA model's own (trained) tensors into a tagged sidecar --
+// NOT forward.js's flat 6-tensor shape, since model.getWeights() for a LoRA
+// model has extra tensors (B, A, new-slice kernels) in a different
+// order/shape than the plain model. nnue/merge-lora.js combines this with
+// LORA_BASE's own weights.json to produce a normal flat weights.json (see
+// PLAN.md's LoRA section, step 4) that forward.js reads with zero changes.
+// Exported so both main() and nnue/train-lora.test.js exercise the exact
+// same serialization logic.
+function loraSidecarFromModel(model) {
+  const loraMeta = model.__loraMeta;
+  const L = model.__loraLayers;
+  const t = (layer, i = 0) => { const w = layer.getWeights()[i]; return { shape: w.shape, data: Array.from(w.dataSync()) }; };
+  return {
+    lora: true,
+    base: loraMeta.base,
+    oldSize: loraMeta.oldSize,
+    newSize: loraMeta.newSize,
+    rank: loraMeta.rank,
+    deepUnits: loraMeta.deepUnits,
+    tensors: {
+      b1: t(L.b1Layer),
+      loraB: t(L.loraBLayer),
+      loraA: t(L.loraALayer),
+      newDeepK: L.newDeepLayer ? t(L.newDeepLayer) : null,
+      newWideK: L.newWideLayer ? t(L.newWideLayer) : null,
+      k2: t(L.k2Layer, 0),
+      b2: t(L.k2Layer, 1),
+      deepOut: t(L.deepOutLayer)
+    }
+  };
+}
+
+// Takes ownership of `xTensor` (disposes it) and returns the tensor(s) to
+// feed the model with, plus a matching dispose(). Plain model (loraMeta
+// null): unchanged passthrough. LoRA model: splits into
+// [old-slice, new-slice?, ones] to match buildLoraModel()'s multi-input
+// signature.
+function loraSplitTensor(xTensor, loraMeta) {
+  if (!loraMeta) return { x: xTensor, dispose: () => xTensor.dispose() };
+  const { oldSize, newSize } = loraMeta;
+  const rows = xTensor.shape[0];
+  const xOld = xTensor.slice([0, 0], [rows, oldSize]);
+  const xNew = newSize > 0 ? xTensor.slice([0, oldSize], [rows, newSize]) : null;
+  const ones = tf.ones([rows, 1]);
+  xTensor.dispose();
+  const parts = newSize > 0 ? [xOld, xNew, ones] : [xOld, ones];
+  return { x: parts, dispose: () => parts.forEach((t) => t.dispose()) };
+}
+
 function buildModel() {
   if (VARIANT === "linear") {
     const linearModel = tf.sequential();
@@ -631,6 +830,7 @@ function buildModel() {
     linearModel.compile({ optimizer: tf.train.adam(LEARNING_RATE), loss: "meanSquaredError" });
     return linearModel;
   }
+  if (LORA_BASE) return buildLoraModel();
   // "Wide & deep" (2026-09-08): switched from a plain Sequential stack to
   // the Functional API to add a direct linear path from the raw input
   // straight to the output, running alongside the existing 2-hidden-layer
@@ -750,6 +950,13 @@ function snapshotDataFile() {
 }
 
 async function main() {
+  if (LORA_BASE && SPARSE_INPUT) {
+    throw new Error(
+      "LORA_BASE + SPARSE_INPUT=1 is not supported (see buildLoraModel()'s design-note comment above): " +
+      "LoRA mode needs 2-3 separate dense input tensors (old/new/bias-ones) per batch, and sparseDensifyInto " +
+      "only ever builds one combined dense buffer. Train with SPARSE_INPUT unset when using LoRA."
+    );
+  }
   // WASM backend (2026-09-09): benchmarked ~37x faster than the default
   // pure-JS "cpu" backend on this model's exact forward-pass shape (169.6ms
   // vs 4.6ms per pass) -- no native compilation needed (unlike tfjs-node,
@@ -854,6 +1061,11 @@ async function main() {
   }
 
   const model = buildModel();
+  const loraMeta = model.__loraMeta || null; // {oldSize,newSize,rank,deepUnits,base} when LORA_BASE was set, else null
+  // xVal is consumed (disposed) once split for LoRA feeding -- xValFeed.x is
+  // what every model.evaluate/predict call below should use instead of the
+  // bare xVal name (plain model: xValFeed.x === xVal, unchanged passthrough).
+  const xValFeed = SPARSE_INPUT ? null : loraSplitTensor(xVal, loraMeta);
 
   // Manual early stopping with best-weights tracking: tfjs.js's built-in
   // earlyStopping callback can stop training but (unlike Keras'
@@ -928,9 +1140,10 @@ async function main() {
         chunkLabel[r] = trainLabelsFlat[srcRow];
       }
       if (SPARSE_INPUT) sparseDensifyInto(sparse, chunkRows, rows, INPUT_SIZE, chunkInput);
-      const xChunk = tf.tensor2d(chunkInput, [rows, INPUT_SIZE]);
+      const xChunkRaw = tf.tensor2d(chunkInput, [rows, INPUT_SIZE]);
+      const xChunk = loraSplitTensor(xChunkRaw, loraMeta);
       const yChunk = tf.tensor2d(chunkLabel, [rows, 1]);
-      const history = await model.fit(xChunk, yChunk, { epochs: 1, batchSize: 64, shuffle: true, verbose: 0 });
+      const history = await model.fit(xChunk.x, yChunk, { epochs: 1, batchSize: 64, shuffle: true, verbose: 0 });
       trainLossSum += history.history.loss[0] * rows;
       xChunk.dispose();
       yChunk.dispose();
@@ -952,7 +1165,7 @@ async function main() {
       }
       valLoss = valLossSum / numVal;
     } else {
-      const valLossTensor = model.evaluate(xVal, yVal, { batchSize: 256 });
+      const valLossTensor = model.evaluate(xValFeed.x, yVal, { batchSize: 256 });
       const valLossScalar = Array.isArray(valLossTensor) ? valLossTensor[0] : valLossTensor;
       valLoss = (await valLossScalar.data())[0];
       (Array.isArray(valLossTensor) ? valLossTensor : [valLossTensor]).forEach((t) => t.dispose());
@@ -994,20 +1207,40 @@ async function main() {
   const weightsFileName = VARIANT === "new" ? "weights.json" : `weights.variant-${VARIANT}.json`;
   // WEIGHTS_OUT (2026-09-25): write the weights to this path instead (verification runs, so they never touch nnue/model/).
   const weightsPath = process.env.WEIGHTS_OUT || path.join(__dirname, "model", weightsFileName);
-  fs.writeFileSync(weightsPath, JSON.stringify(weights));
-  console.log("weights saved to", process.env.WEIGHTS_OUT || "nnue/model/" + weightsFileName);
 
-  // Restore the exported (best-epoch) weights onto the model before the
-  // sanity check -- otherwise this would predict with the LAST epoch's
-  // weights, which is exactly the overfit state we just chose not to export.
+  // Restore the exported (best-epoch) weights onto the model before saving
+  // (LoRA branch reads straight from the live layers below) and before the
+  // sanity check -- otherwise the sanity check would predict with the LAST
+  // epoch's weights, which is exactly the overfit state we just chose not
+  // to export.
   model.setWeights(weights.map((w) => tf.tensor(w.data, w.shape)));
+
+  if (loraMeta) {
+    // LoRA mode: model.getWeights() has a totally different shape/order
+    // than forward.js's flat 6-tensor format (extra B/A/new-slice tensors,
+    // no vstacked old+new k1/wideLayer), so writing it to weightsPath would
+    // silently produce a file forward.js can't read correctly. Save a
+    // tagged sidecar with named tensors instead -- nnue/merge-lora.js
+    // combines it with LORA_BASE's own weights.json to produce a normal
+    // flat weights.json (see PLAN.md's LoRA section, step 4). The plain
+    // weightsPath (e.g. nnue/model/weights.json) is intentionally left
+    // untouched in this branch.
+    const loraPath = weightsPath.replace(/\.json$/, ".lora.json");
+    fs.writeFileSync(loraPath, JSON.stringify(loraSidecarFromModel(model)));
+    console.log("LoRA adapter weights saved to", loraPath, "-- merge with", LORA_BASE, "via nnue/merge-lora.js before use");
+  } else {
+    fs.writeFileSync(weightsPath, JSON.stringify(weights));
+    console.log("weights saved to", process.env.WEIGHTS_OUT || "nnue/model/" + weightsFileName);
+  }
 
   // Sanity check: starting position should be close to 0 (roughly balanced).
   // Uses firstBoard captured in loadData() rather than re-reading the file
   // here -- learned this the hard way (2026-09-07): a concurrent self-play
   // run, or a manual delete of the snapshot, can make the file gone by now,
   // crashing the run after training/saving already finished.
-  const pred = model.predict(tf.tensor2d([encodeBoard(firstBoard, "white")]));
+  const startRaw = tf.tensor2d([encodeBoard(firstBoard, "white")]);
+  const startFeed = loraSplitTensor(startRaw, loraMeta);
+  const pred = model.predict(startFeed.x);
   console.log("prediction for the game-1 starting position (white to move):", (await pred.data())[0]);
 
   // "Accuracy" isn't really the right frame for a regression model (that's
@@ -1032,7 +1265,7 @@ async function main() {
       y.dispose();
     }
   } else {
-    valPreds = await model.predict(xVal).data();
+    valPreds = await model.predict(xValFeed.x).data();
   }
   let decisive = 0, correct = 0;
   let fewPieces = 0, fewCorrect = 0, manyPieces = 0, manyCorrect = 0;
@@ -1072,5 +1305,5 @@ if (require.main === module) {
   // two saved weight files on the same validation split) that need the
   // exact same filtering/game-boundary logic main() uses, without
   // duplicating it and risking a subtly different split.
-  module.exports = { loadData, DATA_FILE, INPUT_SIZE, FEATURE_NAMES, snapshotDataFile, ORIGINAL_EVAL_WEIGHTS, buildModel };
+  module.exports = { loadData, DATA_FILE, INPUT_SIZE, FEATURE_NAMES, snapshotDataFile, ORIGINAL_EVAL_WEIGHTS, buildModel, loraSidecarFromModel };
 }
