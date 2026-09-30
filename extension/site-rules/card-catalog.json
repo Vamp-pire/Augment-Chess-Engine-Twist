@@ -1,0 +1,927 @@
+{
+  "alekhineMachineGun": {
+    "stars": 2.5,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "amazon": {
+    "stars": 4.5,
+    "activation": "ACTIVE",
+    "phase": "PIECE"
+  },
+  "apprenticeKnights": {
+    "stars": 1.5,
+    "activation": "ACTIVE",
+    "phase": "OPENING"
+  },
+  "armistice": {
+    "stars": 3.5,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "babyBear": {
+    "stars": 4,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "basicTraining": {
+    "stars": 3.5,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "bigRook": {
+    "stars": 4,
+    "activation": "PASSIVE",
+    "phase": "OPENING"
+  },
+  "binaMate": {
+    "stars": 3.5,
+    "activation": "PASSIVE",
+    "phase": "END"
+  },
+  "bishopSnipe": {
+    "stars": 3,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "blackBox": {
+    "stars": 2.5,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "blackMagic": {
+    "stars": 4,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "blueJeans": {
+    "stars": 5,
+    "activation": "PASSIVE",
+    "phase": "END"
+  },
+  "breakthroughOrder": {
+    "stars": 3,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "callingCard": {
+    "stars": 3,
+    "activation": "ACTIVE",
+    "phase": "OPENING"
+  },
+  "canceling": {
+    "stars": 5,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "chain": {
+    "stars": 3,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "chameleonMutation": {
+    "stars": 1.5,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "charge": {
+    "stars": 4,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "checker": {
+    "stars": 1.5,
+    "activation": "ACTIVE",
+    "phase": "OPENING"
+  },
+  "chimera": {
+    "stars": 3,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "cleanupPieces": {
+    "stars": 2,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "cleanupSacrifice": {
+    "stars": 1.5,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "clonePassive": {
+    "stars": 5,
+    "activation": "PASSIVE",
+    "phase": "END"
+  },
+  "conversion": {
+    "stars": 2.5,
+    "activation": "PASSIVE",
+    "phase": "MIDDLE"
+  },
+  "cornerKick": {
+    "stars": 3.5,
+    "activation": "PASSIVE",
+    "phase": "MIDDLE"
+  },
+  "coronation": {
+    "stars": 3.5,
+    "activation": "PASSIVE",
+    "phase": "END"
+  },
+  "deathSquad": {
+    "stars": 2.5,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "democracy": {
+    "stars": 4,
+    "activation": "PASSIVE",
+    "phase": "OPENING"
+  },
+  "desperado": {
+    "stars": 3.5,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "dice": {
+    "stars": 2,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "disarm": {
+    "stars": 4,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "dutch": {
+    "stars": 4,
+    "activation": "PASSIVE",
+    "phase": "OPENING"
+  },
+  "eagle": {
+    "stars": 3.5,
+    "activation": "ACTIVE",
+    "phase": "PIECE"
+  },
+  "emergencyEvacuation": {
+    "stars": 2.5,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "emptyLunchbox": {
+    "stars": 3.5,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "enPassantBang": {
+    "stars": 3,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "encouragement": {
+    "stars": 3,
+    "activation": "PASSIVE",
+    "phase": "MIDDLE"
+  },
+  "evasion": {
+    "stars": 2.5,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "exhaustion": {
+    "stars": 3,
+    "activation": "PASSIVE",
+    "phase": "MIDDLE"
+  },
+  "exile": {
+    "stars": 2.5,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "fanaticalRitual": {
+    "stars": 3,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "feudalContract": {
+    "stars": 3.5,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "fianchetto": {
+    "stars": 3.5,
+    "activation": "PASSIVE",
+    "phase": "OPENING"
+  },
+  "fieldPromotion": {
+    "stars": 3.5,
+    "activation": "PASSIVE",
+    "phase": "OPENING"
+  },
+  "fileSurge": {
+    "stars": 3,
+    "activation": "PASSIVE",
+    "phase": "MIDDLE"
+  },
+  "finalWeapon": {
+    "stars": 3,
+    "activation": "PASSIVE",
+    "phase": "END"
+  },
+  "fleetingDream": {
+    "stars": 4,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "freeCastling": {
+    "stars": 3.5,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "freeMove": {
+    "stars": 3.5,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "freeze": {
+    "stars": 3,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "frenzy": {
+    "stars": 4,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "frontlineResponse": {
+    "stars": 3.5,
+    "activation": "PASSIVE",
+    "phase": "MIDDLE"
+  },
+  "gale": {
+    "stars": 2.5,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "genevaConvention": {
+    "stars": 3,
+    "activation": "PASSIVE",
+    "phase": "OPENING"
+  },
+  "ghost": {
+    "stars": 4.5,
+    "activation": "PASSIVE",
+    "phase": "MIDDLE"
+  },
+  "gomoku": {
+    "stars": 4,
+    "activation": "PASSIVE",
+    "phase": "END"
+  },
+  "guard": {
+    "stars": 2,
+    "activation": "ACTIVE",
+    "phase": "OPENING"
+  },
+  "hallucination": {
+    "stars": 2,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "holdout": {
+    "stars": 3,
+    "activation": "ACTIVE",
+    "phase": "OPENING"
+  },
+  "homecoming": {
+    "stars": 3,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "hook": {
+    "stars": 4.5,
+    "activation": "ACTIVE",
+    "phase": "PIECE"
+  },
+  "horde": {
+    "stars": 4,
+    "activation": "PASSIVE",
+    "phase": "OPENING"
+  },
+  "horseRiding": {
+    "stars": 2.5,
+    "activation": "PASSIVE",
+    "phase": "MIDDLE"
+  },
+  "hypocrisy": {
+    "stars": 4,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "icbm": {
+    "stars": 2,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "iceSheet": {
+    "stars": 2.5,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "idol": {
+    "stars": 4,
+    "activation": "ACTIVE",
+    "phase": "PIECE"
+  },
+  "imperialStudies": {
+    "stars": 4,
+    "activation": "PASSIVE",
+    "phase": "MIDDLE"
+  },
+  "inertia": {
+    "stars": 3.5,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "injury": {
+    "stars": 4,
+    "activation": "PASSIVE",
+    "phase": "MIDDLE"
+  },
+  "insight": {
+    "stars": 3.5,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "ironMonarch": {
+    "stars": 4.5,
+    "activation": "PASSIVE",
+    "phase": "OPENING"
+  },
+  "joker": {
+    "stars": 4.5,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "judgment": {
+    "stars": 3,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "kingOfTheHill": {
+    "stars": 2.5,
+    "activation": "PASSIVE",
+    "phase": "OPENING"
+  },
+  "knightmate": {
+    "stars": 2,
+    "activation": "ACTIVE",
+    "phase": "OPENING"
+  },
+  "lastResistance": {
+    "stars": 3.5,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "lobster": {
+    "stars": 3,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "localConscription": {
+    "stars": 4,
+    "activation": "ACTIVE",
+    "phase": "PIECE"
+  },
+  "loyalist": {
+    "stars": 3,
+    "activation": "ACTIVE",
+    "phase": "OPENING"
+  },
+  "madHorse": {
+    "stars": 3.5,
+    "activation": "PASSIVE",
+    "phase": "MIDDLE"
+  },
+  "martyrdom": {
+    "stars": 3,
+    "activation": "ACTIVE",
+    "phase": "OPENING"
+  },
+  "merchantGuild": {
+    "stars": 5,
+    "activation": "ACTIVE",
+    "phase": "OPENING"
+  },
+  "missionary": {
+    "stars": 3,
+    "activation": "ACTIVE",
+    "phase": "PIECE"
+  },
+  "mistakeCard": {
+    "stars": 3.5,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "mongolianGambit": {
+    "stars": 5,
+    "activation": "PASSIVE",
+    "phase": "MIDDLE"
+  },
+  "moving": {
+    "stars": 4,
+    "activation": "PASSIVE",
+    "phase": "END"
+  },
+  "ordination": {
+    "stars": 2,
+    "activation": "ACTIVE",
+    "phase": "PIECE"
+  },
+  "othello": {
+    "stars": 3.5,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "otherworld": {
+    "stars": 3.5,
+    "activation": "ACTIVE",
+    "phase": "OPENING"
+  },
+  "overwhelm": {
+    "stars": 4.5,
+    "activation": "PASSIVE",
+    "phase": "MIDDLE"
+  },
+  "palace": {
+    "stars": 3.5,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "panic": {
+    "stars": 2,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "parry": {
+    "stars": 4,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "pawnConversion": {
+    "stars": 2,
+    "activation": "PASSIVE",
+    "phase": "OPENING"
+  },
+  "pawnStorm": {
+    "stars": 2.5,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "poisonedPawn": {
+    "stars": 3,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "portalGun": {
+    "stars": 4,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "promotionRush": {
+    "stars": 3,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "prophecy": {
+    "stars": 4.5,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "quantumMechanics": {
+    "stars": 2.5,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "queenAfterimage": {
+    "stars": 3.5,
+    "activation": "PASSIVE",
+    "phase": "MIDDLE"
+  },
+  "queenCavalry": {
+    "stars": 2,
+    "activation": "ACTIVE",
+    "phase": "OPENING"
+  },
+  "queensGambit": {
+    "stars": 3.5,
+    "activation": "ACTIVE",
+    "phase": "OPENING"
+  },
+  "racingKing": {
+    "stars": 3,
+    "activation": "PASSIVE",
+    "phase": "END"
+  },
+  "randomRoulette": {
+    "stars": 3.5,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "reaper": {
+    "stars": 3.5,
+    "activation": "ACTIVE",
+    "phase": "PIECE"
+  },
+  "reformation": {
+    "stars": 3,
+    "activation": "ACTIVE",
+    "phase": "PIECE"
+  },
+  "relay": {
+    "stars": 2.5,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "religiousVictory": {
+    "stars": 3.5,
+    "activation": "PASSIVE",
+    "phase": "MIDDLE"
+  },
+  "replayMove": {
+    "stars": 4,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "reposition": {
+    "stars": 2.5,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "retreat": {
+    "stars": 2.5,
+    "activation": "PASSIVE",
+    "phase": "MIDDLE"
+  },
+  "reversePawns": {
+    "stars": 2.5,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "rookLift": {
+    "stars": 3.5,
+    "activation": "PASSIVE",
+    "phase": "MIDDLE"
+  },
+  "royalCommand": {
+    "stars": 3,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "royalShield": {
+    "stars": 3.5,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "ruleTicket": {
+    "stars": 2.5,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "sacrifice": {
+    "stars": 3.5,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "severance": {
+    "stars": 3,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "socialism": {
+    "stars": 4,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "spy": {
+    "stars": 3,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "stake": {
+    "stars": 2.5,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "submerge": {
+    "stars": 2,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "substitution": {
+    "stars": 3,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "suicideBomber": {
+    "stars": 3.5,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "summonColossus": {
+    "stars": 5,
+    "activation": "ACTIVE",
+    "phase": "OPENING"
+  },
+  "suspiciousPotion": {
+    "stars": 3,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "switcheroo": {
+    "stars": 1.5,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "taunt": {
+    "stars": 2.5,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "traitor": {
+    "stars": 4,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "trickster": {
+    "stars": 4,
+    "activation": "ACTIVE",
+    "phase": "PIECE"
+  },
+  "trojanHorse": {
+    "stars": 3.5,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "trolley": {
+    "stars": 5,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "twins": {
+    "stars": 3,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "ultimatum": {
+    "stars": 4.5,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "undergroundBunker": {
+    "stars": 2.5,
+    "activation": "PASSIVE",
+    "phase": "END"
+  },
+  "underpromotion": {
+    "stars": 3,
+    "activation": "PASSIVE",
+    "phase": "END"
+  },
+  "vanish": {
+    "stars": 4.5,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "vip": {
+    "stars": 3,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "vortex": {
+    "stars": 3,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "whiteBox": {
+    "stars": 3,
+    "activation": "PASSIVE",
+    "phase": "MIDDLE"
+  },
+  "windmill": {
+    "stars": 1.5,
+    "activation": "ACTIVE",
+    "phase": "PIECE"
+  },
+  "witchTrial": {
+    "stars": 3,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "wizard": {
+    "stars": 5,
+    "activation": "ACTIVE",
+    "phase": "PIECE"
+  },
+  "zugzwang": {
+    "stars": 3,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "qxe1": {
+    "stars": 3,
+    "activation": "ACTIVE",
+    "phase": "OPENING"
+  },
+  "nullification": {
+    "stars": 3.5,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "recurrence": {
+    "stars": 4,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "outpost": {
+    "stars": 3.5,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "killerKing": {
+    "stars": 4,
+    "activation": "PASSIVE",
+    "phase": "MIDDLE"
+  },
+  "majesty": {
+    "stars": 3,
+    "activation": "PASSIVE",
+    "phase": "MIDDLE"
+  },
+  "overtake": {
+    "stars": 4.5,
+    "activation": "PASSIVE",
+    "phase": "MIDDLE"
+  },
+  "vanguard": {
+    "stars": 4,
+    "activation": "PASSIVE",
+    "phase": "MIDDLE"
+  },
+  "infiltration": {
+    "stars": 3.5,
+    "activation": "PASSIVE",
+    "phase": "MIDDLE"
+  },
+  "reversal": {
+    "stars": 4,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "lastStand": {
+    "stars": 2,
+    "activation": "ACTIVE",
+    "phase": "OPENING"
+  },
+  "fastGrowth": {
+    "stars": 3.5,
+    "activation": "PASSIVE",
+    "phase": "OPENING"
+  },
+  "earlyPromotion": {
+    "stars": 3.5,
+    "activation": "PASSIVE",
+    "phase": "OPENING"
+  },
+  "bribe": {
+    "stars": 4,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "conscription": {
+    "stars": 4,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "barricade": {
+    "stars": 2.5,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "collapse": {
+    "stars": 4.5,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "highlander": {
+    "stars": 5,
+    "activation": "PASSIVE",
+    "phase": "END"
+  },
+  "thief": {
+    "stars": 3,
+    "activation": "ACTIVE",
+    "phase": "OPENING"
+  },
+  "disassembly": {
+    "stars": 2,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "falseStart": {
+    "stars": 3,
+    "activation": "PASSIVE",
+    "phase": "OPENING"
+  },
+  "proficiency": {
+    "stars": 2.5,
+    "activation": "PASSIVE",
+    "phase": "MIDDLE"
+  },
+  "locustSwarm": {
+    "stars": 3,
+    "activation": "PASSIVE",
+    "phase": "OPENING"
+  },
+  "longEnPassant": {
+    "stars": 2,
+    "activation": "PASSIVE",
+    "phase": "MIDDLE"
+  },
+  "extinction": {
+    "stars": 4,
+    "activation": "ACTIVE",
+    "phase": "END"
+  },
+  "symmetry": {
+    "stars": 3.5,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "brutus": {
+    "stars": 4.5,
+    "activation": "PASSIVE",
+    "phase": "END"
+  },
+  "clockwork": {
+    "stars": 4,
+    "activation": "ACTIVE",
+    "phase": "PIECE"
+  },
+  "mutation": {
+    "stars": 2.5,
+    "activation": "PASSIVE",
+    "phase": "END"
+  },
+  "parrot": {
+    "stars": 3.5,
+    "activation": "ACTIVE",
+    "phase": "PIECE"
+  },
+  "paladin": {
+    "stars": 3,
+    "activation": "ACTIVE",
+    "phase": "PIECE"
+  },
+  "octopus": {
+    "stars": 3.5,
+    "activation": "ACTIVE",
+    "phase": "PIECE"
+  },
+  "metal": {
+    "stars": 3.5,
+    "activation": "ACTIVE",
+    "phase": "MIDDLE"
+  },
+  "leap": {
+    "stars": 4,
+    "activation": "ACTIVE",
+    "phase": null,
+    "unverifiedActivation": true
+  },
+  "shotgunKing": {
+    "stars": 5,
+    "activation": "ACTIVE",
+    "phase": null,
+    "unverifiedActivation": true
+  },
+  "timeClumsyAttack": {
+    "stars": 3,
+    "activation": "ACTIVE",
+    "phase": null,
+    "unverified": true
+  },
+  "timeIsMine": {
+    "stars": 3,
+    "activation": "ACTIVE",
+    "phase": null,
+    "unverified": true
+  },
+  "timePhaseShift": {
+    "stars": 3,
+    "activation": "ACTIVE",
+    "phase": null,
+    "unverified": true
+  }
+}
