@@ -16,6 +16,20 @@
 // are meaningless. If either of those files' architecture changes, this
 // has to change with it -- there is no shared source between the Node
 // training pipeline and this browser copy.
+//
+// 2026-09-30: per-model input dimensions. Every model up to "squall/
+// hurricane/gale" was trained on the same 5509-wide ("legacy") input.
+// nnue/encode.js has since grown an opt-in FULL_PIECE_STATE (per-piece
+// status planes) and STAR_TOTAL_FEATURES (deck star-total scalars) layer
+// that together produce a 15239-wide ("fullstate") input -- see that
+// file's own comments for exactly what those add and why they're opt-in
+// there. MODELS entries now declare which layout they were trained with
+// via `dims` ("legacy" | "fullstate"), and encodeFromState/parseWeights
+// key off that per model instead of assuming one global INPUT_SIZE, so
+// both widths can be loaded side by side. `INPUT_SIZE` (the plain export)
+// stays the legacy 5509 for backward compatibility with anything that
+// read it as a constant before this change (nnue-parity.js's global
+// sanity check in particular).
 (function () {
   "use strict";
 
@@ -35,6 +49,64 @@
   const PIECE_INDEX = {};
   ALL_TYPES.forEach((type, i) => { PIECE_INDEX[type] = i; });
   const PLANE_COUNT = ALL_TYPES.length; // 40
+
+  // Per-piece STATE fields (2026-09-30 port, opt-in per model via `dims:
+  // "fullstate"`) -- mirrors nnue/encode.js's BOOL_FIELDS/NUMERIC_FIELDS/
+  // ENUM_FIELD_VALUES exactly (see that file's comments for what each one
+  // means and why it's there). `p` here is the extension's own live Piece
+  // object, which already uses these real field names directly (no t/c-style
+  // aliasing to undo, unlike encode.js's compacted self-play records).
+  const BOOL_FIELDS = [
+    "defected", "evasion", "explosive", "fileSurgeSecondMove", "frenzyExtraMove",
+    "frozen", "ghost", "ironMonarchExtraMove", "locustUsed", "madHorseSecondMove",
+    "noPromotion", "platformExtraMove", "promotedFromPawn", "protected",
+    "queensGambitProtection", "queensGambitPreviousProtected",
+    "queuedBackwardKnightTurn", "rookLiftSecondMove", "shielded",
+    "specialPromotionUsed", "thiefSecondMove", "twinSwapPending",
+    "undergroundBunker", "crownBearer", "crownRoyal", "regencyHeir",
+    "heraldJumpUnlocked", "bribed", "coolGuyCapturedLast",
+    "quantumFirstObservationFails", "checkerChainCapture", "moved",
+    "bloodCurse", "callingCard", "quantum", "lastResistance",
+    "coronationProtection", "frozenByCard", "logDir",
+    "repositionSecondMoveUsed",
+    "tricksterMoveType"
+  ];
+  const BOOL_FIELD_INDEX = {};
+  BOOL_FIELDS.forEach((f, i) => { BOOL_FIELD_INDEX[f] = i; });
+
+  const NUMERIC_FIELDS = [
+    "hp", "maxHp", "ammo", "maxAmmo", "mana", "maxMana", "poisonStunTurns",
+    "bearRetaliationsRemaining", "capturesMade", "reaperCaptures",
+    "necromancyRemaining", "bribedRemaining", "cardNoCaptureUntil",
+    "freshNoCaptureUntil", "heraldJumpLockTurn", "quantumNoCaptureUntil",
+    "coronationProtectionRemaining", "frozenByCardRemaining",
+    "logDirDr", "logDirDc",
+    "crownTokenCount", "imperialMoveCount", "queuedKnightExtraMoveCount"
+  ];
+  const NUMERIC_FIELD_INDEX = {};
+  NUMERIC_FIELDS.forEach((f, i) => { NUMERIC_FIELD_INDEX[f] = i; });
+  const NUMERIC_NORMALIZER = 20;
+
+  const ENUM_FIELD_VALUES = {
+    monoShade: ["light", "dark"],
+    timePhase: ["past", "future"],
+    windmillMode: ["rook", "bishop"],
+    spyOwner: ["white", "black"],
+    poisonStunColor: ["white", "black"],
+    hiddenFrom: ["white", "black"]
+  };
+  const ENUM_FIELDS = Object.keys(ENUM_FIELD_VALUES);
+  const ENUM_BIT_INDEX = {};
+  let enumBitCursor = 0;
+  ENUM_FIELDS.forEach((field) => {
+    ENUM_FIELD_VALUES[field].forEach((value) => {
+      ENUM_BIT_INDEX[`${field}:${value}`] = enumBitCursor;
+      enumBitCursor += 1;
+    });
+  });
+  const ENUM_BIT_COUNT = enumBitCursor; // 12
+
+  const ATTR_BIT_COUNT = BOOL_FIELDS.length + NUMERIC_FIELDS.length + ENUM_BIT_COUNT; // 76
 
   const FEATURE_NAMES = [
     "material", "exchange",
@@ -87,11 +159,38 @@
   CARD_POOL_TYPES.forEach((effect, i) => { CARD_POOL_INDEX[effect] = i; });
   const CARD_ONEHOT_COUNT = CARD_POOL_TYPES.length * 2; // own + enemy
 
-  // Layout: [board planes][card one-hot][21 named features] -- named
-  // features stay LAST so a fixed-offset-from-the-end read (if anything ever
-  // needs one) keeps working regardless of what's inserted before them.
+  // Layout: [board planes][attr planes, fullstate only][card one-hot]
+  // [star totals, fullstate only][21 named features] -- named features stay
+  // LAST, attr planes go right after the board planes: exactly nnue/
+  // encode.js's ordering (see that file's INPUT_SIZE comment), so a model
+  // trained there with FULL_PIECE_STATE=1 [+ STAR_TOTAL_FEATURES=1] lines up
+  // with what's computed here bit-for-bit.
   const BOARD_SIZE = PLANE_COUNT * 2 * 64;
-  const INPUT_SIZE = BOARD_SIZE + CARD_ONEHOT_COUNT + EXTRA_FEATURE_COUNT;
+  const STAR_NORMALIZER = 20;
+
+  // "legacy" = every model shipped before 2026-09-30 (squall/hurricane/gale),
+  // trained on encode.js's default (no opt-ins) 5509-wide input.
+  // "fullstate" = encode.js with FULL_PIECE_STATE=1 and STAR_TOTAL_FEATURES=1
+  // (matches the "확장 15,239차원 포팅" TODO item: 5120 board + 9728 attr +
+  // 368 card + 2 star + 21 extra = 15239). PLY_FEATURE has no shipped model
+  // yet, so it isn't wired here -- add it the same way if that changes.
+  const LAYOUT_PRESETS = {
+    legacy: { fullState: false, star: false },
+    fullstate: { fullState: true, star: true }
+  };
+  function computeLayout(dims) {
+    const flags = LAYOUT_PRESETS[dims] || LAYOUT_PRESETS.legacy;
+    const attrBoardSize = flags.fullState ? ATTR_BIT_COUNT * 2 * 64 : 0;
+    const cardOffset = BOARD_SIZE + attrBoardSize;
+    const starOffset = cardOffset + CARD_ONEHOT_COUNT;
+    const starCount = flags.star ? 2 : 0;
+    const extraBase = starOffset + starCount;
+    return { flags, attrBoardSize, cardOffset, starOffset, starCount, extraBase, inputSize: extraBase + EXTRA_FEATURE_COUNT };
+  }
+  // Legacy default, exported as the plain `INPUT_SIZE` constant below for
+  // backward compatibility (tools/ci/nnue-parity.js's global sanity check
+  // compares this against nnue/encode.js's own default-env INPUT_SIZE).
+  const INPUT_SIZE = computeLayout("legacy").inputSize; // 5509
 
   // Real boardState.deckSlots[color] entries here (not encode.js's compact
   // {effect,used,recovering} replay of them) -- same field names either way.
@@ -105,32 +204,85 @@
     });
   }
 
+  // Star feature support data (tools/site-rules/card-catalog.json, bundled
+  // as extension/site-rules/card-catalog.json) -- mirrors encode.js's
+  // deckStarTotal() exactly, including its `?? 3` fallback for an unlisted
+  // card. Loaded once, eagerly, regardless of which model is active (cheap,
+  // ~5KB) so a later switch to a "fullstate" model never has to wait on it
+  // mid-game. While it's still loading, encodeFromState() for a "fullstate"
+  // model returns null (same "not ready yet, fall back to evaluateState()"
+  // contract evaluate() already uses for weights-still-loading).
+  let cardStars = null;
+  let cardStarsState = "loading";
+  fetch(extBase() + "site-rules/card-catalog.json")
+    .then((r) => r.json())
+    .then((data) => { cardStars = data; cardStarsState = "ready"; })
+    .catch((err) => {
+      cardStarsState = "error";
+      console.warn("[증강체스엔진] card-catalog.json 로드 실패, fullstate 모델의 star 특징이 빠집니다:", err);
+    });
+  function deckStarTotal(deckSlots, color) {
+    const deck = deckSlots?.[color] || [];
+    return deck.reduce((sum, card) => sum + (card ? (cardStars?.[card.effect]?.stars ?? 3) : 0), 0);
+  }
+
   // boardState here is the engine's OWN live state object (already has
   // .board, .mode, etc. set up by the caller's ongoing game/search) --
   // unlike nnue/encode.js's Node-side version, this doesn't need to
   // reconstruct a state from a bare board array, since callers in the
   // extension always already have a real boardState in hand.
-  function encodeFromState(boardState, mover) {
+  function encodeFromState(boardState, mover, dims = "legacy") {
     const c = engine.evaluateStateComponents(boardState, mover);
     if (c.terminal !== null) return null;
-    const input = new Float32Array(INPUT_SIZE);
+    const layout = computeLayout(dims);
+    if (layout.flags.star && cardStarsState !== "ready") return null;
+
+    const input = new Float32Array(layout.inputSize);
     const board = boardState.board;
     for (let r = 0; r < board.length; r++) {
       for (let col = 0; col < board[r].length; col++) {
         const p = board[r][col];
         if (!p) continue;
-        const typeIdx = PIECE_INDEX[p.type];
-        if (typeIdx === undefined) continue;
-        const colorOffset = p.color === mover ? 0 : PLANE_COUNT;
         const square = r * 8 + col;
-        input[(typeIdx + colorOffset) * 64 + square] = 1;
+        const isMoverPiece = p.color === mover;
+        const typeIdx = PIECE_INDEX[p.type];
+        if (typeIdx !== undefined) {
+          const colorOffset = isMoverPiece ? 0 : PLANE_COUNT;
+          input[(typeIdx + colorOffset) * 64 + square] = 1;
+        }
+        if (layout.flags.fullState) {
+          const attrColorOffset = isMoverPiece ? 0 : ATTR_BIT_COUNT;
+          const attrBase = BOARD_SIZE + attrColorOffset * 64;
+          BOOL_FIELDS.forEach((field) => {
+            if (p[field]) input[attrBase + BOOL_FIELD_INDEX[field] * 64 + square] = 1;
+          });
+          const numericBase = attrBase + BOOL_FIELDS.length * 64;
+          NUMERIC_FIELDS.forEach((field) => {
+            const v = p[field];
+            if (typeof v === "number" && Number.isFinite(v)) {
+              input[numericBase + NUMERIC_FIELD_INDEX[field] * 64 + square] = v / NUMERIC_NORMALIZER;
+            }
+          });
+          const enumBase = numericBase + NUMERIC_FIELDS.length * 64;
+          ENUM_FIELDS.forEach((field) => {
+            const v = p[field];
+            if (v === undefined || v === null) return;
+            const bitIdx = ENUM_BIT_INDEX[`${field}:${v}`];
+            if (bitIdx !== undefined) input[enumBase + bitIdx * 64 + square] = 1;
+          });
+        }
       }
     }
     const enemy = mover === "white" ? "black" : "white";
-    writeCardOneHot(input, BOARD_SIZE, boardState.deckSlots, mover);
-    writeCardOneHot(input, BOARD_SIZE + CARD_POOL_TYPES.length, boardState.deckSlots, enemy);
+    writeCardOneHot(input, layout.cardOffset, boardState.deckSlots, mover);
+    writeCardOneHot(input, layout.cardOffset + CARD_POOL_TYPES.length, boardState.deckSlots, enemy);
 
-    const base = INPUT_SIZE - EXTRA_FEATURE_COUNT;
+    if (layout.flags.star) {
+      input[layout.starOffset] = deckStarTotal(boardState.deckSlots, mover) / STAR_NORMALIZER;
+      input[layout.starOffset + 1] = deckStarTotal(boardState.deckSlots, enemy) / STAR_NORMALIZER;
+    }
+
+    const base = layout.inputSize - EXTRA_FEATURE_COUNT;
     FEATURE_NAMES.forEach((name, i) => { input[base + i] = c[name]; });
     return input;
   }
@@ -154,13 +306,14 @@
   // wideOut use useBias:false (no additive constant, matching
   // evaluateState()'s own formula), so unlike a plain 3-Dense stack this is
   // 6 tensors that are NOT three kernel+bias pairs -- the last two are both
-  // kernels. A weights file saved by the OLD (pre-2026-09-08) architecture
-  // will have a [1]-shaped tensor 5 (a bias) instead of [4245,1] (wideOut's
-  // kernel) -- loadWeights() checks for that and refuses rather than
-  // silently running a nonsense forward pass against mismatched weights.
-  function parseWeights(raw) {
-    if (raw.length !== 6 || raw[5].shape.length !== 2 || raw[5].shape[0] !== INPUT_SIZE) {
-      throw new Error("nnue.js: weights.json doesn't match the expected wide & deep shape (stale/incompatible file? expected input size " + INPUT_SIZE + ", got " + raw?.[5]?.shape?.[0] + ")");
+  // kernels. `expectedInputSize` is the caller's (ensureLoaded's) per-model
+  // layout size -- a weights file trained at a different width (stale file,
+  // or a "legacy" file loaded for a model declared "fullstate" or vice
+  // versa) is refused here rather than silently running a nonsense forward
+  // pass against mismatched weights.
+  function parseWeights(raw, expectedInputSize) {
+    if (raw.length !== 6 || raw[5].shape.length !== 2 || raw[5].shape[0] !== expectedInputSize) {
+      throw new Error("nnue.js: weights.json doesn't match the expected wide & deep shape (stale/incompatible file? expected input size " + expectedInputSize + ", got " + raw?.[5]?.shape?.[0] + ")");
     }
     return { k1: raw[0], b1: raw[1], k2: raw[2], b2: raw[3], kDeepOut: raw[4], kWideOut: raw[5] };
   }
@@ -173,14 +326,32 @@
     return Math.tanh(deepOut + wideOut);
   }
 
-  // Selectable models (2026-09-19). Both were trained on the same 5509-wide
-  // input this file encodes; they differ only in weights. "squall" is the
-  // one deployed by default (round-2 retrain), "tornado" the round-1 retrain.
-  // 2026-09-20: experimental round-3 models. `map` says how the tanh output becomes a search
-  // score (same specs as nnue/match-two-models.js): "atanh<K>" = K * atanh(out), "hybrid<K>" =
-  // engine.evaluateState + K * out (residual net). No map = out * SCORE_SCALE (Squall/Tornado).
+  // Selectable models. "squall/hurricane/gale" (2026-09-19/20, `dims:
+  // "legacy"`, implicit) were trained on the 5509-wide input this file
+  // encoded before 2026-09-30. `map` says how the tanh output becomes a
+  // search score (same specs as nnue/match-two-models.js): "atanh<K>" =
+  // K * atanh(out), "hybrid<K>" = engine.evaluateState + K * out (residual
+  // net). No map = out * SCORE_SCALE.
   //   hurricane = depth-weighted labels (first "win" vs the hand-coded evaluator in the lab, re-check pending)
-  //   gale     = residual net (search score minus hand-coded score); cyclone = search-score weight 0.8
+  //   gale     = residual net (search score minus hand-coded score)
+  //
+  // `dims: "fullstate"` models (15239-wide, per-piece state + deck star
+  // totals -- see the LAYOUT_PRESETS comment above) go here once a trained
+  // weights file for one exists. NONE of the width-16/64/128/bootstrap
+  // experiments run so far have "확실히" beaten the hand-coded depth-3
+  // baseline in a real match yet (all landed at Elo ~0, see TODO.md) --
+  // the pre-approved rule for adding one of THOSE as a new default model is
+  // that a match result first, so this section intentionally stays a
+  // worked example rather than a real entry: swap in the trained
+  // weights.json under model/, add its own MODELS entry with `dims:
+  // "fullstate"`, and add its filename to manifest.json's
+  // web_accessible_resources once one exists.
+  //
+  // const fullstateExample = {
+  //   label: "<이름> (실험, 15239차원)", file: "model/nnue-<이름>.json",
+  //   dims: "fullstate",
+  //   desc: "기물 상태(HP/보호막/빙결 등)와 카드 star 총합까지 넣은 실험 모델입니다."
+  // };
   const MODELS = {
     squall: {
       label: "Squall", file: "model/nnue-squall.json",
@@ -197,6 +368,9 @@
   };
   const DEFAULT_MODEL = "squall";
   const MODEL_STORAGE_KEY = "augEngineNnueModel";
+
+  function dimsFor(name) { return (MODELS[name] && MODELS[name].dims) || "legacy"; }
+  function inputSizeFor(name) { return computeLayout(dimsFor(name)).inputSize; }
 
   // Base URL of the extension's files. In a page context that's the
   // data-attribute ext-bridge.js sets (chrome.runtime unavailable in this
@@ -221,9 +395,10 @@
   function ensureLoaded(name = currentModel) {
     if (!MODELS[name]) return Promise.reject(new Error("nnue.js: unknown model " + name));
     if (!weightsPromises[name]) {
+      const expected = inputSizeFor(name);
       weightsPromises[name] = fetch(extBase() + MODELS[name].file)
         .then((r) => r.json())
-        .then(parseWeights);
+        .then((raw) => parseWeights(raw, expected));
     }
     return weightsPromises[name];
   }
@@ -269,7 +444,7 @@
   function evaluate(boardState, mover) {
     const weights = activeWeights();
     if (!weights) return null;
-    const input = encodeFromState(boardState, mover);
+    const input = encodeFromState(boardState, mover, dimsFor(currentModel));
     if (input === null) return null;
     return forward(weights, input);
   }
@@ -306,5 +481,8 @@
     return scoreFromOutput(nnueScore, boardState, aiColor);
   }
 
-  self.__augNNUE = { ensureLoaded, evaluate, evaluateForSearch, INPUT_SIZE, FEATURE_NAMES, MODELS, setModel, getModel, getStatus, forwardWith: forward, parseWeights, encodeFromState };
+  self.__augNNUE = {
+    ensureLoaded, evaluate, evaluateForSearch, INPUT_SIZE, inputSizeFor, FEATURE_NAMES, MODELS,
+    setModel, getModel, getStatus, forwardWith: forward, parseWeights, encodeFromState
+  };
 })();
