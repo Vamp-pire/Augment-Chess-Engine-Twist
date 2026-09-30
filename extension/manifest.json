@@ -29,7 +29,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["icons/*.svg", "searchWorker.js", "engine.js", "stockfish/stockfish-18-lite-single.js", "stockfish/stockfish-18-lite-single.wasm", "model/nnue-squall.json", "model/nnue-hurricane.json", "model/nnue-gale.json", "site-rules/card-catalog.json"],
+      "resources": ["icons/*.svg", "searchWorker.js", "engine.js", "stockfish/stockfish-18-lite-single.js", "stockfish/stockfish-18-lite-single.wasm", "model/nnue-squall.json", "model/nnue-hurricane.json", "model/nnue-gale.json", "model/nnue-tempest.json", "site-rules/card-catalog.json"],
       "matches": ["https://augmentchess.org/*"]
     }
   ],

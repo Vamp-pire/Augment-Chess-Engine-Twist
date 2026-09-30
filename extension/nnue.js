@@ -336,22 +336,17 @@
   //   gale     = residual net (search score minus hand-coded score)
   //
   // `dims: "fullstate"` models (15239-wide, per-piece state + deck star
-  // totals -- see the LAYOUT_PRESETS comment above) go here once a trained
-  // weights file for one exists. NONE of the width-16/64/128/bootstrap
-  // experiments run so far have "확실히" beaten the hand-coded depth-3
-  // baseline in a real match yet (all landed at Elo ~0, see TODO.md) --
-  // the pre-approved rule for adding one of THOSE as a new default model is
-  // that a match result first, so this section intentionally stays a
-  // worked example rather than a real entry: swap in the trained
-  // weights.json under model/, add its own MODELS entry with `dims:
-  // "fullstate"`, and add its filename to manifest.json's
-  // web_accessible_resources once one exists.
-  //
-  // const fullstateExample = {
-  //   label: "<이름> (실험, 15239차원)", file: "model/nnue-<이름>.json",
-  //   dims: "fullstate",
-  //   desc: "기물 상태(HP/보호막/빙결 등)와 카드 star 총합까지 넣은 실험 모델입니다."
-  // };
+  // totals -- see the LAYOUT_PRESETS comment above): "tempest" below is the
+  // first one shipped (2026-09-30, fullstate-w64-l2s off the data branch).
+  // NONE of the width-16/64/128/bootstrap experiments run so far have
+  // "확실히" beaten the hand-coded depth-3 baseline in a real match yet
+  // (all landed at Elo ~0, see TODO.md), so "tempest" stays a selectable
+  // experiment like hurricane/gale, never DEFAULT_MODEL -- the
+  // pre-approved rule for a fullstate model becoming the default is a
+  // real match win first. To add another fullstate model: swap in its
+  // trained weights.json under model/, add its own MODELS entry with
+  // `dims: "fullstate"`, and add its filename to manifest.json's
+  // web_accessible_resources.
   const MODELS = {
     squall: {
       label: "Squall", file: "model/nnue-squall.json",
@@ -364,6 +359,11 @@
     gale: {
       label: "Gale (실험)", file: "model/nnue-gale.json", map: "hybrid300",
       desc: "기본 평가가 틀리는 부분만 보정하도록 학습한 실험 모델입니다. 아직 차이가 확인되지 않았습니다."
+    },
+    tempest: {
+      label: "Tempest (실험, 15239차원)", file: "model/nnue-tempest.json",
+      dims: "fullstate",
+      desc: "기물 상태(HP/보호막/빙결 등)와 카드 star 총합까지 넣은 실험 모델입니다(fullstate-w64-l2s, 폭 64 + L2 0.00025). 검증 방향 일치율은 94.5%로 다른 모델보다 높지만, 실전 대국(핸드코딩 깊이 3, 200판)에서는 Elo +7 [-21, +35]로 통계적으로 구분되지 않습니다 -- 확실히 이기지 못했으므로 기본값이 아닌 선택 옵션입니다."
     }
   };
   const DEFAULT_MODEL = "squall";
