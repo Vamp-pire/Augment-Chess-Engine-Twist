@@ -45,7 +45,7 @@ node tools/site-parity/gen-reference-fixtures.js --out=<dir> --verify=<dir>  # A
 - **검증 방향 일치율이 오르는 것과 실전 승률은 다릅니다.** 학습 결과는 항상 대국(Elo/SPRT)으로 판정합니다. 대국 96판으로는 ±11%p 미만을 못 가리고 무승부가 40~50%라, 판수를 크게 잡고 무승부를 0.5로 세는 `tools/league` 통계를 씁니다.
 - **기본 설정(수당 0.3초)에서는 탐색이 거의 안 돕니다**(중반 국면 완료 깊이 0, 노드 7~12개). 이 시간 제한에서 `depth`만 바꾸는 대전은 서로 다른 깊이를 비교하지 못합니다.
 - Node 한계: 한 번에 읽는 파일 2GiB, 문자열 약 512MB. 큰 데이터셋은 청크로 읽습니다(`nnue/train.js`의 `readJsonLines`).
-- Actions 실행은 동시에 20개까지만 돌고, 자가대국(`selfplay.yml`)은 재개하지 않기로 했습니다(2026-10-17 사용자 결정). 워크플로 자체는 켜져 있어 6시간마다 실행되지만 `SELFPLAY_CUTOFF_ISO`(2026-09-27T17:20:00Z)가 지나 15초 만에 아무것도 안 하고 끝납니다. CUTOFF를 미래로 바꾸면 다시 돌기 시작하니 건드리지 마세요.
+- Actions 실행은 동시에 20개까지만 돌고, 자가대국(`selfplay.yml`)은 재개하지 않기로 했습니다(2026-10-17 사용자 결정). 워크플로는 `gh workflow disable selfplay.yml`로 꺼 두었고(disabled_manually), `SELFPLAY_CUTOFF_ISO`도 과거 시각(2026-09-27T17:20:00Z) 그대로입니다. 다시 켜려면 `gh workflow enable selfplay.yml` + CUTOFF를 미래로.
 
 ## 작업 규칙
 
