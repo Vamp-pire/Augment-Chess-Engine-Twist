@@ -37,7 +37,8 @@
 - [ ] 엔진 vs 사이트 규칙 불일치(남은 것, 이 업데이트와 무관한 옛 것): `recurrence` 카드 대상 좌표, `randomRoulette` 결과(무작위), `symmetry` 포획 수/이동, 게임 시작 시 `blackMagic` 카드 노출, `falseStart`, `zugzwang`(엔진이 카드를 더 허용), `missionary` 카드 적용, `binaMate`, `collapse` 뒤 왕 판정 시점, `brutus` 배신(사이트는 이동 제한 필터와 `parrotBaseMoves` 인자를 씀), 엔진 `forceWorkerTurnEnd`가 사이트보다 단순(도둑/보호 틱 등 누락). 목록은 Accelerate PR #23의 known-differences.json 참고. 이번에 우연히 고친 옛 차이: overtake 한 턴만, vanguard 대각선만/맨 앞 폰 1개 조건, 트릭스터 능력 목록 순서, 백과사전 기물값(paladin/octopus/brutus/clockwork/parrot/thief, missionary 2), locustSwarm 슬라임 제외.
 - [x] 사이트 업데이트 한 줄 점검(2026-09-27, 로컬 커밋, 푸시 전): `node tools/site-parity/update-site.js` (감지 -> 속도 패치 + diff -> 대조 3종을 새/이전 워커에 -> 보고, 종료 코드 0/1/2/3). 알려진 불일치는 `tools/site-parity/known-mismatches.json`, 요청 안전장치(6시간 잠금, 5회 상한, 재시도 없음)는 `net-guard.js`, 시험 `update-site.test.js`. 남은 것: 새 불일치 3개 이상이면 사람이 이식 검토(기준은 JSON에서 조정).
 - [ ] 확장 15,239차원 포팅(`extension/nnue.js`): 대전을 통과하는 모델이 나온 뒤.
-- [ ] 사용자 확인 필요: `.claude/settings.json`(브라우저 읽기 도구 6개 허용, 미커밋) 커밋 여부, 자가대국 스케줄 재개 여부.
+- [ ] 사용자 확인 필요: `.claude/settings.json`(브라우저 읽기 도구 6개 허용, 미커밋) 커밋 여부.
+- [x] 자가대국 스케줄 재개 여부(2026-10-17): 재개하지 않음. `SELFPLAY_CUTOFF_ISO`는 과거 시각 그대로 둠.
 
 **사이트식 덱 배분 (2026-09-26 추가, 옵트인)**: `SELFPLAY_SITE_DRAFT=normal|chaos|grand|mix`를 켜면 자가대국(과 `nnue/match-two-models.js`)이 사이트 드래프트 방식으로 덱을 받습니다. 끄면(기본) 기존 [3,6]장 균등 추출과 바이트 단위로 같습니다. 구현 `tools/site-draft/`(draft.js, `extract-draft-data.js`가 사이트 번들에서 뽑은 `draft-data.json`, `draft.test.js`, `smoke.js`).
 - 규칙: 별점 가중 없이 균등, 선택은 제시된 카드 중 무작위. 일반 = 3단계(OPENING/MIDDLE/END) x 3장 제시 x 1장 선택 = 3장, 카오스 = 3단계 x 3묶음(2장) 제시 x 1묶음 선택 = 6장, 그랜드 = 공용 풀(기본 사이트 값 28장, `SELFPLAY_GRAND_POOL=24` 등으로 변경) 흑 선공 교대 6장씩. 공용 RULE 카드 확률은 일반/카오스 40%, 그랜드 20%(`SELFPLAY_RULE_PROB`로 덮어씀), 엔진이 구현한 규칙만 적용. `SELFPLAY_DRAFT_MODE_WEIGHTS=normal:1,chaos:1,grand:1`은 mix의 가정값(사이트 실제 비율 모름).
