@@ -16,37 +16,44 @@ const skip = new Set(opt("skip").split(",").filter(Boolean)), only = new Set(opt
 
 const PATCHES = [
   {
-    // Math.max(1, ...board.map(...)) allocated two arrays per call and ran on every get()/inBounds().
-    // Same result incl. the sparse-row edge case (map keeps holes, spread turns them into undefined -> NaN).
+    // 2026-10-13 re-anchor: the site itself switched this from Math.max(1, ...board.map(...)) to a
+    // for-of loop (no longer producing NaN on a sparse-row hole -- that was the old spread-into-Math.max
+    // behaviour; the site's own semantics changed, so we no longer special-case it either). What's left
+    // is a plain for-of over boardState.board; index-based access avoids the iterator-protocol overhead
+    // while reading the exact same values (rows[i] is undefined for a hole, same as for-of yields).
     name: "boardColCount-loop",
     find: `  function boardColCount(boardState) {
     if (!Array.isArray(boardState?.board) || !boardState.board.length) return workerBoardCols;
-    return Math.max(1, ...boardState.board.map((row) => Array.isArray(row) ? row.length : 0));
+    let cols = 1;
+    for (const row of boardState.board) if (Array.isArray(row) && row.length > cols) cols = row.length;
+    return cols;
   }`,
     replace: `  function boardColCount(boardState) {
     if (!Array.isArray(boardState?.board) || !boardState.board.length) return workerBoardCols;
     const rows = boardState.board;
-    let max = 1;
+    let cols = 1;
     for (let i = 0; i < rows.length; i += 1) {
-      const r = rows[i];
-      if (r === void 0 && !(i in rows)) return NaN;
-      const n = Array.isArray(r) ? r.length : 0;
-      if (n > max) max = n;
+      const row = rows[i];
+      if (Array.isArray(row) && row.length > cols) cols = row.length;
     }
-    return max;
+    return cols;
   }`,
   },
   {
-    // Board dimensions can only change inside the callback, so they are re-read after each
-    // callback instead of on every cell; get()'s bounds check is inlined against those same
-    // values; "row:col" dedupe keys come from an interned table (same string values).
-    // (Superseded by forEachPiece-dedupe when both are enabled; kept separately measurable.)
+    // 2026-10-13 re-anchor: the site itself now hoists rows/cols into consts before the loop and reads
+    // the board directly (`boardState.board[row]?.[col]`) instead of calling get() per cell -- i.e. it
+    // already applies the first half of what this patch used to add by hand, and (unlike the previous
+    // site version) does NOT re-read rows/cols after each callback, so neither do we: matching that
+    // exactly keeps behaviour identical. What's left to speed up is the per-cell "row:col" id fallback,
+    // which still built a fresh template-literal string every call; an interned 32x32 table returns the
+    // same string value without allocating.
     name: "forEachPiece-hoist",
     find: `  function forEachPiece(boardState, callback) {
     const seen = /* @__PURE__ */ new Set();
-    for (let row = 0; row < boardRowCount(boardState); row += 1) {
-      for (let col = 0; col < boardColCount(boardState); col += 1) {
-        const piece = get(boardState, row, col);
+    const rows = boardRowCount(boardState), cols = boardColCount(boardState);
+    for (let row = 0; row < rows; row += 1) {
+      for (let col = 0; col < cols; col += 1) {
+        const piece = boardState.board[row]?.[col] || null;
         if (!piece) continue;
         const id = piece.id || \`\${row}:\${col}\`;
         if (seen.has(id)) continue;
@@ -59,19 +66,16 @@ const PATCHES = [
     replace: `  const FAST_CELL_KEYS = Array.from({ length: 32 }, (_, r) => Array.from({ length: 32 }, (_2, c) => \`\${r}:\${c}\`));
   function forEachPiece(boardState, callback) {
     const seen = /* @__PURE__ */ new Set();
-    let rows = boardRowCount(boardState);
-    let cols = boardColCount(boardState);
+    const rows = boardRowCount(boardState), cols = boardColCount(boardState);
     for (let row = 0; row < rows; row += 1) {
       for (let col = 0; col < cols; col += 1) {
-        const piece = row < rows ? boardState.board[row]?.[col] || null : null;
+        const piece = boardState.board[row]?.[col] || null;
         if (!piece) continue;
         const id = piece.id || (row < 32 && col < 32 ? FAST_CELL_KEYS[row][col] : \`\${row}:\${col}\`);
         if (seen.has(id)) continue;
         seen.add(id);
         if (Number.isInteger(piece.anchorRow) && Number.isInteger(piece.anchorCol) && (piece.anchorRow !== row || piece.anchorCol !== col)) continue;
         callback(piece, row, col);
-        rows = boardRowCount(boardState);
-        cols = boardColCount(boardState);
       }
     }
   }`,
@@ -106,12 +110,12 @@ const PATCHES = [
 `,
     also: [[`  function forEachPiece(boardState, callback) {
     const seen = /* @__PURE__ */ new Set();
-    let rows`, `  const FAST_CELL_KEY_RE = /^(0|[1-9]\\d*):(0|[1-9]\\d*)$/;
+    const rows`, `  const FAST_CELL_KEY_RE = /^(0|[1-9]\\d*):(0|[1-9]\\d*)$/;
   function forEachPiece(boardState, callback) {
     let seen = null;
     let colonIds = false;
     let idlessCells = null;
-    let rows`]],
+    const rows`]],
   },
   {
     // The reserved-scarecrow list was rebuilt (incl. a full piecesMatching board scan) once per
@@ -174,6 +178,7 @@ const PATCHES = [
       generateMovesForPiece(boardState, piece, row, col).filter((move) => isWorkerMoveAllowedMemo(moveAllowedMemo, boardState, piece, row, col, move)).forEach((move) => {`,
     also: [[`  function isWorkerMoveAllowed(boardState, piece, row, col, move) {
     if (!move) return false;
+    if (move.siegeRamMove && move.highlightCells?.some(({ row: r, col: c }) => isBlackHoleCell(boardState, r, c) || get(boardState, r, c) && !canWorkerSiegeRamAffectTarget(boardState, piece, get(boardState, r, c), r, c, move))) return false;
     if (!grapplerBindingAllowsMove(boardState.board, piece, { row, col }, move)) return false;
     if (workerIdolEncoreRepeatBlocked(boardState, piece)) return false;
     const forcedExtraMove = piece?.color ? activeWorkerForcedExtraMove(boardState, piece.color) : null;
@@ -190,6 +195,7 @@ const PATCHES = [
   }
 `, `  function isWorkerMoveAllowed(boardState, piece, row, col, move) {
     if (!move) return false;
+    if (move.siegeRamMove && move.highlightCells?.some(({ row: r, col: c }) => isBlackHoleCell(boardState, r, c) || get(boardState, r, c) && !canWorkerSiegeRamAffectTarget(boardState, piece, get(boardState, r, c), r, c, move))) return false;
     if (!grapplerBindingAllowsMove(boardState.board, piece, { row, col }, move)) return false;
     if (workerIdolEncoreRepeatBlocked(boardState, piece)) return false;
     const forcedExtraMove = piece?.color ? activeWorkerForcedExtraMove(boardState, piece.color) : null;
@@ -206,6 +212,7 @@ const PATCHES = [
   }
   function isWorkerMoveAllowedMemo(memo, boardState, piece, row, col, move) {
     if (!move) return false;
+    if (move.siegeRamMove && move.highlightCells?.some(({ row: r, col: c }) => isBlackHoleCell(boardState, r, c) || get(boardState, r, c) && !canWorkerSiegeRamAffectTarget(boardState, piece, get(boardState, r, c), r, c, move))) return false;
     if (!grapplerBindingAllowsMove(boardState.board, piece, { row, col }, move)) return false;
     if (memo.idolBlocked === void 0) memo.idolBlocked = workerIdolEncoreRepeatBlocked(boardState, piece);
     if (memo.idolBlocked) return false;
