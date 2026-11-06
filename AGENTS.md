@@ -4,7 +4,7 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 ## 세션을 시작할 때 먼저 읽을 문서 (두 프로젝트)
 
-이 저장소(Twist)와 팀 프로젝트 "가속"(Accelerate)을 함께 다룹니다. 작업 전에 아래를 읽고 현재 상태를 파악하세요. 이 표의 문서가 최신 상태의 기준이고, 대화 기억이나 오래된 핸드오프(`HANDOFF.md`가 가리키는 `D:\HANDOFF-모음\증강체스엔진-HANDOFF.md` 본문은 2026-09-19 기준)보다 우선합니다.
+이 저장소(Twist)와 팀 프로젝트 "가속"(Accelerate)을 함께 다룹니다. 작업 전에 아래를 읽고 현재 상태를 파악하세요. 이 표의 문서가 최신 상태의 기준이고, 대화 기억이나 오래된 핸드오프(`HANDOFF.md`가 가리키는 `D:\프로젝트\증강체스\HANDOFF-모음\증강체스엔진-HANDOFF.md` 본문은 2026-09-19 기준)보다 우선합니다.
 
 **Twist (이 저장소, `D:\증강체스엔진`)** — 순서대로:
 1. `PROJECT.md`: 폴더 지도, 명령, 워크플로, 반드시 지킬 규칙, 모델 라인업
