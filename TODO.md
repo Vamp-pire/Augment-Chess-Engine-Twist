@@ -78,7 +78,7 @@
 - 팀 저장소: `sungjeahyun100/Accelerate-alpha-zero-style-Augment-Chess-bot-` (upstream), `Vamp-pire/Accelerate-alpha-zero-style-Augment-Chess-bot-` (사용자 포크). GitFlow 사용 — `develop`에서 `feature/*` 브랜치 따서 PR (Twist 저장소와 달리 여기는 브랜치+PR 방식임, master 직커밋 아님).
 - **디스코드 읽기/쓰기 도구를 이번 세션에서 직접 만들었음** — 단, **로컬 전용**이라 클라우드 세션에서는 못 씀:
   - 스크립트 위치: 이 세션의 로컬 스크래치패드 `discord-tool/{read-thread.js, post-message.js}` (클라우드에선 접근 불가한 경로)
-  - 봇 토큰: `D:\변형체스들\discord-report-bot\.env`의 `DISCORD_TOKEN` (로컬 PC에만 있음, 절대 이 리포에 커밋하지 말 것)
+  - 봇 토큰: `D:\프로젝트\도구\discord-report-bot\.env`의 `DISCORD_TOKEN` (로컬 PC에만 있음, 절대 이 리포에 커밋하지 말 것)
   - 대상 스레드 ID: `1551147030099791873`
   - 클라우드 세션이 디스코드 내용이 필요하면: 로컬 세션에 물어보거나, 사용자에게 직접 요청할 것. 토큰을 리포로 옮기거나 클라우드에 복사하지 말 것(자격증명, 로컬에만 두기로 함).
 - **논의 중 나온 우리 쪽 정보 제공**: NNUE 입력 인코딩 전체 fidelity 작업(아래) 결과를 15,237차원이라고 스레드에 공유함(사용자 본인이 직접 올림). 팀의 "20배 필요하지 않냐"는 추측과 비교 가능한 실측치.
