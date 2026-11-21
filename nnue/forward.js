@@ -45,6 +45,8 @@ function denseLayer(x, kernel, bias, activation) {
 }
 
 function forward(weights, input) {
+  // A width mismatch used to read undefined inputs and return NaN silently.
+  if (input.length !== weights.k1.shape[0]) throw new Error(`forward: input length ${input.length} != model input ${weights.k1.shape[0]}`);
   const h1 = denseLayer(input, weights.k1, weights.b1, relu);
   const h2 = denseLayer(h1, weights.k2, weights.b2, relu);
   const deepOut = denseLayer(h2, weights.kDeepOut, null, null)[0];

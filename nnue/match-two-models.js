@@ -21,7 +21,39 @@
 const path = require("path");
 const fs = require("fs");
 const { loadWeights, forward } = require("./forward.js");
-const { encodeBoard } = require("./encode.js");
+
+// The encoder's width is fixed at require() time by FULL_PIECE_STATE /
+// STAR_TOTAL_FEATURES, and a weights file only fits one width. Until
+// 2026-11-21 matches only exported FULL_PIECE_STATE, so every 15239-wide
+// (star-total) model was fed a 15237-wide vector: forward() read two
+// undefined inputs and every evaluation was NaN (ExperimentNote 12). Now each
+// model gets the encoder whose INPUT_SIZE equals its first layer's rows,
+// whatever the env says, and a model that fits none of them is an error.
+const ENCODE_PATH = require.resolve("./encode.js");
+const encoderCache = new Map();
+function loadEncoder(full, star) {
+  const key = `${full}${star}`;
+  if (encoderCache.has(key)) return encoderCache.get(key);
+  const saved = { FULL_PIECE_STATE: process.env.FULL_PIECE_STATE, STAR_TOTAL_FEATURES: process.env.STAR_TOTAL_FEATURES };
+  if (full) process.env.FULL_PIECE_STATE = "1"; else delete process.env.FULL_PIECE_STATE;
+  if (star) process.env.STAR_TOTAL_FEATURES = "1"; else delete process.env.STAR_TOTAL_FEATURES;
+  delete require.cache[ENCODE_PATH];
+  const mod = require(ENCODE_PATH);
+  for (const [k, v] of Object.entries(saved)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
+  encoderCache.set(key, mod);
+  return mod;
+}
+function encoderForWeights(weights, label) {
+  const rows = weights.k1.shape[0];
+  for (const [full, star] of [[false, false], [true, false], [true, true]]) {
+    const mod = loadEncoder(full, star);
+    if (mod.INPUT_SIZE === rows) {
+      console.log(`${label}: input ${rows} -> encoder FULL_PIECE_STATE=${full ? 1 : 0} STAR_TOTAL_FEATURES=${star ? 1 : 0}`);
+      return mod.encodeBoard;
+    }
+  }
+  throw new Error(`${label}: no encoder layout has ${rows} inputs`);
+}
 
 const [, , weightsAPath, weightsBPath, pairCountArg] = process.argv;
 if (!weightsAPath || !weightsBPath) {
@@ -92,6 +124,7 @@ function makeEvalFn(spec) {
     return makeTunedEvalFn(weights);
   }
   const weights = loadWeights(weightsPathOrHandcoded);
+  const encodeBoard = encoderForWeights(weights, weightsPathOrHandcoded);
   return function (boardState, aiColor) {
     const input = encodeBoard(boardState.board, aiColor, boardState.deckSlots);
     if (input === null) return engine.evaluateState(boardState, aiColor); // terminal position
