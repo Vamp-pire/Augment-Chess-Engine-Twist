@@ -86,6 +86,7 @@ function countPieces(board) {
 // individual effect without hand-editing this file between runs.
 const SEARCH_SCORE_BLEND_WEIGHT = process.env.ABLATE_BLEND !== undefined ? Number(process.env.ABLATE_BLEND) : 0.15;
 const SEARCH_SCORE_SCALE = 400;
+const FILTER_QUIET = process.env.FILTER_QUIET === "1"; // see the filter in loadData's kept loop
 // BLEND_BY_DEPTH=1 (2026-09-19): trust the search score more where the search
 // actually went deeper. Rounds 1-2 were ~90% depth-1 (the "search score" there is
 // barely more than the hand-coded evaluation), round 3 reaches depth 2-6, so a
@@ -476,6 +477,7 @@ async function loadData(dataFile = DATA_FILE) {
   let skippedTainted = 0;
   let skippedUnfinished = 0;
   let skippedSiteRuleTiebreak = 0;
+  let skippedNotQuiet = 0;
   allEntries.forEach((entry, i) => {
     // Skip positions whose outcome label is unreliable because a random
     // exploration move happened somewhere between this position and the
@@ -507,11 +509,21 @@ async function loadData(dataFile = DATA_FILE) {
       skippedSiteRuleTiebreak += 1;
       return;
     }
+    // FILTER_QUIET=1 (2026-11-21, opt-in): reanalysis datasets
+    // (tools/reanalyze) mark positions whose principal variation starts with
+    // a capture (pvCaptures > 0) or ends the game (terminal). Their label is
+    // the least stable (one move flips material), so this keeps quiet ones
+    // only. No-op on data without those fields.
+    if (FILTER_QUIET && (entry.pvCaptures > 0 || entry.terminal)) {
+      skippedNotQuiet += 1;
+      return;
+    }
     kept.push({ entry, sourceGameId: allGameIds[i], pieceCount: allPieceCounts[i] });
   });
   if (skippedTainted) console.log("skipped exploration-tainted positions:", skippedTainted);
   if (skippedUnfinished) console.log("skipped unfinished-game positions:", skippedUnfinished);
   if (skippedSiteRuleTiebreak) console.log("skipped site-rule-tiebreak positions:", skippedSiteRuleTiebreak);
+  if (skippedNotQuiet) console.log("skipped non-quiet positions (FILTER_QUIET):", skippedNotQuiet);
 
   // Blunder-game down-weighting -- DISABLED BY DEFAULT (2026-09-10) after
   // three failed calibration attempts in one session, each catching the
