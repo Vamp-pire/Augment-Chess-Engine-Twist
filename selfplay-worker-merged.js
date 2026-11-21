@@ -989,5 +989,5 @@ if (parentPort) {
   const result = playOneGame(workerData);
   parentPort.postMessage({ ...result, ms: Date.now() - startedAt });
 } else {
-  module.exports = { playOneGame, makeRng, makeInitialState, SELFPLAY_CARD_POOL };
+  module.exports = { playOneGame, makeRng, makeInitialState, SELFPLAY_CARD_POOL, compactBoard, compactDeck };
 }

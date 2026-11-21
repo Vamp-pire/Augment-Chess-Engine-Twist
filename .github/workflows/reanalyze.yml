@@ -1,0 +1,160 @@
+name: Reanalyze positions (depth-forced labels)
+
+# Re-labels positions that carry a full engine state with a depth-forced
+# search + principal-variation walk (tools/reanalyze/reanalyze.js), so a
+# training set can learn from deeper search than the games were played with.
+# Output: datasets/<name>.jsonl.gz on the data branch (same record shape the
+# trainer reads: board/deckSlots/turn/outcome/searchScore/evalBefore + extra
+# reanalysis fields). Total positions <= shards x procs x per_proc.
+on:
+  workflow_dispatch:
+    inputs:
+      dataset:
+        description: "Input dataset on gha-segments-16cards (records need policy.state)"
+        required: false
+        default: "datasets/policy-round-20260920.jsonl.gz"
+      name:
+        description: "Output dataset name (datasets/<name>.jsonl.gz)"
+        required: true
+      depth:
+        description: "Forced search depth"
+        required: false
+        default: "3"
+      shards:
+        description: "Parallel jobs (1-20)"
+        required: false
+        default: "20"
+      procs:
+        description: "Node processes per job (runner has 4 vCPUs)"
+        required: false
+        default: "3"
+      per_proc:
+        description: "Max positions per process (0 = all of its slice)"
+        required: false
+        default: "334"
+      hard_ms:
+        description: "Per-search hard time cap in ms"
+        required: false
+        default: "60000"
+      push:
+        description: "Push the merged dataset to the data branch"
+        required: false
+        default: "true"
+
+permissions:
+  contents: write
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - id: m
+        run: |
+          n="${{ inputs.shards }}"
+          [ "$n" -ge 1 ] && [ "$n" -le 20 ] || { echo "shards must be 1..20" >&2; exit 1; }
+          echo "matrix=$(seq 0 $((n-1)) | jq -cs .)" >> "$GITHUB_OUTPUT"
+
+  reanalyze:
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.setup.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Fetch input dataset
+        run: |
+          git fetch --depth=1 origin gha-segments-16cards
+          git show "origin/gha-segments-16cards:${{ inputs.dataset }}" > /tmp/in.jsonl.gz
+          ls -la /tmp/in.jsonl.gz
+      - name: Reanalyze
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          set -u
+          N=${{ inputs.shards }}; P=${{ inputs.procs }}
+          TOTAL=$((N * P))
+          mkdir -p /tmp/out
+          pids=""
+          for p in $(seq 0 $((P-1))); do
+            idx=$((SHARD * P + p))
+            node tools/reanalyze/reanalyze.js --in /tmp/in.jsonl.gz --out "/tmp/out/part-${idx}.jsonl" \
+              --depth "${{ inputs.depth }}" --shard "$idx" --shards "$TOTAL" \
+              --limit "${{ inputs.per_proc }}" --hard-ms "${{ inputs.hard_ms }}" > "/tmp/out/log-${idx}.txt" 2>&1 &
+            pids="$pids $!"
+          done
+          fail=0
+          for pid in $pids; do wait "$pid" || fail=1; done
+          tail -n 3 /tmp/out/log-*.txt
+          cat /tmp/out/part-*.jsonl | wc -l
+          [ "$fail" -eq 0 ] || { echo "a reanalysis process failed" >&2; exit 1; }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reanalysis-part-${{ matrix.shard }}
+          path: /tmp/out/
+          retention-days: 7
+
+  merge:
+    needs: reanalyze
+    if: ${{ always() && needs.reanalyze.result != 'cancelled' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gha-segments-16cards
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: reanalysis-part-*
+          path: /tmp/parts
+      - name: Merge
+        id: merge
+        env:
+          NAME: ${{ inputs.name }}
+        run: |
+          set -eu
+          cat /tmp/parts/*/part-*.jsonl > /tmp/merged.jsonl
+          LINES=$(wc -l < /tmp/merged.jsonl)
+          echo "positions: $LINES"
+          [ "$LINES" -gt 0 ] || { echo "no positions" >&2; exit 1; }
+          gzip -9 -c /tmp/merged.jsonl > "/tmp/${NAME}.jsonl.gz"
+          echo "lines=$LINES" >> "$GITHUB_OUTPUT"
+          node -e '
+            const L=require("fs").readFileSync("/tmp/merged.jsonl","utf8").trim().split("\n").map(JSON.parse);
+            const n=L.length, q=L.filter(r=>!r.pvCaptures&&!r.terminal).length, cap=L.filter(r=>r.hitCap).length;
+            const flip=L.filter(r=>r.rawSearchScore!=null&&Math.sign(r.rawSearchScore)!==Math.sign(r.searchScore)&&Math.abs(r.searchScore)>50).length;
+            const dec=L.filter(r=>r.outcome!==0).length, ms=L.reduce((a,r)=>a+r.ms,0)/n;
+            const s=`- positions: **${n}** (decisive outcome ${dec})\n- quiet (no capture in first 2 PV moves, not terminal): ${q}\n- search hit time cap: ${cap}\n- raw root score vs PV-leaf eval sign flips (|leaf|>50): ${flip}\n- avg ms/position: ${ms.toFixed(0)}\n`;
+            console.log(s); require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, "## Reanalysis `"+process.env.NAME+"`\n"+s);'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dataset-${{ inputs.name }}
+          path: /tmp/${{ inputs.name }}.jsonl.gz
+          retention-days: 14
+      - name: Commit dataset to the data branch
+        if: ${{ inputs.push == 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NAME: ${{ inputs.name }}
+          LINES: ${{ steps.merge.outputs.lines }}
+        shell: bash --noprofile --norc -uo pipefail {0}
+        run: |
+          mkdir -p datasets
+          cp "/tmp/${NAME}.jsonl.gz" "datasets/${NAME}.jsonl.gz"
+          git config user.email "actions@github.com"
+          git config user.name "gha-selfplay-bot"
+          git add "datasets/${NAME}.jsonl.gz"
+          git commit -q -m "Add reanalysis dataset ${NAME} (${LINES} positions)"
+          for i in 1 2 3; do
+            git fetch origin gha-segments-16cards -q
+            git rebase origin/gha-segments-16cards -q && break
+            git rebase --abort 2>/dev/null
+            sleep 5
+          done
+          git push -q "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:gha-segments-16cards
