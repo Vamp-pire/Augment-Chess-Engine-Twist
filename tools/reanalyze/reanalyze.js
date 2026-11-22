@@ -56,6 +56,17 @@ function rollout(fullState, seedBase) {
   return { rolloutMean: n ? (w - l) / n : 0, rolloutW: w, rolloutD: d, rolloutL: l, rolloutU: u, rollouts: n,
     evalBefore: Math.round(Math.max(-TERMINAL_CAP, Math.min(TERMINAL_CAP, engine.evaluateState(root, mover)))), ms: Date.now() - t0 };
 }
+// --mode puzzle (2026-11-22): depth-forced root search; keeps the best action, the gap to the
+// second-best root candidate, and the candidate count. Positions with a large gap are "only move"
+// tactic candidates (a puzzle set that measures move choice without playing games).
+function puzzle(fullState) {
+  const root = engine.cloneState(fullState); engine.setWorkerBoardDimensions(root);
+  const t0 = Date.now(); const r = search(root, DEPTH);
+  if (!r || !r.action) return { puzzleGap: null, ms: Date.now() - t0 };
+  const c = (r.candidates || []).filter((x) => x && Number.isFinite(x.score)).sort((a, b) => b.score - a.score);
+  return { bestAction: r.action, bestScore: Math.round(r.score), puzzleGap: c.length > 1 ? Math.round(c[0].score - c[1].score) : null,
+    nCandidates: c.length, completedDepth: r.completedDepth ?? null, reDepth: DEPTH, nodes: r.nodes, state: fullState, ms: Date.now() - t0 };
+}
 if (!IN || !OUT) { console.error("need --in and --out"); process.exit(2); }
 
 const TERMINAL_CAP = 4000; // terminal scores are +-1e5; keep them on a finite scale
@@ -132,7 +143,7 @@ async function main() {
     if (stateIdx % SHARDS !== SHARD) continue;
     if (full.mode && full.mode !== "play") continue;
     try {
-      const res = MODE === "rollout" ? rollout(full, stateIdx) : reanalyze(full);
+      const res = MODE === "rollout" ? rollout(full, stateIdx) : MODE === "puzzle" ? puzzle(full) : reanalyze(full);
       totalMs += res.ms;
       out.write(JSON.stringify({
         board: compactBoard(full.board),
