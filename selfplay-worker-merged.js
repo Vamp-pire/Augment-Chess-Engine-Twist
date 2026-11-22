@@ -659,9 +659,11 @@ function sampleActionSoftmax(candidates, tau, rng) {
   }
   return cs[cs.length - 1];
 }
-function playOneGame({ searchDepth, searchTimeMs, maxPlies, seed, flexibleBudget = true, evalFnByColor = null, searchDepthByColor = null, limitsByColor = null, paramsByColor = null, searchFnByColor = null, handicap = 0, recordPolicy = process.env.SELFPLAY_RECORD_POLICY === "1", sampleTau = Number(process.env.SELFPLAY_SAMPLE_TAU) || 0 }) {
+function playOneGame({ searchDepth, searchTimeMs, maxPlies, seed, flexibleBudget = true, evalFnByColor = null, searchDepthByColor = null, limitsByColor = null, paramsByColor = null, searchFnByColor = null, handicap = 0, initialState = null, recordPolicy = process.env.SELFPLAY_RECORD_POLICY === "1", sampleTau = Number(process.env.SELFPLAY_SAMPLE_TAU) || 0 }) {
   const rng = makeRng(seed);
-  const state = makeInitialState(rng);
+  // initialState (2026-11-22, rollout labels): continue an existing full engine state instead of a fresh game.
+  const state = initialState ? engine.cloneState(initialState) : makeInitialState(rng);
+  if (initialState) engine.setWorkerBoardDimensions(state);
   // handicap (matches only): remove N minor/major pieces (not queen/king) from a
   // seed-chosen side, using a SEPARATE rng so handicap 0 leaves the game stream
   // untouched. Colour-swapped pairs share the seed, so the same side is short in

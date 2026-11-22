@@ -28,7 +28,7 @@ const zlib = require("zlib");
 const readline = require("readline");
 const ROOT = path.join(__dirname, "..", "..");
 const engine = require(path.join(ROOT, "engine-merged.js"));
-const { compactBoard, compactDeck } = require(path.join(ROOT, "selfplay-worker-merged.js"));
+const { compactBoard, compactDeck, playOneGame } = require(path.join(ROOT, "selfplay-worker-merged.js"));
 
 function arg(name, def) {
   const i = process.argv.indexOf("--" + name);
@@ -39,6 +39,23 @@ const DEPTH = Number(arg("depth", 3));
 const SHARD = Number(arg("shard", 0)), SHARDS = Number(arg("shards", 1));
 const LIMIT = Number(arg("limit", 0));
 const HARD_MS = Number(arg("hard-ms", 60000));
+// --mode rollout (2026-11-22): label = mean result of N continuations from the position
+// (different seeds, softmax move sampling --tau, fast search --rollout-ms), from the root mover's view.
+// Cuts the single-game luck/draw noise of `outcome`. Writes rolloutMean/W/D/L/U; searchScore stays the PV-free static eval.
+const MODE = arg("mode", "pv");
+const ROLLOUTS = Number(arg("rollouts", 8)), ROLLOUT_MS = Number(arg("rollout-ms", 100)), ROLLOUT_PLIES = Number(arg("rollout-plies", 160)), TAU = Number(arg("tau", 60));
+function rollout(fullState, seedBase) {
+  const root = engine.cloneState(fullState); engine.setWorkerBoardDimensions(root);
+  const mover = root.turn; const t0 = Date.now(); let w = 0, d = 0, l = 0, u = 0;
+  for (let k = 0; k < ROLLOUTS; k += 1) {
+    const g = playOneGame({ initialState: root, seed: seedBase * 1000 + k + 1, searchDepth: 2, searchTimeMs: ROLLOUT_MS, maxPlies: ROLLOUT_PLIES, sampleTau: TAU, recordPolicy: false });
+    const o = g.outcome;
+    if (o === mover) w += 1; else if (o === "unfinished") u += 1; else if (o === "draw") d += 1; else l += 1;
+  }
+  const n = w + d + l + u;
+  return { rolloutMean: n ? (w - l) / n : 0, rolloutW: w, rolloutD: d, rolloutL: l, rolloutU: u, rollouts: n,
+    evalBefore: Math.round(Math.max(-TERMINAL_CAP, Math.min(TERMINAL_CAP, engine.evaluateState(root, mover)))), ms: Date.now() - t0 };
+}
 if (!IN || !OUT) { console.error("need --in and --out"); process.exit(2); }
 
 const TERMINAL_CAP = 4000; // terminal scores are +-1e5; keep them on a finite scale
@@ -115,7 +132,7 @@ async function main() {
     if (stateIdx % SHARDS !== SHARD) continue;
     if (full.mode && full.mode !== "play") continue;
     try {
-      const res = reanalyze(full);
+      const res = MODE === "rollout" ? rollout(full, stateIdx) : reanalyze(full);
       totalMs += res.ms;
       out.write(JSON.stringify({
         board: compactBoard(full.board),

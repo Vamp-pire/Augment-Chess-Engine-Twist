@@ -36,6 +36,10 @@ on:
         description: "Per-search hard time cap in ms"
         required: false
         default: "60000"
+      extra_args:
+        description: "Extra reanalyze.js args, e.g. --mode rollout --rollouts 6 --rollout-ms 100 --rollout-plies 120 --tau 60"
+        required: false
+        default: ""
       push:
         description: "Push the merged dataset to the data branch"
         required: false
@@ -87,7 +91,7 @@ jobs:
             idx=$((SHARD * P + p))
             node tools/reanalyze/reanalyze.js --in /tmp/in.jsonl.gz --out "/tmp/out/part-${idx}.jsonl" \
               --depth "${{ inputs.depth }}" --shard "$idx" --shards "$TOTAL" \
-              --limit "${{ inputs.per_proc }}" --hard-ms "${{ inputs.hard_ms }}" > "/tmp/out/log-${idx}.txt" 2>&1 &
+              --limit "${{ inputs.per_proc }}" --hard-ms "${{ inputs.hard_ms }}" ${{ inputs.extra_args }} > "/tmp/out/log-${idx}.txt" 2>&1 &
             pids="$pids $!"
           done
           fail=0
