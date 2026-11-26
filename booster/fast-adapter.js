@@ -1430,6 +1430,9 @@ function acbFastAdapterModule(engine) {
     }
     const vals = Object.values(scores).filter((v) => typeof v.score === "number").map((v) => v.score);
     if (vals.length < 2) return { ok: false, reason: "fewer than two choices scored", scores };
+    // A mate-level score here is unreliable (the AI is put to move, which
+    // may hand it a tempo it does not have): no gains for this draft.
+    if (vals.some((v) => Math.abs(v) >= 100000)) return { ok: false, reason: "mate-level score", scores };
     const worst = Math.min(...vals);
     const gains = {};
     for (const [id, v] of Object.entries(scores)) gains[id] = typeof v.score === "number" ? { gain: v.score - worst, card: v.card } : v;

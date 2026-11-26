@@ -27,11 +27,23 @@ on:
       c:
         description: "which side drafts with C: a | none"
         default: "a"
+      explore:
+        description: "data generation: probability of a random draft pick (0 = off)"
+        default: "0"
+      playout:
+        description: "data generation: plies played ahead per offered card, e.g. 6-12 (empty = off)"
+        default: ""
+      values:
+        description: "card value table JSON in the repo that side A adds to its draft score (empty = none)"
+        default: ""
+      timeout:
+        description: "minutes per shard"
+        default: "180"
 
 jobs:
   play:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: ${{ fromJSON(inputs.timeout) }}
     strategy:
       fail-fast: false
       matrix:
@@ -54,10 +66,17 @@ jobs:
           mkdir -p .cache
           curl -fsSL https://augmentchess.org/assets/canonicalAiWorker.js -o .cache/cw.js
           ls -l .cache/cw.js; sha256sum .cache/cw.js
+      - name: data generation options
+        run: |
+          opts=""
+          if [ "${{ inputs.explore }}" != "0" ]; then opts="$opts --explore ${{ inputs.explore }}"; fi
+          if [ -n "${{ inputs.playout }}" ]; then opts="$opts --playout ${{ inputs.playout }}"; fi
+          if [ -n "${{ inputs.values }}" ]; then opts="$opts --values ${{ inputs.values }}"; fi
+          echo "DATAGEN=$opts" >> $GITHUB_ENV
       - name: play
         run: |
           node booster/tools/draft-match.cjs .cache/cw.js --pairs ${{ inputs.pairs }} --ms ${{ inputs.ms }} --workers 4 \
-            --mode ${{ inputs.mode }} --c ${{ inputs.c }} $ADAPTER_B --seed $(( ${{ inputs.seed }} * 100 + ${{ matrix.shard }} )) --log games-${{ matrix.shard }}.jsonl
+            --mode ${{ inputs.mode }} --c ${{ inputs.c }} $ADAPTER_B $DATAGEN --seed $(( ${{ inputs.seed }} * 100 + ${{ matrix.shard }} )) --log games-${{ matrix.shard }}.jsonl
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -82,10 +101,15 @@ jobs:
       - name: summary
         run: |
           node booster/tools/draft-match.cjs --summarize games/*.jsonl | tee summary.txt
+          if [ -n "${{ inputs.playout }}" ]; then
+            node booster/tools/card-values.cjs games/*.jsonl --out card-values.json --js card-values.js | tee -a summary.txt
+          fi
           echo '```' >> $GITHUB_STEP_SUMMARY; cat summary.txt >> $GITHUB_STEP_SUMMARY; echo '```' >> $GITHUB_STEP_SUMMARY
       - uses: actions/upload-artifact@v4
         with:
           name: draft-summary
           path: |
             summary.txt
+            card-values.json
+            card-values.js
             games/

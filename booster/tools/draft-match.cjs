@@ -37,6 +37,46 @@ function pickVariety(scored, rand, temperature = 1.1, window = 2.8) {
   return pool[pool.length - 1];
 }
 
+// Playout value of each offered card: a copy of the game makes the pick (and
+// any other pending picks with the first choice), then K plies are played
+// with fast picks for both sides; the end position is scored from the
+// drafter's side (game end: +-3000 / 0). Clamped to +-3000.
+async function playoutValues(game, session, actor, q, plies, ms, deadline) {
+  const out = {};
+  const snap0 = session.searchSnapshot();
+  for (const choice of q.choices) {
+    if (performance.now() > deadline) { out[choice.cardId] = "time"; continue; }
+    try {
+      const s = await game.CanonicalEditorSession.restoreForAi(await game.prepareCanonicalAiSearchSnapshot(structuredClone(snap0)));
+      if (!(await s.dispatch(actor, { schemaVersion: 1, kind: "draft_pick", payload: { offerId: q.offerId, choiceId: choice.choiceId } })).ok) { out[choice.cardId] = "x"; continue; }
+      let value = null;
+      for (let k = 0, guard = 0; k < plies && guard < plies * 4; guard++) {
+        const g = s.snapshot({ includeHistory: false }).game;
+        if (g.status === "FINISHED") { const w = g.position?.winner ?? g.winner; value = w === actor ? 3000 : w ? -3000 : 0; break; }
+        if (g.status === "DRAFTING") {
+          const who = g.cardState.draft.pickingColor ?? g.position.turn, qq = s.draftChoices(who);
+          if (!qq.ok || !(await s.dispatch(who, { schemaVersion: 1, kind: "draft_pick", payload: { offerId: qq.offerId, choiceId: qq.choices[0].choiceId } })).ok) break;
+          continue;
+        }
+        if (s.localAiAutomaticCardsDue?.()) { if (!(await s.advanceLocalAiAutomaticCards())?.ok) break; continue; }
+        const r = await game.adapter.pick(await game.prepareCanonicalAiSearchSnapshot(s.searchSnapshot()), { timeMs: ms, includeCards: true, maxCardProbes: 6 });
+        if (!r.ok || !r.candidate || !(await game.applyCanonicalAiCandidate(s, r.candidate))?.ok) break;
+        k++;
+      }
+      if (value === null) {
+        let ss = await game.prepareCanonicalAiSearchSnapshot(s.searchSnapshot());
+        if (ss.game.status !== "ACTIVE") { out[choice.cardId] = "x"; continue; }
+        const own = ss.game.position.turn === actor;
+        const r = await game.adapter.pick(ss, { timeMs: ms, includeCards: true, maxCardProbes: 6 });
+        if (!r.ok) { out[choice.cardId] = "x"; continue; }
+        value = own ? r.score : -r.score;
+      }
+      out[choice.cardId] = Math.max(-3000, Math.min(3000, Math.round(value)));
+    } catch (e) { out[choice.cardId] = "x"; }
+  }
+  return out;
+}
+
 async function playGame(game, useC, seedText, ms, rand, stats, pickers = null) {
   const configuration = await game.createGameConfiguration({ mode: stats.mode });
   const session = await game.CanonicalEditorSession.create({
@@ -70,13 +110,22 @@ async function playGame(game, useC, seedText, ms, rand, stats, pickers = null) {
         if (process.env.DUMP_FAIL && probe && !probe.ok) fs.writeFileSync(process.env.DUMP_FAIL, JSON.stringify({ actor, ids: q.choices.map((c) => c.cardId), snap: session.searchSnapshot() }));
         if (probe?.ok) for (const e of scored) {
           const gain = probe.gains[e.c.cardId]?.gain;
-          if (typeof gain === "number") e.score += Math.min(MAX_BONUS, gain / 100);
+          if (typeof gain === "number" && gain >= 100) e.score += Math.min(MAX_BONUS, gain / 50); // as the extension
         }
       }
-      const chosen = pickVariety(scored, rand);
+      if (stats.values && useC[actor]) for (const e of scored) e.score += stats.values[e.c.cardId] ?? 0;
+      let playout = null;
+      let playoutPlies = 0;
+      if (stats.playout) {
+        const [lo, hi] = String(stats.playout).split("-").map(Number);
+        playoutPlies = hi ? lo + Math.floor(rand() * (hi - lo + 1)) : lo;
+        playout = await playoutValues(game, session, actor, q, playoutPlies, stats.playoutMs, performance.now() + 120000);
+      }
+      const explored = stats.explore > 0 && rand() < stats.explore;
+      const chosen = explored ? scored[Math.floor(rand() * scored.length)] : pickVariety(scored, rand);
       const r = await session.dispatch(actor, { schemaVersion: 1, kind: "draft_pick", payload: { offerId: q.offerId, choiceId: chosen.c.choiceId } });
       if (!r.ok) return { result: 0.5, error: `draft ${r.code}`, drafts };
-      drafts.push({ actor, ply: g.moveCount, offer: q.choices.map((c) => c.cardId), pick: chosen.c.cardId, c: Boolean(useC[actor]), gains: probe?.ok ? Object.fromEntries(Object.entries(probe.gains).map(([k, v]) => [k, v.gain ?? (v.passive ? "P" : "x")])) : probe ? probe.reason : null });
+      drafts.push({ actor, ply: g.moveCount, offer: q.choices.map((c) => c.cardId), pick: chosen.c.cardId, c: Boolean(useC[actor]), explored, playout, playoutPlies, gains: probe?.ok ? Object.fromEntries(Object.entries(probe.gains).map(([k, v]) => [k, v.gain ?? (v.passive ? "P" : "x")])) : probe ? probe.reason : null });
       continue;
     }
     if (session.localAiAutomaticCardsDue?.()) {
@@ -103,23 +152,25 @@ async function playGame(game, useC, seedText, ms, rand, stats, pickers = null) {
 }
 
 function worker() {
-  process.on("message", async ({ workerPath, seeds, ms, mode, seed, adapterA, adapterB, cSide }) => {
+  process.on("message", async ({ workerPath, seeds, ms, mode, seed, adapterA, adapterB, cSide, explore, playout, playoutMs, valuesPath }) => {
+    const values = valuesPath ? JSON.parse(fs.readFileSync(valuesPath, "utf8")).points : null;
     const { loadGame } = require(path.join(__dirname, "harness.cjs"));
     const { game } = loadGame(workerPath, { adapterPath: adapterA });
+    const workerHash = require("crypto").createHash("sha256").update(fs.readFileSync(workerPath)).digest("hex").slice(0, 16);
     // side B's adapter (another fast-adapter.js), else the same as A
     const gameB = adapterB ? loadGame(workerPath, { adapterPath: adapterB }).game : game;
     const rand = rng(seed);
     const out = [];
     for (const s of seeds) {
       for (const aWhite of [true, false]) {
-        const stats = { mode };
+        const stats = { mode, explore, playout, playoutMs, values };
         const t0 = Date.now();
         const useC = cSide === "none" ? { white: false, black: false } : { white: aWhite, black: !aWhite };
         const pickers = { white: aWhite ? game.adapter : gameB.adapter, black: aWhite ? gameB.adapter : game.adapter };
         let g;
         try { g = await playGame(game, useC, `pair-${s}`, ms, rand, stats, pickers); } catch (e) { g = { result: 0.5, error: String(e?.stack || e).slice(0, 300) }; }
         const scoreA = aWhite ? g.result : 1 - g.result;
-        out.push({ pair: s, aWhite, scoreA, ms: Date.now() - t0, ...g, stats });
+        out.push({ pair: s, aWhite, scoreA, ms: Date.now() - t0, worker: workerHash, ...g, stats: { ...stats, values: stats.values ? "table" : null } });
         process.send({ progress: out[out.length - 1] });
       }
     }
@@ -154,6 +205,8 @@ async function main() {
   const mode = opt("mode", "normal"), logPath = opt("log", null);
   // --adapter-a/--adapter-b: fast-adapter.js files per side; --c a|none: which side drafts with C
   const adapterA = opt("adapter-a", null), adapterB = opt("adapter-b", null), cSide = opt("c", "a");
+  // data generation: --explore p, --playout K [--playout-ms 150]; --values table.json (side A adds its points)
+  const explore = Number(opt("explore", 0)), playout = opt("playout", null), playoutMs = Number(opt("playout-ms", 150)), valuesPath = opt("values", null);
   const seeds = Array.from({ length: pairs }, (_, i) => seed * 100000 + i);
   const t0 = Date.now();
   const all = [];
@@ -170,7 +223,7 @@ async function main() {
     });
     child.on("error", rej);
     child.on("exit", (code) => { if (code) res(); });
-    child.send({ workerPath, seeds: seeds.filter((_, i) => i % workers === w), ms, mode, seed: seed + w, adapterA, adapterB, cSide });
+    child.send({ workerPath, seeds: seeds.filter((_, i) => i % workers === w), ms, mode, seed: seed + w, adapterA, adapterB, cSide, explore, playout, playoutMs, valuesPath });
   })));
   console.log(`${mode}, ${ms} ms/move, ${((Date.now() - t0) / 60000).toFixed(1)} min`);
   console.log(summarize(all));
