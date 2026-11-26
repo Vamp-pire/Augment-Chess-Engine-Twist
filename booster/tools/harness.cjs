@@ -9,13 +9,14 @@ const adapterModule = require(path.join(__dirname, "..", "fast-adapter.js"));
 
 const ANCHOR = '  registerAiSearchWorker("canonical", runCanonicalAiSearch);';
 
-function loadGame(workerPath, { patchedCode = null, adapterPath = null } = {}) {
+function loadGame(workerPath, { patchedCode = null, adapterPath = null, enginePath = null } = {}) {
+  const engineSrc = enginePath ? require(path.resolve(enginePath)).toString() : engineModule.toString();
   const adapterSrc = adapterPath ? require(path.resolve(adapterPath)).toString() : adapterModule.toString();
   let code = patchedCode ?? fs.readFileSync(workerPath, "utf8");
   const i = code.indexOf(ANCHOR);
   if (i < 0 || code.indexOf(ANCHOR, i + 1) >= 0) throw new Error("worker anchor missing");
   const expose = `  globalThis.__acbGame = {
-    adapter: (${adapterSrc})((${engineModule.toString()})()),
+    adapter: (${adapterSrc})((${engineSrc})()),
     CanonicalEditorSession, canonicalAiMoveCandidates, applyCanonicalAiCandidate,
     prepareCanonicalAiSearchSnapshot, projectCanonicalLocalSession, canonicalImmediateDefeat, canonicalAiActionCandidates,
     createGameConfiguration: typeof createGameConfiguration === "function" ? createGameConfiguration : null,

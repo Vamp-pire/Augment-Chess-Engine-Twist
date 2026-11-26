@@ -174,14 +174,14 @@ async function playGame(game, useC, seedText, ms, rand, stats, pickers = null) {
 }
 
 function worker() {
-  process.on("message", async ({ workerPath, seeds, ms, mode, seed, adapterA, adapterB, cSide, explore, playout, playoutMs, valuesPath, draftMs }) => {
+  process.on("message", async ({ workerPath, seeds, ms, mode, seed, adapterA, adapterB, engineB, cSide, explore, playout, playoutMs, valuesPath, draftMs }) => {
     let msPerPlyEst = 1500; // Node, per worker; updated from playouts
     const values = valuesPath ? JSON.parse(fs.readFileSync(valuesPath, "utf8")).points : null;
     const { loadGame } = require(path.join(__dirname, "harness.cjs"));
     const { game } = loadGame(workerPath, { adapterPath: adapterA });
     const workerHash = require("crypto").createHash("sha256").update(fs.readFileSync(workerPath)).digest("hex").slice(0, 16);
     // side B's adapter (another fast-adapter.js), else the same as A
-    const gameB = adapterB ? loadGame(workerPath, { adapterPath: adapterB }).game : game;
+    const gameB = adapterB || engineB ? loadGame(workerPath, { adapterPath: adapterB, enginePath: engineB }).game : game;
     const rand = rng(seed);
     const out = [];
     for (const s of seeds) {
@@ -228,7 +228,7 @@ async function main() {
   const pairs = Number(opt("pairs", 10)), ms = Number(opt("ms", 400)), workers = Number(opt("workers", 2)), seed = Number(opt("seed", 1));
   const mode = opt("mode", "normal"), logPath = opt("log", null);
   // --adapter-a/--adapter-b: fast-adapter.js files per side; --c a|none: which side drafts with C
-  const adapterA = opt("adapter-a", null), adapterB = opt("adapter-b", null), cSide = opt("c", "a");
+  const adapterA = opt("adapter-a", null), adapterB = opt("adapter-b", null), engineB = opt("engine-b", null), cSide = opt("c", "a");
   // data generation: --explore p, --playout K [--playout-ms 150]; --values table.json (side A adds its points)
   const draftMs = Number(opt("draft-ms", 0)), explore = Number(opt("explore", 0)), playout = opt("playout", null), playoutMs = Number(opt("playout-ms", 150)), valuesPath = opt("values", null);
   const seeds = Array.from({ length: pairs }, (_, i) => seed * 100000 + i);
@@ -247,7 +247,7 @@ async function main() {
     });
     child.on("error", rej);
     child.on("exit", (code) => { if (code) res(); });
-    child.send({ workerPath, seeds: seeds.filter((_, i) => i % workers === w), ms, mode, seed: seed + w, adapterA, adapterB, cSide, explore, playout, playoutMs, valuesPath, draftMs });
+    child.send({ workerPath, seeds: seeds.filter((_, i) => i % workers === w), ms, mode, seed: seed + w, adapterA, adapterB, engineB, cSide, explore, playout, playoutMs, valuesPath, draftMs });
   })));
   console.log(`${mode}, ${ms} ms/move, ${((Date.now() - t0) / 60000).toFixed(1)} min`);
   console.log(summarize(all));
