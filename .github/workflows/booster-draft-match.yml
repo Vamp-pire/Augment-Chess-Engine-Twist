@@ -21,6 +21,12 @@ on:
       seed:
         description: "seed base"
         default: "1"
+      adapter_b_ref:
+        description: "git ref whose booster/fast-adapter.js side B uses (empty = same as A)"
+        default: ""
+      c:
+        description: "which side drafts with C: a | none"
+        default: "a"
 
 jobs:
   play:
@@ -32,9 +38,17 @@ jobs:
         shard: ${{ fromJSON(inputs.shards) }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: side B adapter
+        if: inputs.adapter_b_ref != ''
+        run: |
+          mkdir -p .cache
+          git show ${{ inputs.adapter_b_ref }}:booster/fast-adapter.js > .cache/adapter-b.js
+          echo "ADAPTER_B=--adapter-b .cache/adapter-b.js" >> $GITHUB_ENV
       - name: download the game's AI worker
         run: |
           mkdir -p .cache
@@ -43,7 +57,7 @@ jobs:
       - name: play
         run: |
           node booster/tools/draft-match.cjs .cache/cw.js --pairs ${{ inputs.pairs }} --ms ${{ inputs.ms }} --workers 4 \
-            --mode ${{ inputs.mode }} --seed $(( ${{ inputs.seed }} * 100 + ${{ matrix.shard }} )) --log games-${{ matrix.shard }}.jsonl
+            --mode ${{ inputs.mode }} --c ${{ inputs.c }} $ADAPTER_B --seed $(( ${{ inputs.seed }} * 100 + ${{ matrix.shard }} )) --log games-${{ matrix.shard }}.jsonl
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -796,7 +796,7 @@ function acbFastAdapterModule(engine) {
     return { ok: true, intents: actions.map((a) => a.intent), eatKinds, eatExtra };
   }
 
-  async function prepareRoot(snapshot, { cardDeadline, maxCardProbes, includeCards, probeMs = 0, oppDeadline = Infinity }) {
+  async function prepareRoot(snapshot, { cardDeadline, cardBudgetMs = null, maxCardProbes, includeCards, probeMs = 0, oppDeadline = Infinity }) {
     const game = snapshot.game;
     if (game.status !== "ACTIVE") return { ok: false, reason: `status ${game.status}` };
     const timing = {}; let tMark = now();
@@ -809,7 +809,11 @@ function acbFastAdapterModule(engine) {
     const query = includeCards
       ? await canonicalAiActionCandidates(session, {
         includeCards: true, maxCardProbes,
-        canContinue: () => now() < cardDeadline,
+        // The game lists all ordinary moves first and only then tries cards,
+        // so a card deadline counted from the start of the move was often
+        // already over (no card tried at all). With cardBudgetMs the card
+        // time starts at the first card probe.
+        canContinue: cardBudgetMs === null ? () => now() < cardDeadline : (() => { let until = null; return () => { if (until === null) until = now() + cardBudgetMs; return now() < until; }; })(),
         moveCanContinue: () => true
       })
       : { ...canonicalAiMoveCandidates(session, { canContinue: () => true }), successors: new Map() };
@@ -1185,11 +1189,20 @@ function acbFastAdapterModule(engine) {
   //      and re-scored
   //   5. the opponent's cards are tried against our best options
   async function pick(snapshot, { timeMs = 3000, includeCards = true, maxCardProbes = 24, cardShare = 0.2 } = {}) {
-    const start = now(), end = start + timeMs;
-    const at = (f) => start + timeMs * f;
+    const start = now();
+    let end = start + timeMs;
+    let at = (f) => start + timeMs * f;
     // the opponent's move list may use up to half the budget (see opponentMoves)
-    const root = await prepareRoot(snapshot, { includeCards, maxCardProbes, cardDeadline: at(cardShare), probeMs: Math.min(900, timeMs * 0.08), oppDeadline: at(0.5) });
+    const root = await prepareRoot(snapshot, { includeCards, maxCardProbes, cardBudgetMs: timeMs * cardShare, probeMs: Math.min(900, timeMs * 0.08), oppDeadline: at(0.5) });
     if (!root.ok) return root;
+    // Preparation (the game's rule code) takes a varying, often large part
+    // of the budget. The later stages share what is left (at least a small
+    // minimum), instead of fixed points counted from the start that may
+    // already be over. Stage fractions below are of the whole budget with
+    // 0.2 meant for preparation; they are mapped onto the time left.
+    const prepEnd = now();
+    end = Math.max(end, prepEnd + Math.min(400, timeMs * 0.3));
+    { const span = end - prepEnd; at = (f) => prepEnd + span * Math.max(0, (f - 0.2) / 0.8); }
     const { session, input, byKey, learned, actor, cardActions, query } = root;
     const hasMoves = input.rootMoves.length > 0;
     const rootSignature = signature(input);
@@ -1199,8 +1212,6 @@ function acbFastAdapterModule(engine) {
     // their possible card turns against our best options.
     const oppCards = holdsCards(snapshot, other(actor));
     const T = oppCards ? { base: haveCards ? 0.28 : 0.38, cards: 0.42, verify: 0.52 } : { base: haveCards ? 0.45 : 0.6, cards: 0.65, verify: 0.85 };
-    // a longer card-listing share (draft probe) shifts the later stages
-    if (cardShare !== 0.2) for (const k of Object.keys(T)) T[k] = cardShare + (T[k] - 0.2) * (1 - cardShare) / 0.8;
 
     // 2. plain moves
     let base = null;

@@ -37,7 +37,7 @@ function pickVariety(scored, rand, temperature = 1.1, window = 2.8) {
   return pool[pool.length - 1];
 }
 
-async function playGame(game, useC, seedText, ms, rand, stats) {
+async function playGame(game, useC, seedText, ms, rand, stats, pickers = null) {
   const configuration = await game.createGameConfiguration({ mode: stats.mode });
   const session = await game.CanonicalEditorSession.create({
     gameId: crypto.randomUUID(), configuration,
@@ -87,7 +87,7 @@ async function playGame(game, useC, seedText, ms, rand, stats) {
     let applied = false;
     try {
       const snap = await game.prepareCanonicalAiSearchSnapshot(session.searchSnapshot());
-      const r = await game.adapter.pick(snap, { timeMs: ms, includeCards: true, maxCardProbes: 12 });
+      const r = await (pickers?.[g.position.turn] ?? game.adapter).pick(snap, { timeMs: ms, includeCards: true, maxCardProbes: 12 });
       if (r.ok && r.candidate) applied = (await game.applyCanonicalAiCandidate(session, r.candidate))?.ok;
     } catch (e) { stats.pickErrors = (stats.pickErrors || 0) + 1; }
     if (!applied) {
@@ -103,18 +103,21 @@ async function playGame(game, useC, seedText, ms, rand, stats) {
 }
 
 function worker() {
-  process.on("message", async ({ workerPath, seeds, ms, mode, seed }) => {
+  process.on("message", async ({ workerPath, seeds, ms, mode, seed, adapterA, adapterB, cSide }) => {
     const { loadGame } = require(path.join(__dirname, "harness.cjs"));
-    const { game } = loadGame(workerPath);
+    const { game } = loadGame(workerPath, { adapterPath: adapterA });
+    // side B's adapter (another fast-adapter.js), else the same as A
+    const gameB = adapterB ? loadGame(workerPath, { adapterPath: adapterB }).game : game;
     const rand = rng(seed);
     const out = [];
     for (const s of seeds) {
       for (const aWhite of [true, false]) {
         const stats = { mode };
         const t0 = Date.now();
-        const useC = { white: aWhite, black: !aWhite };
+        const useC = cSide === "none" ? { white: false, black: false } : { white: aWhite, black: !aWhite };
+        const pickers = { white: aWhite ? game.adapter : gameB.adapter, black: aWhite ? gameB.adapter : game.adapter };
         let g;
-        try { g = await playGame(game, useC, `pair-${s}`, ms, rand, stats); } catch (e) { g = { result: 0.5, error: String(e?.stack || e).slice(0, 300) }; }
+        try { g = await playGame(game, useC, `pair-${s}`, ms, rand, stats, pickers); } catch (e) { g = { result: 0.5, error: String(e?.stack || e).slice(0, 300) }; }
         const scoreA = aWhite ? g.result : 1 - g.result;
         out.push({ pair: s, aWhite, scoreA, ms: Date.now() - t0, ...g, stats });
         process.send({ progress: out[out.length - 1] });
@@ -139,7 +142,7 @@ function summarize(games) {
   const mid = games.flatMap((g) => g.drafts || []).filter((x) => x.ply > 0);
   const midC = mid.filter((x) => x.c);
   const changed = midC.filter((x) => x.gains && typeof x.gains === "object" && Object.values(x.gains).some((v) => typeof v === "number" && v > 0)).length;
-  return `C side: ${w}W ${d}D ${l}L of ${n}, ${(p * 100).toFixed(1)}%, Elo ${elo(p).toFixed(0)} [${elo(p - 1.96 * se).toFixed(0)}, ${elo(p + 1.96 * se).toFixed(0)}]` +
+  return `A side: ${w}W ${d}D ${l}L of ${n}, ${(p * 100).toFixed(1)}%, Elo ${elo(p).toFixed(0)} [${elo(p - 1.96 * se).toFixed(0)}, ${elo(p + 1.96 * se).toFixed(0)}]` +
     `\nerrors ${errors}, mid-game drafts ${mid.length} (C side ${midC.length}, with a positive gain ${changed})`;
 }
 
@@ -149,6 +152,8 @@ async function main() {
   const workerPath = args[0];
   const pairs = Number(opt("pairs", 10)), ms = Number(opt("ms", 400)), workers = Number(opt("workers", 2)), seed = Number(opt("seed", 1));
   const mode = opt("mode", "normal"), logPath = opt("log", null);
+  // --adapter-a/--adapter-b: fast-adapter.js files per side; --c a|none: which side drafts with C
+  const adapterA = opt("adapter-a", null), adapterB = opt("adapter-b", null), cSide = opt("c", "a");
   const seeds = Array.from({ length: pairs }, (_, i) => seed * 100000 + i);
   const t0 = Date.now();
   const all = [];
@@ -165,7 +170,7 @@ async function main() {
     });
     child.on("error", rej);
     child.on("exit", (code) => { if (code) res(); });
-    child.send({ workerPath, seeds: seeds.filter((_, i) => i % workers === w), ms, mode, seed: seed + w });
+    child.send({ workerPath, seeds: seeds.filter((_, i) => i % workers === w), ms, mode, seed: seed + w, adapterA, adapterB, cSide });
   })));
   console.log(`${mode}, ${ms} ms/move, ${((Date.now() - t0) / 60000).toFixed(1)} min`);
   console.log(summarize(all));
