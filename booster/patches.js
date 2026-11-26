@@ -25,7 +25,12 @@
     // deep: like max, plus extraMs for the new engine. The page script
     // (inject.js) lengthens the game's worker timer by the same amount and
     // marks the request with acbExtraMs; without that mark nothing changes.
-    deep: { timeMul: 1, nodeMul: 8, minNodes: 6000, cardMul: 2, minDepth: 3, maxDepth: 8, qNodes: 64, partial: true, fast: true, fastMs: 7500, fastShare: 2.2, cardProbes: 64, extraMs: 5000 }
+    deep: { timeMul: 1, nodeMul: 8, minNodes: 6000, cardMul: 2, minDepth: 3, maxDepth: 8, qNodes: 64, partial: true, fast: true, fastMs: 7500, fastShare: 2.2, cardProbes: 64, extraMs: 5000 },
+    // auto: like deep, but the page sets each move's time from the clock
+    // (acbExtraMs up to 25 s on top of 7.5 s) and a soft limit (acbSoft):
+    // the search stops early when the next depth would not finish or the
+    // best move is settled, so easy moves save clock for hard ones.
+    auto: { timeMul: 1, nodeMul: 8, minNodes: 6000, cardMul: 2, minDepth: 3, maxDepth: 8, qNodes: 64, partial: true, fast: true, fastMs: 7500, fastShare: 2.2, cardProbes: 64, extraMs: 25000, auto: true }
   });
 
   const PATCHES = [
@@ -129,7 +134,7 @@
         // then the whole move must fit inside it.
         const __acbClipped = Number.isFinite(data.dangerTimeLimitMs) && data.dangerTimeLimitMs < (data.timeLimitMs ?? 3500) + 5e3;
         const __acbMs = Math.min(__acbClipped ? Math.max(150, data.dangerTimeLimitMs - 1200) : Infinity, Math.min(__ACB.fastMs, Math.max(150, (data.timeLimitMs ?? 2e3) * __ACB.fastShare)) + __acbExtra);
-        __acbFast = await __acbFastAdapter.pick(data.snapshot, { timeMs: __acbMs, includeCards: true, maxCardProbes: __ACB.cardProbes });
+        __acbFast = await __acbFastAdapter.pick(data.snapshot, { timeMs: __acbMs, includeCards: true, maxCardProbes: __ACB.cardProbes, softFrac: __ACB.auto && Number(data.acbSoft) > 0 ? Number(data.acbSoft) : null });
       } catch (error) {
         __acbFast = { ok: false, reason: String(error?.message || error) };
       }

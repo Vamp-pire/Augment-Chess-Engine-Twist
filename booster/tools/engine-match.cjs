@@ -91,6 +91,7 @@ function playGame(engines, opening, ms) {
     const moves = genMoves(board, side);
     if (!moves.length) return side === 0 ? 0 : 1;
     const r = engines[side].e.search({ board: board.map((p) => (p ? { ...p } : null)), turn: side, rootMoves: moves, timeMs: ms, nnue: engines[side].nnue, ...engines[side].opt });
+    engines[side].usedMs = (engines[side].usedMs || 0) + (r.ms || 0); engines[side].moves = (engines[side].moves || 0) + 1;
     const m = r.ok ? moves.find((x) => x.from === r.move.from && x.to === r.move.to && (x.promo ?? null) === (r.move.promo ?? x.promo ?? null)) || moves[0] : moves[0];
     const cap = apply(m);
     if (cap && cap.kind === "king") return side === 1 ? 1 : 0; // side already flipped
@@ -129,7 +130,7 @@ function worker() {
       scores.push(playGame([A, B], op, ms));          // A white
       scores.push(1 - playGame([B, A], op, ms));      // A black
     }
-    process.send(scores);
+    process.send({ scores, time: [A.usedMs || 0, A.moves || 0, B.usedMs || 0, B.moves || 0] });
     process.exit(0);
   });
 }
@@ -162,9 +163,11 @@ async function main() {
     child.on("message", res); child.on("error", rej);
     child.send({ a, b, na, nb, oa, ob, openings: openings.filter((_, i) => i % workers === w), ms });
   })));
-  const scores = parts.flat();
+  const scores = parts.flatMap((p) => p.scores);
+  const t = parts.reduce((a, p) => a.map((x, i) => x + p.time[i]), [0, 0, 0, 0]);
   console.log(`${path.basename(a)}${na ? "+" + path.basename(na) : ""}${Object.keys(oa).length ? JSON.stringify(oa) : ""} vs ${path.basename(b)}${nb ? "+" + path.basename(nb) : ""}${Object.keys(ob).length ? JSON.stringify(ob) : ""}, ${ms} ms/move, ${((Date.now() - t0) / 1000).toFixed(0)} s`);
   console.log(summarize(scores));
+  console.log(`avg ms/move: A ${(t[0] / Math.max(1, t[1])).toFixed(1)}, B ${(t[2] / Math.max(1, t[3])).toFixed(1)}`);
 }
 
 if (process.argv.includes("--child")) worker(); else main();

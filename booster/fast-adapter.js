@@ -1188,7 +1188,7 @@ function acbFastAdapterModule(engine) {
   //   4. top plain moves are played for real (on-capture effects, passives)
   //      and re-scored
   //   5. the opponent's cards are tried against our best options
-  async function pick(snapshot, { timeMs = 3000, includeCards = true, maxCardProbes = 24, cardShare = 0.2, noHelper = false } = {}) {
+  async function pick(snapshot, { timeMs = 3000, includeCards = true, maxCardProbes = 24, cardShare = 0.2, noHelper = false, softFrac = null } = {}) {
     const start = now();
     let end = start + timeMs;
     let at = (f) => start + timeMs * f;
@@ -1217,6 +1217,9 @@ function acbFastAdapterModule(engine) {
     let base = null;
     if (hasMoves) {
       input.timeMs = Math.max(100, at(T.base) - now());
+      // auto time: the base search may stop early (soft limit / a depth that
+      // would not finish); the time saved stays on the clock
+      input.softFrac = softFrac;
       const r = engine.search(input);
       if (r.ok && r.move) base = r;
     }

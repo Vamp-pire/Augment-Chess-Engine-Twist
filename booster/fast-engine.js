@@ -1393,11 +1393,26 @@ function acbFastEngineModule() {
 
     const started = now();
     deadline = started + Math.max(10, input.timeMs || 1000);
+    // Time management (optional): a soft limit after which no new depth is
+    // started (x1.5 while the best move is still changing), and no depth is
+    // started that is predicted not to finish before the hard deadline
+    // (time per depth grows by the measured factor). Time left unused is
+    // saved for later moves.
+    const softMs = input.softMs ?? (input.softFrac ? (input.timeMs || 1000) * input.softFrac : null);
+    const soft = softMs != null ? started + Math.max(5, softMs) : null;
+    let lastIterMs = 0, growth = 3, stopReason = "time", bestChanges = 0;
     const maxDepth = Math.min(input.maxDepth || 30, MAXPLY - 4);
     let bestRoot = rootMoves[0], completedDepth = 0, bestScore = -INF;
     const rootScores = new Map();
 
     for (let depth = 1; depth <= maxDepth; depth++) {
+      if (soft !== null && completedDepth >= 2) {
+        const t = now();
+        const softEff = bestChanges > 0 ? Math.min(deadline, started + (soft - started) * 1.5) : soft;
+        if (t >= softEff) { stopReason = "soft"; break; }
+        if (t + lastIterMs * growth > deadline) { stopReason = "predicted"; break; }
+      }
+      const iterStart = now();
       let alpha = -INF, beta = INF, iterBest = null, iterScore = -INF;
       try {
         // Root move ordering: previous scores, then captures.
@@ -1435,9 +1450,14 @@ function acbFastEngineModule() {
         }
         break;
       }
+      bestChanges = completedDepth > 0 && iterBest !== bestRoot ? 1 : 0;
       bestRoot = iterBest; bestScore = iterScore; completedDepth = depth;
       for (const r of rootMoves) rootScores.set(r.ref, { score: r.score, exact: !!r.exact });
-      if (iterScore > MATE - 1000) break; // forced king capture found
+      const iterMs = now() - iterStart;
+      if (lastIterMs > 1 && iterMs > 1) growth = Math.max(1.5, Math.min(6, iterMs / lastIterMs));
+      lastIterMs = iterMs;
+      if (iterScore > MATE - 1000) { stopReason = "mate"; break; } // forced king capture found
+      if (depth === maxDepth) stopReason = "depth";
     }
     return {
       ok: true,
@@ -1445,6 +1465,7 @@ function acbFastEngineModule() {
       score: bestScore,
       depth: completedDepth,
       nodes,
+      stopReason,
       ms: Math.round(now() - started),
       rootScores: [...rootScores].map(([ref, s]) => ({ ...ref, score: s.score, exact: s.exact }))
     };

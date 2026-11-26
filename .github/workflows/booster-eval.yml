@@ -6,8 +6,8 @@ on:
   workflow_dispatch:
     inputs:
       variants:
-        description: "JSON list of evalExtra values"
-        default: "[1, 2, 4, 7]"
+        description: "JSON list of side-A option objects, e.g. [{\"evalExtra\":1},{\"softFrac\":0.5}]"
+        default: "[{\"softFrac\":0.5},{\"softFrac\":0.35}]"
       pairs:
         description: "game pairs per variant"
         default: "150"
@@ -22,17 +22,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        extra: ${{ fromJSON(inputs.variants) }}
+        opt: ${{ fromJSON(inputs.variants) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: match (evalExtra ${{ matrix.extra }} vs current)
+      - name: match (options vs current)
         run: |
-          node booster/tools/engine-match.cjs booster/fast-engine.js booster/fast-engine.js --opt-a '{"evalExtra":${{ matrix.extra }}}' --pairs ${{ inputs.pairs }} --ms ${{ inputs.ms }} --workers 4 --seed 99 | tee match.txt
+          node booster/tools/engine-match.cjs booster/fast-engine.js booster/fast-engine.js --opt-a '${{ toJSON(matrix.opt) }}' --pairs ${{ inputs.pairs }} --ms ${{ inputs.ms }} --workers 4 --seed 99 | tee match.txt
           echo '```' >> $GITHUB_STEP_SUMMARY; cat match.txt >> $GITHUB_STEP_SUMMARY; echo '```' >> $GITHUB_STEP_SUMMARY
       - uses: actions/upload-artifact@v4
         with:
-          name: eval-${{ matrix.extra }}
+          name: eval-${{ strategy.job-index }}
           path: match.txt
