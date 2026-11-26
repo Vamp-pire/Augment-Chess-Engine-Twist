@@ -1,0 +1,38 @@
+name: booster-eval
+
+# AI booster engine: experimental eval terms (evalExtra bits) against the
+# current eval, one job per variant. Same engine file on both sides.
+on:
+  workflow_dispatch:
+    inputs:
+      variants:
+        description: "JSON list of evalExtra values"
+        default: "[1, 2, 4, 7]"
+      pairs:
+        description: "game pairs per variant"
+        default: "150"
+      ms:
+        description: "search ms per move"
+        default: "40"
+
+jobs:
+  match:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        extra: ${{ fromJSON(inputs.variants) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: match (evalExtra ${{ matrix.extra }} vs current)
+        run: |
+          node booster/tools/engine-match.cjs booster/fast-engine.js booster/fast-engine.js --opt-a '{"evalExtra":${{ matrix.extra }}}' --pairs ${{ inputs.pairs }} --ms ${{ inputs.ms }} --workers 4 --seed 99 | tee match.txt
+          echo '```' >> $GITHUB_STEP_SUMMARY; cat match.txt >> $GITHUB_STEP_SUMMARY; echo '```' >> $GITHUB_STEP_SUMMARY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eval-${{ matrix.extra }}
+          path: match.txt

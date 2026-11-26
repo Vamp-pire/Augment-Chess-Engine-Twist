@@ -958,8 +958,13 @@ function acbFastEngineModule() {
     // king shelter and enemy pieces near the king. White's view.
     const PASSED = [0, 10, 17, 25, 40, 65, 100, 0]; // by steps advanced from home rank
     const structureOn = input.evalStructure !== false;
+    // Experimental terms (bit mask, default off): 1 pawn connections
+    // (phalanx, pawn-defended pawns), 2 open files at the king, 4 passed pawn
+    // vs king distance in the endgame.
+    const EXTRA = input.evalExtra | 0;
     const PCACHE = 1 << 14;
     const pcKey = new Int32Array(PCACHE).fill(-1), pcBase = new Int32Array(PCACHE), pcPassed = new Int32Array(PCACHE);
+    const pcPassSq = new Int8Array(PCACHE * 16).fill(-1); // passed pawn squares per slot (white 0-7, black 8-15)
     const pMin = new Int8Array(16), pMax = new Int8Array(16);
     function pawnTerms(slot) {
       pMin.fill(8); pMax.fill(-1);
@@ -988,6 +993,20 @@ function acbFastEngineModule() {
             if (col === 0 ? pMin[en + ff] < r : pMax[en + ff] > r) passed = false;
           }
           if (passed) passedSum += sign * PASSED[Math.max(0, Math.min(7, col === 0 ? 6 - r : r - 1))];
+          pcPassSq[slot * 16 + me + f] = passed ? r * 8 + f : -1;
+        }
+        for (let f = 0; f < 8; f++) if (pawnFileCnt[me + f] <= 0) pcPassSq[slot * 16 + me + f] = -1;
+      }
+      if (EXTRA & 1) {
+        // side-by-side pawns +4 each, pawns defended by a pawn +6 each
+        for (let sq = 0; sq < 64; sq++) {
+          if (!pk[sq]) continue;
+          const kd = kinds[pk[sq] - 1];
+          if (!kd.pawn || kd.block) continue;
+          const col = pc[sq], sign = col === 0 ? 1 : -1, r = sq >> 3, c = sq & 7, back = col === 0 ? r + 1 : r - 1;
+          const isOwnPawn = (q) => pk[q] && pc[q] === col && kinds[pk[q] - 1].pawn && !kinds[pk[q] - 1].block;
+          if (c < 7 && isOwnPawn(sq + 1)) base += sign * 4;
+          if (back >= 0 && back < 8 && ((c > 0 && isOwnPawn(back * 8 + c - 1)) || (c < 7 && isOwnPawn(back * 8 + c + 1)))) base += sign * 6;
         }
       }
       pcKey[slot] = pawnKey; pcBase[slot] = base; pcPassed[slot] = passedSum;
@@ -1023,6 +1042,34 @@ function acbFastEngineModule() {
             if (pk[q] && pc[q] !== col) { const kd = kinds[pk[q] - 1]; if (!kd.pawn && !kd.block && !kd.royal) v -= 18; }
           }
           t += (col === 0 ? 1 : -1) * Math.round(v * phase);
+        }
+      }
+      if ((EXTRA & 2) && phase > 0.2) {
+        // the king's file and its neighbours: no own pawn -12, no pawn at all -8 more
+        for (let col = 0; col < 2; col++) {
+          const ks = kingSq[col];
+          if (ks < 0) continue;
+          const kc = ks & 7, me = col * 8, en = (col ^ 1) * 8;
+          let v = 0;
+          for (let f = Math.max(0, kc - 1); f <= Math.min(7, kc + 1); f++) {
+            if (pawnFileCnt[me + f] > 0) continue;
+            v -= 12;
+            if (pawnFileCnt[en + f] <= 0) v -= 8;
+          }
+          t += (col === 0 ? 1 : -1) * Math.round(v * phase);
+        }
+      }
+      if ((EXTRA & 4) && phase < 0.6) {
+        // passed pawns in the endgame: (enemy king distance - own king
+        // distance) to the square in front, 6 per step
+        const w = 1 - phase;
+        for (let i = 0; i < 16; i++) {
+          const sq = pcPassSq[slot * 16 + i];
+          if (sq < 0) continue;
+          const col = i < 8 ? 0 : 1, r = sq >> 3, c = sq & 7, fr = col === 0 ? r - 1 : r + 1;
+          if (fr < 0 || fr > 7) continue;
+          const dist = (k) => (k < 0 ? 4 : Math.max(Math.abs((k >> 3) - fr), Math.abs((k & 7) - c)));
+          t += (col === 0 ? 1 : -1) * Math.round(6 * w * (dist(kingSq[col ^ 1]) - dist(kingSq[col])));
         }
       }
       return t;

@@ -90,7 +90,7 @@ function playGame(engines, opening, ms) {
   for (let ply = 0; ply < 300; ply++) {
     const moves = genMoves(board, side);
     if (!moves.length) return side === 0 ? 0 : 1;
-    const r = engines[side].e.search({ board: board.map((p) => (p ? { ...p } : null)), turn: side, rootMoves: moves, timeMs: ms, nnue: engines[side].nnue });
+    const r = engines[side].e.search({ board: board.map((p) => (p ? { ...p } : null)), turn: side, rootMoves: moves, timeMs: ms, nnue: engines[side].nnue, ...engines[side].opt });
     const m = r.ok ? moves.find((x) => x.from === r.move.from && x.to === r.move.to && (x.promo ?? null) === (r.move.promo ?? x.promo ?? null)) || moves[0] : moves[0];
     const cap = apply(m);
     if (cap && cap.kind === "king") return side === 1 ? 1 : 0; // side already flipped
@@ -121,9 +121,9 @@ function randomOpening(rand) {
 }
 
 function worker() {
-  process.on("message", ({ a, b, na, nb, openings, ms }) => {
+  process.on("message", ({ a, b, na, nb, oa, ob, openings, ms }) => {
     const load = (f) => (f ? JSON.parse(require("fs").readFileSync(f, "utf8")) : null);
-    const A = { e: require(path.resolve(a))(), nnue: load(na) }, B = { e: require(path.resolve(b))(), nnue: load(nb) };
+    const A = { e: require(path.resolve(a))(), nnue: load(na), opt: oa }, B = { e: require(path.resolve(b))(), nnue: load(nb), opt: ob };
     const scores = [];
     for (const op of openings) {
       scores.push(playGame([A, B], op, ms));          // A white
@@ -151,6 +151,8 @@ async function main() {
   const opt = (k, d) => { const i = args.indexOf(`--${k}`); return i >= 0 ? Number(args[i + 1]) : d; };
   const sopt = (k) => { const i = args.indexOf(`--${k}`); return i >= 0 ? args[i + 1] : null; };
   const na = sopt("nnue-a"), nb = sopt("nnue-b");
+  // extra search input per side, e.g. --opt-a '{"evalExtra":1}'
+  const oa = JSON.parse(sopt("opt-a") || "{}"), ob = JSON.parse(sopt("opt-b") || "{}");
   const [a, b] = args.filter((x, i) => !x.startsWith("--") && !args[i - 1]?.startsWith("--"));
   const pairs = opt("pairs", 100), ms = opt("ms", 50), workers = opt("workers", 3), rand = rng(opt("seed", 1));
   const openings = Array.from({ length: pairs }, () => randomOpening(rand));
@@ -158,10 +160,10 @@ async function main() {
   const parts = await Promise.all(Array.from({ length: workers }, (_, w) => new Promise((res, rej) => {
     const child = fork(__filename, ["--child"]);
     child.on("message", res); child.on("error", rej);
-    child.send({ a, b, na, nb, openings: openings.filter((_, i) => i % workers === w), ms });
+    child.send({ a, b, na, nb, oa, ob, openings: openings.filter((_, i) => i % workers === w), ms });
   })));
   const scores = parts.flat();
-  console.log(`${path.basename(a)}${na ? "+" + path.basename(na) : ""} vs ${path.basename(b)}${nb ? "+" + path.basename(nb) : ""}, ${ms} ms/move, ${((Date.now() - t0) / 1000).toFixed(0)} s`);
+  console.log(`${path.basename(a)}${na ? "+" + path.basename(na) : ""}${Object.keys(oa).length ? JSON.stringify(oa) : ""} vs ${path.basename(b)}${nb ? "+" + path.basename(nb) : ""}${Object.keys(ob).length ? JSON.stringify(ob) : ""}, ${ms} ms/move, ${((Date.now() - t0) / 1000).toFixed(0)} s`);
   console.log(summarize(scores));
 }
 
