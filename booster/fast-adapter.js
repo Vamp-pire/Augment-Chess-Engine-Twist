@@ -796,13 +796,13 @@ function acbFastAdapterModule(engine) {
     return { ok: true, intents: actions.map((a) => a.intent), eatKinds, eatExtra };
   }
 
-  async function prepareRoot(snapshot, { cardDeadline, cardBudgetMs = null, maxCardProbes, includeCards, probeMs = 0, oppDeadline = Infinity }) {
+  async function prepareRoot(snapshot, { cardDeadline, cardBudgetMs = null, maxCardProbes, includeCards, probeMs = 0, oppDeadline = Infinity, noHelper = false }) {
     const game = snapshot.game;
     if (game.status !== "ACTIVE") return { ok: false, reason: `status ${game.status}` };
     const timing = {}; let tMark = now();
     const lap = (k) => { const t = now(); timing[k] = Math.round(t - tMark); tMark = t; };
     const turnColor = game.position?.turn ?? game.turn;
-    const helperReq = turnColor === "white" || turnColor === "black" ? askOppHelper(snapshot, other(turnColor)) : null;
+    const helperReq = !noHelper && (turnColor === "white" || turnColor === "black") ? askOppHelper(snapshot, other(turnColor)) : null;
     const session = await CanonicalEditorSession.restoreForAi(snapshot);
     lap("restore");
     if (session.localAiAutomaticCardsDue()) return { ok: false, reason: "automatic cards pending" };
@@ -1188,12 +1188,12 @@ function acbFastAdapterModule(engine) {
   //   4. top plain moves are played for real (on-capture effects, passives)
   //      and re-scored
   //   5. the opponent's cards are tried against our best options
-  async function pick(snapshot, { timeMs = 3000, includeCards = true, maxCardProbes = 24, cardShare = 0.2 } = {}) {
+  async function pick(snapshot, { timeMs = 3000, includeCards = true, maxCardProbes = 24, cardShare = 0.2, noHelper = false } = {}) {
     const start = now();
     let end = start + timeMs;
     let at = (f) => start + timeMs * f;
     // the opponent's move list may use up to half the budget (see opponentMoves)
-    const root = await prepareRoot(snapshot, { includeCards, maxCardProbes, cardBudgetMs: timeMs * cardShare, probeMs: Math.min(900, timeMs * 0.08), oppDeadline: at(0.5) });
+    const root = await prepareRoot(snapshot, { includeCards, maxCardProbes, cardBudgetMs: timeMs * cardShare, probeMs: Math.min(900, timeMs * 0.08), oppDeadline: at(0.5), noHelper });
     if (!root.ok) return root;
     // Preparation (the game's rule code) takes a varying, often large part
     // of the budget. The later stages share what is left (at least a small
@@ -1439,8 +1439,51 @@ function acbFastAdapterModule(engine) {
     return { ok: true, ms: Math.round(now() - tStart), gains };
   }
 
+  // Draft playout for ONE offered choice (each probe worker takes one card,
+  // so the offer is played out in parallel): a copy of the draft-time game
+  // makes the pick for real (other pending picks take the first choice),
+  // then exactly `plies` plies are played with quick picks for both sides,
+  // and the end position is scored from the drafter's side. Stops early at
+  // `deadline` (complete: false). msPerPly is returned so the page can size
+  // the next playout to its time.
+  async function draftPlayoutOne(snapshot, actor, choiceId, { plies = 6, perMs = 150, deadline = Infinity } = {}) {
+    const t0 = now();
+    const offer = snapshot.game?.cardState?.draft?.offer;
+    if (snapshot.game?.status !== "DRAFTING" || !offer) return { ok: false, reason: "not drafting" };
+    const s = await CanonicalEditorSession.restoreForAi(snapshot);
+    const r0 = await s.dispatch(actor, { schemaVersion: 1, kind: "draft_pick", payload: { offerId: offer.offerId, choiceId } });
+    if (!r0.ok) return { ok: false, reason: `pick ${r0.code}` };
+    let done = 0, value = null, plyTime = 0;
+    for (let guard = 0; done < plies && guard < plies * 4; guard++) {
+      if (now() > deadline) break;
+      const g = s.snapshot({ includeHistory: false }).game;
+      if (g.status === "FINISHED") { const w = g.position?.winner ?? g.winner; value = w === actor ? 3000 : w ? -3000 : 0; break; }
+      if (g.status === "DRAFTING") {
+        const who = g.cardState.draft.pickingColor ?? g.position.turn, q = s.draftChoices(who);
+        if (!q.ok || !(await s.dispatch(who, { schemaVersion: 1, kind: "draft_pick", payload: { offerId: q.offerId, choiceId: q.choices[0].choiceId } })).ok) break;
+        continue;
+      }
+      if (s.localAiAutomaticCardsDue?.()) { if (!(await s.advanceLocalAiAutomaticCards())?.ok) break; continue; }
+      const tp = now();
+      const r = await pick(await prepareCanonicalAiSearchSnapshot(s.searchSnapshot()), { timeMs: perMs, includeCards: true, maxCardProbes: 6, noHelper: true });
+      if (!r.ok || !r.candidate || !(await applyCanonicalAiCandidate(s, r.candidate))?.ok) break;
+      plyTime += now() - tp;
+      done++;
+    }
+    const complete = value !== null || done >= plies;
+    if (value === null) {
+      const ss = await prepareCanonicalAiSearchSnapshot(s.searchSnapshot());
+      if (ss.game.status !== "ACTIVE") return { ok: false, reason: `status ${ss.game.status}` };
+      const r = await pick(ss, { timeMs: perMs, includeCards: true, maxCardProbes: 6, noHelper: true });
+      if (!r.ok) return { ok: false, reason: r.reason };
+      value = ss.game.position.turn === actor ? r.score : -r.score;
+    }
+    if (Math.abs(value) >= 100000) value = Math.sign(value) * 3000; // a found mate counts as a decided game
+    return { ok: true, value: Math.max(-3000, Math.min(3000, Math.round(value))), plies: done, complete, msPerPly: done ? Math.round(plyTime / done) : null, ms: Math.round(now() - t0) };
+  }
+
   // opponentCardThreat is exposed for tools/ (diagnostics).
-  return { pick, buildInput, opponentCardThreat, prepareRoot, draftProbe, oppHelperTask };
+  return { pick, buildInput, opponentCardThreat, prepareRoot, draftProbe, oppHelperTask, draftPlayoutOne };
 }
 
 if (typeof module !== "undefined" && module.exports) module.exports = acbFastAdapterModule;

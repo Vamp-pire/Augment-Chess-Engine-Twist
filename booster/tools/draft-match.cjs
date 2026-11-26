@@ -102,13 +102,35 @@ async function playGame(game, useC, seedText, ms, rand, stats, pickers = null) {
       if (!q.ok) return { result: 0.5, error: `draftChoices ${q.code}`, drafts };
       const scored = q.choices.map((c) => ({ c, score: baseScore(c.cardId) }));
       let probe = null;
-      if (useC[actor]) { // first draft too, with a longer budget (as the extension)
+      if (useC[actor] && stats.draftMs >= 7000) {
+        // time-fitted playouts (as the extension): same plies for every card
+        const plies = Math.max(2, Math.min(12, Math.floor((stats.draftMs - 2500) / stats.msPerPly)));
+        const snap = await game.prepareCanonicalAiSearchSnapshot(session.searchSnapshot());
+        const res = {};
+        for (const c of q.choices) {
+          try { res[c.cardId] = await game.adapter.draftPlayoutOne(structuredClone(snap), actor, c.choiceId, { plies, perMs: 150, deadline: performance.now() + stats.draftMs }); }
+          catch (e) { res[c.cardId] = { ok: false, reason: String(e?.message || e) }; }
+        }
+        const measured = Object.values(res).map((r) => r?.msPerPly).filter((x) => x > 0);
+        if (measured.length) stats.msPerPly = Math.round(0.6 * stats.msPerPly + 0.4 * (measured.reduce((a, b) => a + b, 0) / measured.length));
+        const done = Object.entries(res).filter(([, r]) => r?.ok && r.complete);
+        const gainsOut = {};
+        if (done.length >= 2) {
+          const mean = done.reduce((t, [, r]) => t + r.value, 0) / done.length;
+          for (const [id, r] of done) {
+            const adv = r.value - mean;
+            gainsOut[id] = Math.round(adv);
+            if (Math.abs(adv) >= 75) { const e = scored.find((x) => x.c.cardId === id); if (e) e.score += Math.max(-3, Math.min(3, adv / 100)); }
+          }
+        }
+        probe = { ok: done.length >= 2, gains: Object.fromEntries(Object.entries(gainsOut).map(([k, v]) => [k, { gain: v }])), reason: done.length < 2 ? "playouts incomplete" : null, plies };
+      } else if (useC[actor]) { // first draft too, with a longer budget (as the extension)
         try {
           const snap = await game.prepareCanonicalAiSearchSnapshot(session.searchSnapshot());
           probe = await game.adapter.draftProbe(snap, actor, null, { perMs: PROBE_MS, deadline: performance.now() + (g.moveCount > 0 ? PROBE_BUDGET : PROBE_BUDGET_OPENING) });
         } catch (e) { probe = { ok: false, reason: String(e?.message || e) }; }
         if (process.env.DUMP_FAIL && probe && !probe.ok) fs.writeFileSync(process.env.DUMP_FAIL, JSON.stringify({ actor, ids: q.choices.map((c) => c.cardId), snap: session.searchSnapshot() }));
-        if (probe?.ok) for (const e of scored) {
+        if (probe?.ok && !probe.plies) for (const e of scored) {
           const gain = probe.gains[e.c.cardId]?.gain;
           if (typeof gain === "number" && gain >= 100) e.score += Math.min(MAX_BONUS, gain / 50); // as the extension
         }
@@ -152,7 +174,8 @@ async function playGame(game, useC, seedText, ms, rand, stats, pickers = null) {
 }
 
 function worker() {
-  process.on("message", async ({ workerPath, seeds, ms, mode, seed, adapterA, adapterB, cSide, explore, playout, playoutMs, valuesPath }) => {
+  process.on("message", async ({ workerPath, seeds, ms, mode, seed, adapterA, adapterB, cSide, explore, playout, playoutMs, valuesPath, draftMs }) => {
+    let msPerPlyEst = 1500; // Node, per worker; updated from playouts
     const values = valuesPath ? JSON.parse(fs.readFileSync(valuesPath, "utf8")).points : null;
     const { loadGame } = require(path.join(__dirname, "harness.cjs"));
     const { game } = loadGame(workerPath, { adapterPath: adapterA });
@@ -163,14 +186,15 @@ function worker() {
     const out = [];
     for (const s of seeds) {
       for (const aWhite of [true, false]) {
-        const stats = { mode, explore, playout, playoutMs, values };
+        const stats = { mode, explore, playout, playoutMs, values, draftMs, msPerPly: msPerPlyEst };
         const t0 = Date.now();
         const useC = cSide === "none" ? { white: false, black: false } : { white: aWhite, black: !aWhite };
         const pickers = { white: aWhite ? game.adapter : gameB.adapter, black: aWhite ? gameB.adapter : game.adapter };
         let g;
         try { g = await playGame(game, useC, `pair-${s}`, ms, rand, stats, pickers); } catch (e) { g = { result: 0.5, error: String(e?.stack || e).slice(0, 300) }; }
         const scoreA = aWhite ? g.result : 1 - g.result;
-        out.push({ pair: s, aWhite, scoreA, ms: Date.now() - t0, worker: workerHash, ...g, stats: { ...stats, values: stats.values ? "table" : null } });
+        msPerPlyEst = stats.msPerPly;
+        out.push({ pair: s, aWhite, scoreA, ms: Date.now() - t0, worker: workerHash, ...g, stats: { mode: stats.mode, explore, playout, draftMs, msPerPly: stats.msPerPly, values: stats.values ? "table" : null, pickErrors: stats.pickErrors, fallbacks: stats.fallbacks } });
         process.send({ progress: out[out.length - 1] });
       }
     }
@@ -206,7 +230,7 @@ async function main() {
   // --adapter-a/--adapter-b: fast-adapter.js files per side; --c a|none: which side drafts with C
   const adapterA = opt("adapter-a", null), adapterB = opt("adapter-b", null), cSide = opt("c", "a");
   // data generation: --explore p, --playout K [--playout-ms 150]; --values table.json (side A adds its points)
-  const explore = Number(opt("explore", 0)), playout = opt("playout", null), playoutMs = Number(opt("playout-ms", 150)), valuesPath = opt("values", null);
+  const draftMs = Number(opt("draft-ms", 0)), explore = Number(opt("explore", 0)), playout = opt("playout", null), playoutMs = Number(opt("playout-ms", 150)), valuesPath = opt("values", null);
   const seeds = Array.from({ length: pairs }, (_, i) => seed * 100000 + i);
   const t0 = Date.now();
   const all = [];
@@ -223,7 +247,7 @@ async function main() {
     });
     child.on("error", rej);
     child.on("exit", (code) => { if (code) res(); });
-    child.send({ workerPath, seeds: seeds.filter((_, i) => i % workers === w), ms, mode, seed: seed + w, adapterA, adapterB, cSide, explore, playout, playoutMs, valuesPath });
+    child.send({ workerPath, seeds: seeds.filter((_, i) => i % workers === w), ms, mode, seed: seed + w, adapterA, adapterB, cSide, explore, playout, playoutMs, valuesPath, draftMs });
   })));
   console.log(`${mode}, ${ms} ms/move, ${((Date.now() - t0) / 60000).toFixed(1)} min`);
   console.log(summarize(all));

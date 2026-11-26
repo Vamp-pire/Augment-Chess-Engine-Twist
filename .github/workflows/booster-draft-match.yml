@@ -36,6 +36,9 @@ on:
       values:
         description: "card value table JSON in the repo that side A adds to its draft score (empty = none)"
         default: ""
+      draft_ms:
+        description: "side A drafts like the extension with this draft time in ms (>= 7000: playouts; 0 = C only)"
+        default: "0"
       timeout:
         description: "minutes per shard"
         default: "180"
@@ -72,6 +75,7 @@ jobs:
           if [ "${{ inputs.explore }}" != "0" ]; then opts="$opts --explore ${{ inputs.explore }}"; fi
           if [ -n "${{ inputs.playout }}" ]; then opts="$opts --playout ${{ inputs.playout }}"; fi
           if [ -n "${{ inputs.values }}" ]; then opts="$opts --values ${{ inputs.values }}"; fi
+          if [ "${{ inputs.draft_ms }}" != "0" ]; then opts="$opts --draft-ms ${{ inputs.draft_ms }}"; fi
           echo "DATAGEN=$opts" >> $GITHUB_ENV
       - name: play
         run: |
