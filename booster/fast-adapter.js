@@ -743,11 +743,66 @@ function acbFastAdapterModule(engine) {
     }
   }
 
+  // ---- helper worker for the opponent's move list ------------------------
+  // In the browser the patched worker starts one copy of itself (same Blob
+  // URL) and asks it for the opponent's legal moves and friendly-capture
+  // test while it lists our own moves, so both run in parallel. Only intents
+  // and the capture result travel back. Node tools have no Worker: the list
+  // is made in place as before.
+  let oppHelper = null, oppHelperSerial = 0;
+  const oppHelperReplies = new Map();
+  function getOppHelper() {
+    if (oppHelper !== null) return oppHelper || null;
+    oppHelper = false;
+    try {
+      const href = typeof self !== "undefined" ? self.location?.href : null;
+      if (typeof Worker === "function" && typeof href === "string" && href.startsWith("blob:")) {
+        const w = new Worker(href, { type: "module" });
+        w.addEventListener("message", (event) => {
+          const d = event.data;
+          if (d?.type !== "acb-opp-list-result") return;
+          const resolve = oppHelperReplies.get(d.id);
+          if (resolve) { oppHelperReplies.delete(d.id); resolve(d.result); }
+        });
+        w.addEventListener("error", () => { oppHelper = false; });
+        oppHelper = w;
+      }
+    } catch { oppHelper = false; }
+    return oppHelper || null;
+  }
+  function askOppHelper(snapshot, color) {
+    const w = getOppHelper();
+    if (!w) return null;
+    const id = ++oppHelperSerial;
+    const p = new Promise((resolve) => oppHelperReplies.set(id, resolve));
+    try { w.postMessage({ type: "acb-opp-list", id, snapshot, color }); } catch { oppHelperReplies.delete(id); return null; }
+    return { id, p };
+  }
+  // Runs in the helper: the opponent's moves (no deadline) and its friendly
+  // captures; returns plain data.
+  async function oppHelperTask(snapshot, color) {
+    const actions = await opponentMoves(snapshot, color);
+    if (!actions) return { ok: false };
+    const built = boardInput(snapshot);
+    const ci = color === "white" ? 0 : 1;
+    let eatKinds = [], eatExtra = false;
+    if (built.ok) {
+      try {
+        await detectFriendlyCaptures(snapshot.game, built.input, [{ color: ci, actions, session: lastOppSession }]);
+        eatKinds = [...activeEat.kinds[ci]];
+        eatExtra = activeEat.extra[ci];
+      } catch { /* none */ }
+    }
+    return { ok: true, intents: actions.map((a) => a.intent), eatKinds, eatExtra };
+  }
+
   async function prepareRoot(snapshot, { cardDeadline, maxCardProbes, includeCards, probeMs = 0, oppDeadline = Infinity }) {
     const game = snapshot.game;
     if (game.status !== "ACTIVE") return { ok: false, reason: `status ${game.status}` };
     const timing = {}; let tMark = now();
     const lap = (k) => { const t = now(); timing[k] = Math.round(t - tMark); tMark = t; };
+    const turnColor = game.position?.turn ?? game.turn;
+    const helperReq = turnColor === "white" || turnColor === "black" ? askOppHelper(snapshot, other(turnColor)) : null;
     const session = await CanonicalEditorSession.restoreForAi(snapshot);
     lap("restore");
     if (session.localAiAutomaticCardsDue()) return { ok: false, reason: "automatic cards pending" };
@@ -770,7 +825,18 @@ function acbFastAdapterModule(engine) {
     let oppActions = null;
     lastOppSession = null;
     lap("boardInput");
-    try { oppActions = await opponentMoves(snapshot, other(actor), oppDeadline); } catch { oppActions = null; }
+    let helperEat = null;
+    if (helperReq && other(actor) === other(turnColor)) {
+      const res = Number.isFinite(oppDeadline)
+        ? await Promise.race([helperReq.p, new Promise((r) => setTimeout(r, Math.max(0, oppDeadline - now())))])
+        : await helperReq.p;
+      oppHelperReplies.delete(helperReq.id);
+      if (res?.ok) { oppActions = res.intents.map((intent) => ({ intent })); helperEat = res; }
+      else oppCutOff++;
+    } else {
+      if (helperReq) oppHelperReplies.delete(helperReq.id);
+      try { oppActions = await opponentMoves(snapshot, other(actor), oppDeadline); } catch { oppActions = null; }
+    }
     lap("oppList");
     try {
       await detectFriendlyCaptures(game, input, [
@@ -778,6 +844,14 @@ function acbFastAdapterModule(engine) {
         { color: actor === "white" ? 1 : 0, actions: oppActions, session: lastOppSession }
       ]);
     } catch { /* no friendly captures */ }
+    if (helperEat) {
+      // the helper tested the opponent's friendly captures on its own copy
+      const oc = actor === "white" ? 1 : 0;
+      for (const k of helperEat.eatKinds) activeEat.kinds[oc].add(k);
+      if (helperEat.eatExtra) activeEat.extra[oc] = true;
+      for (const p of input.board) if (p && activeEat.kinds[p.color].has(p.kind)) p.eatOwn = true;
+      input.eatExtra = activeEat.extra;
+    }
     lap("friendly");
     if (oppActions) learnFrom(oppActions, input, unknown, learned, other(actor));
     applyKinds(input, unknown, learned, actor);
@@ -1335,7 +1409,7 @@ function acbFastAdapterModule(engine) {
           if (typeof flipped.game.turn === "string") flipped.game.turn = actor;
           ss = await prepareCanonicalAiSearchSnapshot(flipped);
         }
-        const p = await pick(ss, { timeMs: perMs, includeCards: true, maxCardProbes: 12 });
+        const p = await pick(ss, { timeMs: perMs, includeCards: true, maxCardProbes: 6 });
         scores[choice.cardId] = p.ok
           ? { score: p.score, card: p.choice === "card" ? p.chosenCard : null, ms: Math.round(now() - t0) }
           : { fail: p.reason };
@@ -1352,7 +1426,7 @@ function acbFastAdapterModule(engine) {
   }
 
   // opponentCardThreat is exposed for tools/ (diagnostics).
-  return { pick, buildInput, opponentCardThreat, prepareRoot, draftProbe };
+  return { pick, buildInput, opponentCardThreat, prepareRoot, draftProbe, oppHelperTask };
 }
 
 if (typeof module !== "undefined" && module.exports) module.exports = acbFastAdapterModule;

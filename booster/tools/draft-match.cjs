@@ -21,7 +21,7 @@ const EFFECT_BONUS = {
   pawnConversion: 0.65, schrodingerPawns: 0.65, imperialStudies: 0.8, religiousVictory: 0.55, scarecrow: 0.45,
   necromancy: 0.65, othello: 0.7, fianchetto: 0.45, ruleTicket: 0.45, insight: 0.5, prophecy: 0.75, charge: 0.75
 };
-const MAX_BONUS = 4, PROBE_MS = 350, PROBE_BUDGET = 5800;
+const MAX_BONUS = 4, PROBE_MS = 400, PROBE_BUDGET = 5800, PROBE_BUDGET_OPENING = 9300;
 
 function rng(seed) {
   let s = seed >>> 0;
@@ -62,10 +62,10 @@ async function playGame(game, useC, seedText, ms, rand, stats) {
       if (!q.ok) return { result: 0.5, error: `draftChoices ${q.code}`, drafts };
       const scored = q.choices.map((c) => ({ c, score: baseScore(c.cardId) }));
       let probe = null;
-      if (useC[actor] && g.moveCount > 0) {
+      if (useC[actor]) { // first draft too, with a longer budget (as the extension)
         try {
           const snap = await game.prepareCanonicalAiSearchSnapshot(session.searchSnapshot());
-          probe = await game.adapter.draftProbe(snap, actor, [...new Set(q.choices.map((c) => c.cardId))], { perMs: PROBE_MS, deadline: performance.now() + PROBE_BUDGET });
+          probe = await game.adapter.draftProbe(snap, actor, null, { perMs: PROBE_MS, deadline: performance.now() + (g.moveCount > 0 ? PROBE_BUDGET : PROBE_BUDGET_OPENING) });
         } catch (e) { probe = { ok: false, reason: String(e?.message || e) }; }
         if (process.env.DUMP_FAIL && probe && !probe.ok) fs.writeFileSync(process.env.DUMP_FAIL, JSON.stringify({ actor, ids: q.choices.map((c) => c.cardId), snap: session.searchSnapshot() }));
         if (probe?.ok) for (const e of scored) {

@@ -87,6 +87,14 @@
       (src) => `  const __acbFastAdapter = (${src.adapter})((${src.engine})());
   self.addEventListener("message", async (event) => {
     const d = event.data;
+    if (d?.type === "acb-opp-list") {
+      // helper copy: the opponent's moves for the main AI worker
+      let result;
+      try { result = await __acbFastAdapter.oppHelperTask(await prepareCanonicalAiSearchSnapshot(d.snapshot), d.color); }
+      catch (error) { result = { ok: false, reason: String(error?.message || error) }; }
+      self.postMessage({ type: "acb-opp-list-result", id: d.id, result });
+      return;
+    }
     if (d?.type !== "acb-draft-probe") return;
     let result;
     try {

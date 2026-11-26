@@ -53,6 +53,23 @@ jobs:
           tail -20 parity.txt
           exit $status
 
+  speed:
+    # listing time, original vs speed-patched worker (no shadow, no applying)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: download the game's AI worker
+        run: |
+          mkdir -p .cache
+          curl -fsSL https://augmentchess.org/assets/canonicalAiWorker.js -o .cache/cw.js
+      - name: listing speed
+        run: |
+          node --max-old-space-size=6000 booster/tools/parity-speed.cjs .cache/cw.js booster/test-data/corpus-1.jsonl.gz --apply 0 | tail -3 | tee -a $GITHUB_STEP_SUMMARY
+
   smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 60
