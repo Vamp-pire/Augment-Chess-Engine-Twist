@@ -1,0 +1,98 @@
+name: booster-nnue
+
+# AI booster engine: self-play data (20 jobs x 4 processes) -> NNUE training
+# -> match against the hand-written eval. Results are artifacts.
+on:
+  workflow_dispatch:
+    inputs:
+      minutes:
+        description: "data generation minutes per process"
+        default: "40"
+      ms:
+        description: "search ms per move (label search)"
+        default: "50"
+      hidden:
+        description: "hidden width"
+        default: "32"
+      epochs:
+        description: "training epochs"
+        default: "10"
+      lambda:
+        description: "target weight of search score (rest = game result)"
+        default: "0.75"
+      pairs:
+        description: "match game pairs"
+        default: "200"
+
+jobs:
+  gen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: generate
+        run: |
+          mkdir -p data
+          for p in 1 2 3 4; do
+            node booster/tools/gen-data.cjs --out data/s${{ matrix.shard }}-$p.jsonl --minutes ${{ inputs.minutes }} --ms ${{ inputs.ms }} --seed $(( ${{ matrix.shard }} * 1000 + p * 17 + ${{ github.run_number }} )) &
+          done
+          wait
+          wc -l data/*.jsonl
+          gzip data/*.jsonl
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gen-${{ matrix.shard }}
+          path: data/
+          retention-days: 30
+
+  train:
+    needs: gen
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: gen-*
+          path: data
+          merge-multiple: true
+      - name: train
+        run: |
+          ls data | wc -l
+          node --max-old-space-size=14000 booster/tools/train-nnue.cjs --data data --out nnue.json --hidden ${{ inputs.hidden }} --epochs ${{ inputs.epochs }} --lambda ${{ inputs.lambda }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nnue
+          path: nnue.json
+          retention-days: 90
+
+  match:
+    needs: train
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          name: nnue
+      - name: match (NNUE vs hand-written eval)
+        run: |
+          node booster/tools/engine-match.cjs booster/fast-engine.js booster/fast-engine.js --nnue-a nnue.json --pairs ${{ inputs.pairs }} --ms 40 --workers 4 --seed 99 | tee match.txt
+          echo '```' >> $GITHUB_STEP_SUMMARY; cat match.txt >> $GITHUB_STEP_SUMMARY; echo '```' >> $GITHUB_STEP_SUMMARY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: match
+          path: match.txt
