@@ -1528,10 +1528,19 @@ function acbFastAdapterModule(engine) {
           const snap = await prepareCanonicalAiSearchSnapshot(b.searchSnapshot());
           if (snap.game.status === "ACTIVE") next.push(snap);
         }
+        // Each slice ends by yielding to the event loop, so a new request is
+        // always received (a pick that fails at once could otherwise spin in
+        // microtasks and starve the worker's message handling). Positions
+        // whose pick fails or ends abnormally fast are dropped.
+        const yieldNow = () => new Promise((r) => setTimeout(r, 0));
         for (let round = 0; live() && next.length && now() - t0 < PONDER_MAX_MS; round++) {
-          for (const snap of next) {
+          for (let i = 0; i < next.length; i++) {
             if (!live() || now() - t0 >= PONDER_MAX_MS) break;
-            await pick(snap, { timeMs: PONDER_SLICE_MS, includeCards: true, maxCardProbes: 8, noHelper: true });
+            const ts = now();
+            let ok = false;
+            try { const r = await pick(next[i], { timeMs: PONDER_SLICE_MS, includeCards: true, maxCardProbes: 8, noHelper: true }); ok = !!r?.ok; } catch { ok = false; }
+            if (!ok || now() - ts < 50) { next.splice(i, 1); i--; }
+            await yieldNow();
           }
         }
       } catch { /* pondering is optional */ }
@@ -1542,7 +1551,8 @@ function acbFastAdapterModule(engine) {
     ponderGen++;
     const run = ponderRun;
     ponderRun = null;
-    if (run) { try { await run; } catch { /* ignore */ } }
+    // at most one slice normally; never let pondering hold up a real move
+    if (run) { try { await Promise.race([run, new Promise((r) => setTimeout(r, 4000))]); } catch { /* ignore */ } }
   }
 
   // opponentCardThreat is exposed for tools/ (diagnostics).
