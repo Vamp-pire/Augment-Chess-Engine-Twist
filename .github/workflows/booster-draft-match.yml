@@ -1,0 +1,77 @@
+name: booster-draft-match
+
+# AI booster: full games with the game's own rules (drafts included), one side
+# drafting with the draft-time probe (C). The game's AI worker is downloaded
+# from augmentchess.org at run time (site code, never committed).
+on:
+  workflow_dispatch:
+    inputs:
+      shards:
+        description: "JSON list of shard numbers"
+        default: "[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]"
+      pairs:
+        description: "game pairs per shard (colors swapped within a pair)"
+        default: "8"
+      ms:
+        description: "search ms per move"
+        default: "250"
+      mode:
+        description: "game mode"
+        default: "normal"
+      seed:
+        description: "seed base"
+        default: "1"
+
+jobs:
+  play:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(inputs.shards) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: download the game's AI worker
+        run: |
+          mkdir -p .cache
+          curl -fsSL https://augmentchess.org/assets/canonicalAiWorker.js -o .cache/cw.js
+          ls -l .cache/cw.js; sha256sum .cache/cw.js
+      - name: play
+        run: |
+          node booster/tools/draft-match.cjs .cache/cw.js --pairs ${{ inputs.pairs }} --ms ${{ inputs.ms }} --workers 4 \
+            --mode ${{ inputs.mode }} --seed $(( ${{ inputs.seed }} * 100 + ${{ matrix.shard }} )) --log games-${{ matrix.shard }}.jsonl
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: draft-games-${{ matrix.shard }}
+          path: games-${{ matrix.shard }}.jsonl
+          retention-days: 30
+
+  summary:
+    needs: play
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: draft-games-*
+          path: games
+          merge-multiple: true
+      - name: summary
+        run: |
+          node booster/tools/draft-match.cjs --summarize games/*.jsonl | tee summary.txt
+          echo '```' >> $GITHUB_STEP_SUMMARY; cat summary.txt >> $GITHUB_STEP_SUMMARY; echo '```' >> $GITHUB_STEP_SUMMARY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: draft-summary
+          path: |
+            summary.txt
+            games/

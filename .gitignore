@@ -24,3 +24,7 @@ nnue/model/*
 !nnue/model/weights.round1-candidate.json
 !nnue/model/weights.round2-full-112981.json
 tools/perf/engine-head.js
+
+# site code downloaded at run time (never commit)
+/.cache/
+booster/.cache/
