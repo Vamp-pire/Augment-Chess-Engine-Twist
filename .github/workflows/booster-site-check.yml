@@ -1,0 +1,71 @@
+name: booster-site-check
+
+# Daily check that the AI booster still fits the game's current AI worker
+# (downloaded at run time, never committed):
+#  1. required patches apply at every level, speed patches that no longer fit are listed;
+#  2. speed patches give the same actions and resulting states as the original
+#     worker on the stored position corpus (shadow mode re-checks every cache hit);
+#  3. one short full game pair runs without errors.
+# A failed run means the site changed something the booster relies on.
+on:
+  schedule:
+    - cron: "0 21 * * *" # 06:00 KST
+  workflow_dispatch:
+
+jobs:
+  anchors:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: download the game's AI worker
+        run: |
+          mkdir -p .cache
+          curl -fsSL https://augmentchess.org/assets/canonicalAiWorker.js -o .cache/cw.js
+          ls -l .cache/cw.js; sha256sum .cache/cw.js | tee worker-sha.txt
+      - name: patches fit
+        shell: bash
+        run: node booster/tools/check-anchors.cjs .cache/cw.js | tee -a $GITHUB_STEP_SUMMARY
+
+  parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: download the game's AI worker
+        run: |
+          mkdir -p .cache
+          curl -fsSL https://augmentchess.org/assets/canonicalAiWorker.js -o .cache/cw.js
+      - name: speed-patch parity (shadow)
+        run: |
+          status=0
+          node --max-old-space-size=6000 booster/tools/parity-speed.cjs .cache/cw.js booster/test-data/corpus-${{ matrix.part }}.jsonl.gz --apply 6 --shadow > parity.txt 2>&1 || status=$?
+          echo '```' >> $GITHUB_STEP_SUMMARY; tail -20 parity.txt >> $GITHUB_STEP_SUMMARY; echo '```' >> $GITHUB_STEP_SUMMARY
+          tail -20 parity.txt
+          exit $status
+
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: download the game's AI worker
+        run: |
+          mkdir -p .cache
+          curl -fsSL https://augmentchess.org/assets/canonicalAiWorker.js -o .cache/cw.js
+      - name: one game pair
+        run: |
+          node booster/tools/draft-match.cjs .cache/cw.js --pairs 1 --ms 250 --workers 2 --seed 7 --log smoke.jsonl | tee smoke.txt
+          grep -q "errors 0" smoke.txt

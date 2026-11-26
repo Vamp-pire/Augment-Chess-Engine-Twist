@@ -45,7 +45,8 @@ async function listing(game, snap) {
 (async () => {
   let n = 0, bad = 0, msA = 0, msB = 0, applied = 0;
   for (const f of files) {
-    for (const line of fs.readFileSync(f, "utf8").split("\n")) {
+    const text = f.endsWith(".gz") ? require("zlib").gunzipSync(fs.readFileSync(f)).toString("utf8") : fs.readFileSync(f, "utf8");
+    for (const line of text.split("\n")) {
       if (!line) continue;
       if (limit && n >= limit) break;
       n++;
@@ -83,6 +84,7 @@ async function listing(game, snap) {
     }
   }
   if (globalThis.__acbSpeedShadow) console.log("shadow checks", JSON.stringify(globalThis.__acbSpeedShadow));
+  for (const [k, v] of Object.entries(globalThis.__acbSpeedShadow ?? {})) if (k.endsWith("Bad") && v > 0) { bad += v; console.log(`shadow mismatch: ${k} = ${v}`); }
   console.log(`positions ${n}, applied actions ${applied}, mismatches ${bad}, listing ms original ${Math.round(msA)} patched ${Math.round(msB)} (x${(msA / Math.max(1, msB)).toFixed(2)})`);
   process.exitCode = bad ? 1 : 0;
 })();

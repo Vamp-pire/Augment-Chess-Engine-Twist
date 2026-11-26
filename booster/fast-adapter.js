@@ -396,18 +396,46 @@ function acbFastAdapterModule(engine) {
   }
 
   let lastOppSession = null; // session of the turn-flipped root (for probes)
-  async function opponentMoves(snapshot, color) {
+  // Opponent's legal moves on a turn-flipped copy. Stops at `deadline`; a
+  // cut-off list is not returned (null), because calibration reads missing
+  // moves as limits (a piece with no listed move would look frozen).
+  async function opponentMoves(snapshot, color, deadline = Infinity) {
     const flipped = structuredClone(snapshot);
     flipped.game.position.turn = color;
     if (typeof flipped.game.turn === "string") flipped.game.turn = color;
     const s2 = await CanonicalEditorSession.restoreForAi(flipped);
+    const q = canonicalAiMoveCandidates(s2, { canContinue: () => now() < deadline });
+    if (q.truncated || q.complete === false) { lastOppSession = null; oppCutOff++; return null; }
     lastOppSession = s2;
-    return canonicalAiMoveCandidates(s2, { canContinue: () => true }).actions;
+    return q.actions;
   }
+  let oppCutOff = 0; // count of cut-off opponent lists (diagnostics)
 
   // Friendly captures (e.g. the mad horse card: a knight may take its own
   // piece and move once more), found in the game's legal moves.
   let activeEat = { kinds: [new Set(), new Set()], extra: [false, false] };
+  // Cache of tested friendly captures: card set (both hands, global and
+  // this side's color effects) + side + kind + the mover's flags.
+  const eatCache = new Map();
+  const rememberEat = (key, cap, extra) => {
+    eatCache.set(key, { cap, extra });
+    if (eatCache.size > 512) eatCache.delete(eatCache.keys().next().value);
+  };
+  function eatSignature(game, color) {
+    const cs = game.cardState, c = color ? "black" : "white";
+    return JSON.stringify([
+      ["white", "black"].map((x) => cs.inventories[x].map((i) => `${i.cardId}:${i.status}`).sort()),
+      [...new Set((cs.effects.global ?? []).map((e) => e.kind))].sort(),
+      [...new Set((cs.effects.colors?.[c] ?? []).map((e) => e.kind))].sort(),
+      cs.profile?.catalogHash ?? null, color
+    ]);
+  }
+  function pieceFlags(game, id) {
+    const p = id ? game.cardState.pieces?.[id] : null;
+    if (!p) return "?";
+    const attrs = Object.entries(p.attributes ?? {}).filter(([k]) => k !== "origin").sort(([a], [b]) => (a < b ? -1 : 1));
+    return JSON.stringify([p.baseType, p.typeOverride ?? null, attrs, p.statuses ?? null]);
+  }
   async function detectFriendlyCaptures(game, input, sides) {
     activeEat = { kinds: [new Set(), new Set()], extra: [false, false] };
     const board = game.position.board;
@@ -420,23 +448,35 @@ function acbFastAdapterModule(engine) {
       // swap or castling keeps it on the board, so it is no capture)
       const ids = game.cardState.board.pieceIds;
       const tested = new Set();
+      const sig = eatSignature(game, color);
       for (const a of own) {
         const p = input.board[sqOf(a.intent.payload.from)];
         if (!p || tested.has(p.kind) || tested.size >= 3) continue;
         tested.add(p.kind);
         const to = a.intent.payload.to, from = a.intent.payload.from;
         const targetId = ids[8 - Number(to[1])]?.[to.charCodeAt(0) - 97], moverId = ids[8 - Number(from[1])]?.[from.charCodeAt(0) - 97];
+        // Same card set, same side, same kind and piece flags: same answer
+        // as last time (playing the move for real is the slow part).
+        const key = `${sig}|${p.kind}|${pieceFlags(game, moverId)}`;
+        const known = eatCache.get(key);
+        if (known) {
+          if (known.cap) { activeEat.kinds[color].add(p.kind); if (known.extra && !input.accel?.on) activeEat.extra[color] = true; }
+          continue;
+        }
         try {
           const b = session.forkForAi();
           if (!(await applyCanonicalAiCandidate(b, a)).ok) continue;
           const g2 = b.snapshot({ includeHistory: false }).game;
-          if (g2.cardState.board.pieceIds.some((row) => row.includes(targetId))) continue; // not a capture
+          if (g2.cardState.board.pieceIds.some((row) => row.includes(targetId))) { rememberEat(key, false, false); continue; } // not a capture
           activeEat.kinds[color].add(p.kind);
           // an extra move: the same side still moves, not because of
           // acceleration or a square-triggered extra move
           const win = (g2.cardState.pending?.actionWindows ?? []).find((w) => w.status === "OPEN" && w.payload?.pieceId === moverId);
           const otherReason = ["platform", "rook-lift", "underpromotion", "checker-chain", "desperado", "reposition"].includes(win?.payload?.reason);
-          if (g2.status === "ACTIVE" && g2.position.turn === (color ? "black" : "white") && !input.accel?.on && !otherReason) activeEat.extra[color] = true;
+          const extra = g2.status === "ACTIVE" && g2.position.turn === (color ? "black" : "white") && !otherReason;
+          if (extra && !input.accel?.on) activeEat.extra[color] = true;
+          // with acceleration on, "extra" cannot be told apart: not remembered
+          if (!input.accel?.on && !otherReason) rememberEat(key, true, extra);
         } catch { /* unknown */ }
       }
     }
@@ -703,7 +743,7 @@ function acbFastAdapterModule(engine) {
     }
   }
 
-  async function prepareRoot(snapshot, { cardDeadline, maxCardProbes, includeCards, probeMs = 0 }) {
+  async function prepareRoot(snapshot, { cardDeadline, maxCardProbes, includeCards, probeMs = 0, oppDeadline = Infinity }) {
     const game = snapshot.game;
     if (game.status !== "ACTIVE") return { ok: false, reason: `status ${game.status}` };
     const timing = {}; let tMark = now();
@@ -730,7 +770,7 @@ function acbFastAdapterModule(engine) {
     let oppActions = null;
     lastOppSession = null;
     lap("boardInput");
-    try { oppActions = await opponentMoves(snapshot, other(actor)); } catch { oppActions = null; }
+    try { oppActions = await opponentMoves(snapshot, other(actor), oppDeadline); } catch { oppActions = null; }
     lap("oppList");
     try {
       await detectFriendlyCaptures(game, input, [
@@ -1073,7 +1113,8 @@ function acbFastAdapterModule(engine) {
   async function pick(snapshot, { timeMs = 3000, includeCards = true, maxCardProbes = 24, cardShare = 0.2 } = {}) {
     const start = now(), end = start + timeMs;
     const at = (f) => start + timeMs * f;
-    const root = await prepareRoot(snapshot, { includeCards, maxCardProbes, cardDeadline: at(cardShare), probeMs: Math.min(900, timeMs * 0.08) });
+    // the opponent's move list may use up to half the budget (see opponentMoves)
+    const root = await prepareRoot(snapshot, { includeCards, maxCardProbes, cardDeadline: at(cardShare), probeMs: Math.min(900, timeMs * 0.08), oppDeadline: at(0.5) });
     if (!root.ok) return root;
     const { session, input, byKey, learned, actor, cardActions, query } = root;
     const hasMoves = input.rootMoves.length > 0;
@@ -1245,6 +1286,7 @@ function acbFastAdapterModule(engine) {
       immediateLosses,
       limitsLearned: root.limits,
       prepTiming: root.timing,
+      oppCutOff,
       friendlyCaptures: [0, 1].map((c) => ({ kinds: [...activeEat.kinds[c]], extraMove: activeEat.extra[c] })),
       captureBans: activeCapBans.map((b) => `${b.by ? "black" : "white"} ${b.a} x ${b.t}`),
       ruleError: root.ruleError ?? null,
