@@ -402,7 +402,12 @@ function acbFastEngineModule() {
       let salt = 0x811c9dc5;
       const mix = (str) => { for (let i = 0; i < str.length; i++) { salt ^= str.charCodeAt(i); salt = Math.imul(salt, 16777619); } };
       mix(kinds.map((kd) => `${kd.name}/${kd.value}/${kd.royal ? 1 : 0}/${kd.block ? 1 : 0}`).join("|"));
-      mix(`r${racing[0] ? 1 : 0}${racing[1] ? 1 : 0}p${rootPly}`);
+      // The ply only matters with ply-based timers, scheduled events or
+      // side-wide counters; without them, entries stay valid on the next
+      // move (the search goes on from what the last moves learned).
+      let plyBased = (input.events?.length ?? 0) > 0 || [input.accel, input.exhaust, input.moving, input.streak, input.flags, input.crowns, input.prophecy, input.revelation, input.ultimatum, input.collapse, input.danger, input.platform].some((x) => x != null && !(Array.isArray(x) && x.length === 0));
+      for (let sq = 0; sq < 64 && !plyBased; sq++) if (pk[sq] && (lb[sq] || vd[sq] || fu[sq] || lk[sq] >= 0 || fl[sq] || px[sq])) plyBased = true;
+      mix(`r${racing[0] ? 1 : 0}${racing[1] ? 1 : 0}${plyBased ? `p${rootPly}` : ""}`);
       for (let sq = 0; sq < 64; sq++) if (pk[sq] && (lb[sq] || vd[sq] || fu[sq] || lk[sq] >= 0 || fl[sq] || px[sq])) mix(`${sq}:${lb[sq]}:${vd[sq]}:${fu[sq]}:${lk[sq]}:${fl[sq]}:${px[sq] ? JSON.stringify(slotExtra[px[sq]]) + slotBan[px[sq]].join("") + [slotTuF[px[sq]], slotTuI[px[sq]], slotTuN[px[sq]], slotTxp[px[sq]], slotTxk[px[sq]], slotSw[px[sq]]].join(",") : ""}`);
       mix(JSON.stringify(input.events ?? []) + JSON.stringify(input.victory ?? {}));
       mix(JSON.stringify(input.capBans ?? []));
@@ -1405,10 +1410,16 @@ function acbFastEngineModule() {
     let bestRoot = rootMoves[0], completedDepth = 0, bestScore = -INF;
     const rootScores = new Map();
 
+    let prevScore = null, scoreDrop = false, sameBest = 0, margin = 0;
     for (let depth = 1; depth <= maxDepth; depth++) {
+      if (soft !== null && completedDepth >= 1 && rootMoves.length === 1) { stopReason = "only move"; break; }
       if (soft !== null && completedDepth >= 2) {
-        const t = now();
-        const softEff = bestChanges > 0 ? Math.min(deadline, started + (soft - started) * 1.5) : soft;
+        const t = now(), span = soft - started;
+        // a clear best that stayed the same: stop early (easy move);
+        // a falling score (a threat was found): think twice as long;
+        // a changing best: 1.5x
+        if (completedDepth >= 5 && sameBest >= 2 && margin >= ROOT_BAND && t >= started + span * 0.4) { stopReason = "easy"; break; }
+        const softEff = Math.min(deadline, started + span * (scoreDrop ? 2 : bestChanges > 0 ? 1.5 : 1));
         if (t >= softEff) { stopReason = "soft"; break; }
         if (t + lastIterMs * growth > deadline) { stopReason = "predicted"; break; }
       }
@@ -1451,6 +1462,12 @@ function acbFastEngineModule() {
         break;
       }
       bestChanges = completedDepth > 0 && iterBest !== bestRoot ? 1 : 0;
+      sameBest = bestChanges || completedDepth === 0 ? 0 : sameBest + 1;
+      scoreDrop = prevScore !== null && iterScore < prevScore - 50;
+      prevScore = iterScore;
+      // gap to the runner-up (its score is exact or an upper bound, so this
+      // is a lower bound of the real gap)
+      { let second = -INF; for (const r of rootMoves) if (r !== iterBest && r.score > second) second = r.score; margin = rootMoves.length > 1 ? iterScore - second : INF; }
       bestRoot = iterBest; bestScore = iterScore; completedDepth = depth;
       for (const r of rootMoves) rootScores.set(r.ref, { score: r.score, exact: !!r.exact });
       const iterMs = now() - iterStart;

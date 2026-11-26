@@ -1219,7 +1219,8 @@ function acbFastAdapterModule(engine) {
       input.timeMs = Math.max(100, at(T.base) - now());
       // auto time: the base search may stop early (soft limit / a depth that
       // would not finish); the time saved stays on the clock
-      input.softFrac = softFrac;
+      // the opponent's cards make a quiet-looking position dangerous: longer soft limit
+      input.softFrac = softFrac && oppCards ? Math.min(0.9, softFrac * 1.3) : softFrac;
       const r = engine.search(input);
       if (r.ok && r.move) base = r;
     }
@@ -1485,8 +1486,67 @@ function acbFastAdapterModule(engine) {
     return { ok: true, value: Math.max(-3000, Math.min(3000, Math.round(value))), plies: done, complete, msPerPly: done ? Math.round(plyTime / done) : null, ms: Math.round(now() - t0) };
   }
 
+  // ---- pondering: thinking on the opponent's time ------------------------
+  // After the AI answers, the worker would sit idle while the person thinks.
+  // Instead it plays our chosen action on a copy, finds the opponent's most
+  // likely replies (a quick search from their side) and searches our answer
+  // to each in short slices. The engine's transposition table keeps what it
+  // learned, so when the real request comes for one of those positions the
+  // search starts far ahead. A new request stops pondering at the next slice
+  // (stopPonder waits for it, at most one slice; the caller subtracts that
+  // wait from its own time).
+  let ponderGen = 0, ponderRun = null;
+  const PONDER_SLICE_MS = 1200, PONDER_MAX_MS = 60000, PONDER_REPLIES = 2;
+  function startPonder(snapshot, candidate) {
+    const gen = ++ponderGen;
+    const live = () => gen === ponderGen;
+    ponderRun = (async () => {
+      const t0 = now();
+      try {
+        const s = await CanonicalEditorSession.restoreForAi(snapshot);
+        if (!(await applyCanonicalAiCandidate(s, candidate))?.ok || !live()) return;
+        const afterOurs = await prepareCanonicalAiSearchSnapshot(s.searchSnapshot());
+        if (afterOurs.game.status !== "ACTIVE" || !live()) return;
+        // the opponent's likely replies
+        const opp = await pick(afterOurs, { timeMs: PONDER_SLICE_MS, includeCards: true, maxCardProbes: 8, noHelper: true });
+        if (!opp.ok || !opp.candidate || !live()) return;
+        const replies = [opp.candidate];
+        const byKey = new Map(); // other top moves as candidates (plain moves)
+        for (const m of opp.topMoves ?? []) if (replies.length < PONDER_REPLIES && m.move && opp.candidate.intent?.payload && `${opp.candidate.intent.payload.from}${opp.candidate.intent.payload.to}` !== m.move) byKey.set(m.move, m);
+        const q = canonicalAiMoveCandidates(await CanonicalEditorSession.restoreForAi(afterOurs), { canContinue: () => true });
+        for (const a of q.actions) {
+          if (replies.length >= PONDER_REPLIES) break;
+          const p = a.intent?.payload;
+          if (a.intent?.kind === "piece_move" && p && byKey.has(`${p.from}${p.to}`)) replies.push(a);
+        }
+        // our answer to each, in slices, round robin until stopped
+        const next = [];
+        for (const r of replies) {
+          if (!live()) return;
+          const b = await CanonicalEditorSession.restoreForAi(afterOurs);
+          if (!(await applyCanonicalAiCandidate(b, r))?.ok) continue;
+          const snap = await prepareCanonicalAiSearchSnapshot(b.searchSnapshot());
+          if (snap.game.status === "ACTIVE") next.push(snap);
+        }
+        for (let round = 0; live() && next.length && now() - t0 < PONDER_MAX_MS; round++) {
+          for (const snap of next) {
+            if (!live() || now() - t0 >= PONDER_MAX_MS) break;
+            await pick(snap, { timeMs: PONDER_SLICE_MS, includeCards: true, maxCardProbes: 8, noHelper: true });
+          }
+        }
+      } catch { /* pondering is optional */ }
+    })();
+    return ponderRun;
+  }
+  async function stopPonder() {
+    ponderGen++;
+    const run = ponderRun;
+    ponderRun = null;
+    if (run) { try { await run; } catch { /* ignore */ } }
+  }
+
   // opponentCardThreat is exposed for tools/ (diagnostics).
-  return { pick, buildInput, opponentCardThreat, prepareRoot, draftProbe, oppHelperTask, draftPlayoutOne };
+  return { pick, buildInput, opponentCardThreat, prepareRoot, draftProbe, oppHelperTask, draftPlayoutOne, startPonder, stopPonder };
 }
 
 if (typeof module !== "undefined" && module.exports) module.exports = acbFastAdapterModule;
