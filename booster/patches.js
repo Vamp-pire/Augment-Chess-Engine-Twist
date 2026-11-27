@@ -110,7 +110,7 @@
     }
     if (d?.type === "acb-draft-playout") {
       let result;
-      try { result = await __acbFastAdapter.draftPlayoutOne(await prepareCanonicalAiSearchSnapshot(d.snapshot), d.actor, d.choiceId, { plies: d.plies, perMs: d.perMs, deadline: performance.now() + d.budgetMs }); }
+      try { result = await __acbFastAdapter.draftPlayoutOne(await prepareCanonicalAiSearchSnapshot(d.snapshot), d.actor, d.choiceId, { plies: d.plies, perMs: d.perMs, nodes: d.nodes, deadline: performance.now() + d.budgetMs }); }
       catch (error) { result = { ok: false, reason: String(error?.message || error) }; }
       self.postMessage({ type: "acb-draft-playout-result", id: d.id, result });
       return;

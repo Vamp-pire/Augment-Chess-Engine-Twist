@@ -1188,7 +1188,7 @@ function acbFastAdapterModule(engine) {
   //   4. top plain moves are played for real (on-capture effects, passives)
   //      and re-scored
   //   5. the opponent's cards are tried against our best options
-  async function pick(snapshot, { timeMs = 3000, includeCards = true, maxCardProbes = 24, cardShare = 0.2, noHelper = false, softFrac = null } = {}) {
+  async function pick(snapshot, { timeMs = 3000, includeCards = true, maxCardProbes = 24, cardShare = 0.2, noHelper = false, softFrac = null, nodes = 0 } = {}) {
     const start = now();
     let end = start + timeMs;
     let at = (f) => start + timeMs * f;
@@ -1220,6 +1220,8 @@ function acbFastAdapterModule(engine) {
       // auto time: the base search may stop early (soft limit / a depth that
       // would not finish); the time saved stays on the clock
       // the opponent's cards make a quiet-looking position dangerous: longer soft limit
+      // a node budget: the base search alone may run longer (time stays a safety cap)
+      if (nodes > 0) { input.maxNodes = nodes; input.freshTT = true; input.timeMs = Math.max(input.timeMs, 4000); }
       input.softFrac = softFrac && oppCards ? Math.min(0.9, softFrac * 1.3) : softFrac;
       const r = engine.search(input);
       if (r.ok && r.move) base = r;
@@ -1446,22 +1448,32 @@ function acbFastAdapterModule(engine) {
   // Draft playout for ONE offered choice (each probe worker takes one card,
   // so the offer is played out in parallel): a copy of the draft-time game
   // makes the pick for real (other pending picks take the first choice),
-  // then exactly `plies` plies are played with quick picks for both sides,
-  // and the end position is scored from the drafter's side. Stops early at
-  // `deadline` (complete: false). msPerPly is returned so the page can size
-  // the next playout to its time.
-  async function draftPlayoutOne(snapshot, actor, choiceId, { plies = 6, perMs = 150, deadline = Infinity } = {}) {
+  // then `plies` plies are played with quick picks for both sides.
+  // - The value is the mean of the drafter's score at about 1/3, 2/3 and the
+  //   end of the line (each pick already scores its position, so this costs
+  //   nothing) - one late swing counts less.
+  // - With `nodes` the searches stop at a node budget instead of a time, so
+  //   every card is played out under the same conditions on any machine
+  //   (time stays a safety limit). Different `nodes` values give different,
+  //   repeatable lines (used for repeated playouts).
+  // Stops early at `deadline` (complete: false). msPerPly is returned so the
+  // page can size the next playout to its time.
+  async function draftPlayoutOne(snapshot, actor, choiceId, { plies = 6, perMs = 150, nodes = 0, deadline = Infinity } = {}) {
     const t0 = now();
     const offer = snapshot.game?.cardState?.draft?.offer;
     if (snapshot.game?.status !== "DRAFTING" || !offer) return { ok: false, reason: "not drafting" };
     const s = await CanonicalEditorSession.restoreForAi(snapshot);
     const r0 = await s.dispatch(actor, { schemaVersion: 1, kind: "draft_pick", payload: { offerId: offer.offerId, choiceId } });
     if (!r0.ok) return { ok: false, reason: `pick ${r0.code}` };
-    let done = 0, value = null, plyTime = 0;
+    const clamp = (v) => (Math.abs(v) >= 100000 ? Math.sign(v) * 3000 : Math.max(-3000, Math.min(3000, v)));
+    const marks = new Set([Math.max(1, Math.round(plies / 3)), Math.max(1, Math.round((2 * plies) / 3))]);
+    const opts = { timeMs: perMs, includeCards: true, maxCardProbes: 6, noHelper: true, ...(nodes > 0 ? { nodes } : {}) };
+    const points = [];
+    let done = 0, final = null, plyTime = 0;
     for (let guard = 0; done < plies && guard < plies * 4; guard++) {
       if (now() > deadline) break;
       const g = s.snapshot({ includeHistory: false }).game;
-      if (g.status === "FINISHED") { const w = g.position?.winner ?? g.winner; value = w === actor ? 3000 : w ? -3000 : 0; break; }
+      if (g.status === "FINISHED") { const w = g.position?.winner ?? g.winner; final = w === actor ? 3000 : w ? -3000 : 0; break; }
       if (g.status === "DRAFTING") {
         const who = g.cardState.draft.pickingColor ?? g.position.turn, q = s.draftChoices(who);
         if (!q.ok || !(await s.dispatch(who, { schemaVersion: 1, kind: "draft_pick", payload: { offerId: q.offerId, choiceId: q.choices[0].choiceId } })).ok) break;
@@ -1469,21 +1481,25 @@ function acbFastAdapterModule(engine) {
       }
       if (s.localAiAutomaticCardsDue?.()) { if (!(await s.advanceLocalAiAutomaticCards())?.ok) break; continue; }
       const tp = now();
-      const r = await pick(await prepareCanonicalAiSearchSnapshot(s.searchSnapshot()), { timeMs: perMs, includeCards: true, maxCardProbes: 6, noHelper: true });
-      if (!r.ok || !r.candidate || !(await applyCanonicalAiCandidate(s, r.candidate))?.ok) break;
+      const ss = await prepareCanonicalAiSearchSnapshot(s.searchSnapshot());
+      const r = await pick(ss, opts);
+      if (!r.ok || !r.candidate) break;
+      if (marks.has(done)) points.push(clamp(ss.game.position.turn === actor ? r.score : -r.score));
+      if (!(await applyCanonicalAiCandidate(s, r.candidate))?.ok) break;
       plyTime += now() - tp;
       done++;
     }
-    const complete = value !== null || done >= plies;
-    if (value === null) {
+    const complete = final !== null || done >= plies;
+    if (final === null) {
       const ss = await prepareCanonicalAiSearchSnapshot(s.searchSnapshot());
       if (ss.game.status !== "ACTIVE") return { ok: false, reason: `status ${ss.game.status}` };
-      const r = await pick(ss, { timeMs: perMs, includeCards: true, maxCardProbes: 6, noHelper: true });
+      const r = await pick(ss, opts);
       if (!r.ok) return { ok: false, reason: r.reason };
-      value = ss.game.position.turn === actor ? r.score : -r.score;
+      final = clamp(ss.game.position.turn === actor ? r.score : -r.score);
     }
-    if (Math.abs(value) >= 100000) value = Math.sign(value) * 3000; // a found mate counts as a decided game
-    return { ok: true, value: Math.max(-3000, Math.min(3000, Math.round(value))), plies: done, complete, msPerPly: done ? Math.round(plyTime / done) : null, ms: Math.round(now() - t0) };
+    // a decided game counts in full; otherwise the mean along the line
+    const value = Math.abs(final) >= 3000 ? final : [...points, final].reduce((a, b) => a + b, 0) / (points.length + 1);
+    return { ok: true, value: Math.round(value), final: Math.round(final), points, plies: done, complete, msPerPly: done ? Math.round(plyTime / done) : null, ms: Math.round(now() - t0) };
   }
 
   // ---- pondering: thinking on the opponent's time ------------------------

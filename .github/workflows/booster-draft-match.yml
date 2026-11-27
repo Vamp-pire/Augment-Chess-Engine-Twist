@@ -36,6 +36,12 @@ on:
       values:
         description: "card value table JSON in the repo that side A adds to its draft score (empty = none)"
         default: ""
+      draft_scale:
+        description: "draft points: centipawns per point (empty = default 100)"
+        default: ""
+      reps:
+        description: "draft playouts per card (empty = from the time)"
+        default: ""
       b_dir:
         description: "folder in the repo with fast-engine.js and fast-adapter.js for side B (e.g. booster/baseline/0.14.2; empty = same as A)"
         default: ""
@@ -79,6 +85,8 @@ jobs:
           if [ -n "${{ inputs.playout }}" ]; then opts="$opts --playout ${{ inputs.playout }}"; fi
           if [ -n "${{ inputs.values }}" ]; then opts="$opts --values ${{ inputs.values }}"; fi
           if [ "${{ inputs.draft_ms }}" != "0" ]; then opts="$opts --draft-ms ${{ inputs.draft_ms }}"; fi
+          if [ -n "${{ inputs.draft_scale }}" ]; then opts="$opts --draft-scale ${{ inputs.draft_scale }}"; fi
+          if [ -n "${{ inputs.reps }}" ]; then opts="$opts --reps ${{ inputs.reps }}"; fi
           if [ -n "${{ inputs.b_dir }}" ]; then opts="$opts --adapter-b ${{ inputs.b_dir }}/fast-adapter.js --engine-b ${{ inputs.b_dir }}/fast-engine.js"; fi
           echo "DATAGEN=$opts" >> $GITHUB_ENV
       - name: play

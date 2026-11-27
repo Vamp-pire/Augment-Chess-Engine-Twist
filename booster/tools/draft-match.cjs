@@ -13,6 +13,7 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const { fork } = require("child_process");
+const { draftPoints, NODE_STEPS } = require(path.join(__dirname, "..", "draft-score.js"));
 
 const EFFECT_BONUS = {
   holdout: 0.8, fileSurge: 0.8, rookLift: 0.8, inertia: 0.75, chimera: 0.9, canceling: 0.7, underpromotion: 0.6, stake: 0.5,
@@ -103,27 +104,26 @@ async function playGame(game, useC, seedText, ms, rand, stats, pickers = null) {
       const scored = q.choices.map((c) => ({ c, score: baseScore(c.cardId) }));
       let probe = null;
       if (useC[actor] && stats.draftMs >= 7000) {
-        // time-fitted playouts (as the extension): same plies for every card
-        const plies = Math.max(2, Math.min(12, Math.floor((stats.draftMs - 2500) / stats.msPerPly)));
+        // time-fitted playouts, planned as the extension does (PLAYOUT_WORKERS
+        // workers in parallel there; here the jobs run one after another,
+        // each with the extension's per-job time) and scored by draft-score.js
+        const W = 3, cards = q.choices.length;
+        const pliesFor = (reps) => Math.floor((stats.draftMs - 2500) / (stats.msPerPly * Math.ceil((cards * reps) / Math.min(W, cards * reps))));
+        let reps = stats.reps ?? 1;
+        if (stats.reps == null) for (const r of [3, 2]) if (pliesFor(r) >= 6) { reps = r; break; }
+        const plies = Math.max(2, Math.min(12, pliesFor(reps)));
         const snap = await game.prepareCanonicalAiSearchSnapshot(session.searchSnapshot());
-        const res = {};
-        for (const c of q.choices) {
-          try { res[c.cardId] = await game.adapter.draftPlayoutOne(structuredClone(snap), actor, c.choiceId, { plies, perMs: 150, deadline: performance.now() + stats.draftMs }); }
-          catch (e) { res[c.cardId] = { ok: false, reason: String(e?.message || e) }; }
+        const runs = {};
+        for (let r = 0; r < reps; r++) for (const c of q.choices) {
+          let res;
+          try { res = await game.adapter.draftPlayoutOne(structuredClone(snap), actor, c.choiceId, { plies, perMs: 150, nodes: Math.round(30000 * NODE_STEPS[r]), deadline: performance.now() + stats.draftMs }); }
+          catch (e) { res = { ok: false, reason: String(e?.message || e) }; }
+          if (res?.msPerPly > 0) stats.msPerPly = Math.round(0.8 * stats.msPerPly + 0.2 * res.msPerPly);
+          if (res?.ok && res.complete) (runs[c.cardId] ??= []).push(res.value);
         }
-        const measured = Object.values(res).map((r) => r?.msPerPly).filter((x) => x > 0);
-        if (measured.length) stats.msPerPly = Math.round(0.6 * stats.msPerPly + 0.4 * (measured.reduce((a, b) => a + b, 0) / measured.length));
-        const done = Object.entries(res).filter(([, r]) => r?.ok && r.complete);
-        const gainsOut = {};
-        if (done.length >= 2) {
-          const mean = done.reduce((t, [, r]) => t + r.value, 0) / done.length;
-          for (const [id, r] of done) {
-            const adv = r.value - mean;
-            gainsOut[id] = Math.round(adv);
-            if (Math.abs(adv) >= 75) { const e = scored.find((x) => x.c.cardId === id); if (e) e.score += Math.max(-3, Math.min(3, adv / 100)); }
-          }
-        }
-        probe = { ok: done.length >= 2, gains: Object.fromEntries(Object.entries(gainsOut).map(([k, v]) => [k, { gain: v }])), reason: done.length < 2 ? "playouts incomplete" : null, plies };
+        const scoredOut = draftPoints(runs, stats.scoreOpts ?? {});
+        for (const e of scored) e.score += scoredOut.points[e.c.cardId] ?? 0;
+        probe = { ok: Object.keys(runs).length >= 2, gains: Object.fromEntries(Object.entries(scoredOut.detail).map(([k, v]) => [k, { gain: v.adv, points: v.points }])), reason: Object.keys(runs).length < 2 ? "playouts incomplete" : null, plies, reps };
       } else if (useC[actor]) { // first draft too, with a longer budget (as the extension)
         try {
           const snap = await game.prepareCanonicalAiSearchSnapshot(session.searchSnapshot());
@@ -174,7 +174,7 @@ async function playGame(game, useC, seedText, ms, rand, stats, pickers = null) {
 }
 
 function worker() {
-  process.on("message", async ({ workerPath, seeds, ms, mode, seed, adapterA, adapterB, engineB, cSide, explore, playout, playoutMs, valuesPath, draftMs }) => {
+  process.on("message", async ({ workerPath, seeds, ms, mode, seed, adapterA, adapterB, engineB, cSide, explore, playout, playoutMs, valuesPath, draftMs, reps, draftScale, draftThreshold }) => {
     let msPerPlyEst = 1500; // Node, per worker; updated from playouts
     const values = valuesPath ? JSON.parse(fs.readFileSync(valuesPath, "utf8")).points : null;
     const { loadGame } = require(path.join(__dirname, "harness.cjs"));
@@ -186,7 +186,8 @@ function worker() {
     const out = [];
     for (const s of seeds) {
       for (const aWhite of [true, false]) {
-        const stats = { mode, explore, playout, playoutMs, values, draftMs, msPerPly: msPerPlyEst };
+        const scoreOpts = { ...(draftScale ? { scale: Number(draftScale) } : {}), ...(draftThreshold ? { threshold: Number(draftThreshold) } : {}) };
+        const stats = { mode, explore, playout, playoutMs, values, draftMs, msPerPly: msPerPlyEst, reps: reps ? Number(reps) : null, scoreOpts };
         const t0 = Date.now();
         const useC = cSide === "none" ? { white: false, black: false } : { white: aWhite, black: !aWhite };
         const pickers = { white: aWhite ? game.adapter : gameB.adapter, black: aWhite ? gameB.adapter : game.adapter };
@@ -230,6 +231,7 @@ async function main() {
   // --adapter-a/--adapter-b: fast-adapter.js files per side; --c a|none: which side drafts with C
   const adapterA = opt("adapter-a", null), adapterB = opt("adapter-b", null), engineB = opt("engine-b", null), cSide = opt("c", "a");
   // data generation: --explore p, --playout K [--playout-ms 150]; --values table.json (side A adds its points)
+  const reps = opt("reps", null), draftScale = opt("draft-scale", null), draftThreshold = opt("draft-threshold", null);
   const draftMs = Number(opt("draft-ms", 0)), explore = Number(opt("explore", 0)), playout = opt("playout", null), playoutMs = Number(opt("playout-ms", 150)), valuesPath = opt("values", null);
   const seeds = Array.from({ length: pairs }, (_, i) => seed * 100000 + i);
   const t0 = Date.now();
@@ -247,7 +249,7 @@ async function main() {
     });
     child.on("error", rej);
     child.on("exit", (code) => { if (code) res(); });
-    child.send({ workerPath, seeds: seeds.filter((_, i) => i % workers === w), ms, mode, seed: seed + w, adapterA, adapterB, engineB, cSide, explore, playout, playoutMs, valuesPath, draftMs });
+    child.send({ workerPath, seeds: seeds.filter((_, i) => i % workers === w), ms, mode, seed: seed + w, adapterA, adapterB, engineB, cSide, explore, playout, playoutMs, valuesPath, draftMs, reps, draftScale, draftThreshold });
   })));
   console.log(`${mode}, ${ms} ms/move, ${((Date.now() - t0) / 60000).toFixed(1)} min`);
   console.log(summarize(all));

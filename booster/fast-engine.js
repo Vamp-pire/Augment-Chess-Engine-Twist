@@ -1224,7 +1224,7 @@ function acbFastEngineModule() {
     const bufs = Array.from({ length: MAXPLY + 8 }, () => new Int32Array(1024));
     const scores = Array.from({ length: MAXPLY + 8 }, () => new Int32Array(1024));
 
-    let nodes = 0, deadline = 0, stopped = false;
+    let nodes = 0, deadline = 0, stopped = false, nodeCap = Infinity;
     const now = input.now || (() => performance.now());
 
     function order(ply, n, ttm) {
@@ -1255,7 +1255,7 @@ function acbFastEngineModule() {
     const sub = (mover, d, a, b, p, nul) => (side === mover ? negamax(d, a, b, p, nul) : -negamax(d, -b, -a, p, nul));
     const subQ = (mover, a, b, p) => (side === mover ? quiesce(a, b, p) : -quiesce(-b, -a, p));
     function quiesce(alpha, beta, ply) {
-      if ((++nodes & 1023) === 0 && now() > deadline) { stopped = true; throw new AbortSearch(); }
+      if ((++nodes & 1023) === 0 && (now() > deadline || nodes >= nodeCap)) { stopped = true; throw new AbortSearch(); }
       const prevQ = sp > 0 ? moverAt[sp - 1] : side ^ 1;
       if (royalLost[side] || kingSq[side] < 0 || (prevQ !== side && executes(prevQ))) return -MATE + ply;
       if (royalLost[side ^ 1] || kingSq[side ^ 1] < 0) return MATE - ply;
@@ -1289,7 +1289,7 @@ function acbFastEngineModule() {
       if (ply > 0 && prevN !== side && betrays(side)) return -MATE + ply;
       if (ply > 0) { const sr = specialResult(prevN); if (sr === 2) return 0; if (sr) return (sr > 0) === (prevN === side) ? MATE - ply : -MATE + ply; }
       if (depth <= 0) return quiesce(alpha, beta, ply);
-      if ((++nodes & 1023) === 0 && now() > deadline) { stopped = true; throw new AbortSearch(); }
+      if ((++nodes & 1023) === 0 && (now() > deadline || nodes >= nodeCap)) { stopped = true; throw new AbortSearch(); }
       if (ply >= MAXPLY) return evaluate();
 
       const slot = h1 & TT_MASK, alpha0 = alpha;
@@ -1398,6 +1398,10 @@ function acbFastEngineModule() {
 
     const started = now();
     deadline = started + Math.max(10, input.timeMs || 1000);
+    // optional node budget: the same search on any machine (time stays a safety limit)
+    nodeCap = input.maxNodes > 0 ? input.maxNodes : Infinity;
+    // freshTT: forget earlier searches, so the same input gives the same result
+    if (input.freshTT) ttKey.fill(0);
     // Time management (optional): a soft limit after which no new depth is
     // started (x1.5 while the best move is still changing), and no depth is
     // started that is predicted not to finish before the hard deadline
