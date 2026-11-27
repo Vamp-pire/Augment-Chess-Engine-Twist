@@ -86,7 +86,15 @@ const table = { built: new Date().toISOString(), workers, games: games.length, d
 fs.writeFileSync(out, JSON.stringify(table, null, 1));
 // --js file: the points as a page script for the extension (window.__acbCardValues)
 const jsOut = opt("js", null);
-if (jsOut) fs.writeFileSync(jsOut, `// Card value table (draft points added to the game's AI draft score).
+// --catalog <hash> (the card catalog the data was made with) --weight w:
+// the extension uses the table only in games with that catalog, at weight w
+const catalog = opt("catalog", null), weight = Number(opt("weight", 0.5));
+if (jsOut && catalog) fs.writeFileSync(jsOut, `// Card value table (draft points added to the game's AI draft score).
+// Built ${table.built} from ${table.games} games, ${table.draftsUsed} drafts with playouts. See tools/card-values.cjs.
+// Used only while the game's card catalog is ${catalog} (any change turns it off).
+window.__acbCardValues = ${JSON.stringify({ catalogHash: catalog, weight, built: table.built, points })};
+`);
+else if (jsOut) fs.writeFileSync(jsOut, `// Card value table (draft points added to the game's AI draft score).
 // Built ${table.built} from ${table.games} games, ${table.draftsUsed} drafts with playouts. See tools/card-values.cjs.
 window.__acbCardValues = ${JSON.stringify(points)};
 `);

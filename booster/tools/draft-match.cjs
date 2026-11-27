@@ -135,7 +135,7 @@ async function playGame(game, useC, seedText, ms, rand, stats, pickers = null) {
           if (typeof gain === "number" && gain >= 100) e.score += Math.min(MAX_BONUS, gain / 50); // as the extension
         }
       }
-      if (stats.values && useC[actor]) for (const e of scored) e.score += stats.values[e.c.cardId] ?? 0;
+      if (stats.values && useC[actor]) for (const e of scored) e.score += (stats.values[e.c.cardId] ?? 0) * 0.5; // table weight as the extension
       let playout = null;
       let playoutPlies = 0;
       if (stats.playout) {

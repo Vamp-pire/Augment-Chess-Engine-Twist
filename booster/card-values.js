@@ -1,2 +1,4 @@
-// Card value table: empty until built from cloud playouts (tools/card-values.cjs --js).
-window.__acbCardValues = {};
+// Card value table (draft points added to the game's AI draft score).
+// Built 2026-11-27T06:05:32.295Z from 1440 games, 7908 drafts with playouts. See tools/card-values.cjs.
+// Used only while the game's card catalog is 6oPB70Asi_gm8jYJG1MPOC-3tD5z1AucJTbVbJouf3I (any change turns it off).
+window.__acbCardValues = {"catalogHash":"6oPB70Asi_gm8jYJG1MPOC-3tD5z1AucJTbVbJouf3I","weight":0.5,"built":"2026-11-27T06:05:32.295Z","points":{"dutch":2.4,"london-system":0.75,"thief":-3,"siren":-1.23,"wizard":-0.98,"otherworld":-0.64,"false-start":0.73,"queen-cavalry":1.28,"guard":1.46,"lobster":0.81,"barrier":-1.02,"mad-horse":0.84,"hedgehog":-2.7,"princess":-1.58,"horde":-3,"hook":-1.64,"offering":-1.07,"pawn-mutation":1.16,"undead":-3,"wanderer":-2.13,"iqp":0.92,"poisoned-pawn":0.71,"herald":-1.26,"trolley":0.88,"replay":0.86,"miracle":0.8,"initiative":1.01,"trojan-horse":1.03,"brutus":-3,"pawn-chain":0.65,"ghost":1.68,"checker":3,"elephant-escape":2.46,"last-stand":0.9,"omega-chesstron":-3,"fast-growth":0.48,"queens-gambit":-3,"mongolian-gambit":2.57}};

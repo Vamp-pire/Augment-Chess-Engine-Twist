@@ -1,0 +1,2063 @@
+{
+ "built": "2026-11-27T06:05:32.295Z",
+ "workers": [
+  "b1e9b324cb0c0990"
+ ],
+ "games": 1440,
+ "draftsUsed": 7908,
+ "k0": 8,
+ "z": 2,
+ "scale": 100,
+ "crossCheckCorr": 0.288,
+ "crossCheckCards": 251,
+ "points": {
+  "dutch": 2.4,
+  "london-system": 0.75,
+  "thief": -3,
+  "siren": -1.23,
+  "wizard": -0.98,
+  "otherworld": -0.64,
+  "false-start": 0.73,
+  "queen-cavalry": 1.28,
+  "guard": 1.46,
+  "lobster": 0.81,
+  "barrier": -1.02,
+  "mad-horse": 0.84,
+  "hedgehog": -2.7,
+  "princess": -1.58,
+  "horde": -3,
+  "hook": -1.64,
+  "offering": -1.07,
+  "pawn-mutation": 1.16,
+  "undead": -3,
+  "wanderer": -2.13,
+  "iqp": 0.92,
+  "poisoned-pawn": 0.71,
+  "herald": -1.26,
+  "trolley": 0.88,
+  "replay": 0.86,
+  "miracle": 0.8,
+  "initiative": 1.01,
+  "trojan-horse": 1.03,
+  "brutus": -3,
+  "pawn-chain": 0.65,
+  "ghost": 1.68,
+  "checker": 3,
+  "elephant-escape": 2.46,
+  "last-stand": 0.9,
+  "omega-chesstron": -3,
+  "fast-growth": 0.48,
+  "queens-gambit": -3,
+  "mongolian-gambit": 2.57
+ },
+ "detail": {
+  "disassembly": {
+   "n": 99,
+   "adv": -16,
+   "se": 41,
+   "shrunk": -14,
+   "points": 0,
+   "resultCoef": 0.002
+  },
+  "en-passant-bang": {
+   "n": 139,
+   "adv": -4,
+   "se": 25,
+   "shrunk": -3,
+   "points": 0,
+   "resultCoef": -0.024
+  },
+  "ice-sheet": {
+   "n": 102,
+   "adv": 24,
+   "se": 36,
+   "shrunk": 22,
+   "points": 0,
+   "resultCoef": -0.046
+  },
+  "dutch": {
+   "n": 55,
+   "adv": 274,
+   "se": 23,
+   "shrunk": 240,
+   "points": 2.4,
+   "resultCoef": -0.037
+  },
+  "london-system": {
+   "n": 49,
+   "adv": 88,
+   "se": 12,
+   "shrunk": 75,
+   "points": 0.75,
+   "resultCoef": -0.013
+  },
+  "long-en-passant": {
+   "n": 115,
+   "adv": -13,
+   "se": 31,
+   "shrunk": -13,
+   "points": 0,
+   "resultCoef": -0.013
+  },
+  "file-surge": {
+   "n": 97,
+   "adv": -31,
+   "se": 38,
+   "shrunk": -29,
+   "points": 0,
+   "resultCoef": 0.037
+  },
+  "frontline-response": {
+   "n": 127,
+   "adv": -16,
+   "se": 27,
+   "shrunk": -15,
+   "points": 0,
+   "resultCoef": 0.048
+  },
+  "premove": {
+   "n": 161,
+   "adv": 1,
+   "se": 33,
+   "shrunk": 1,
+   "points": 0,
+   "resultCoef": -0.025
+  },
+  "blockade": {
+   "n": 116,
+   "adv": 36,
+   "se": 33,
+   "shrunk": 34,
+   "points": 0,
+   "resultCoef": 0.078
+  },
+  "e4": {
+   "n": 90,
+   "adv": -9,
+   "se": 41,
+   "shrunk": -8,
+   "points": 0,
+   "resultCoef": -0.02
+  },
+  "vortex": {
+   "n": 81,
+   "adv": 4,
+   "se": 32,
+   "shrunk": 4,
+   "points": 0,
+   "resultCoef": -0.067
+  },
+  "dragon": {
+   "n": 138,
+   "adv": 9,
+   "se": 25,
+   "shrunk": 9,
+   "points": 0,
+   "resultCoef": -0.011
+  },
+  "infiltration": {
+   "n": 101,
+   "adv": 30,
+   "se": 31,
+   "shrunk": 28,
+   "points": 0,
+   "resultCoef": -0.041
+  },
+  "resolve": {
+   "n": 83,
+   "adv": 19,
+   "se": 39,
+   "shrunk": 18,
+   "points": 0,
+   "resultCoef": -0.039
+  },
+  "mistake-card": {
+   "n": 124,
+   "adv": 13,
+   "se": 29,
+   "shrunk": 12,
+   "points": 0,
+   "resultCoef": -0.02
+  },
+  "retreat": {
+   "n": 129,
+   "adv": 90,
+   "se": 52,
+   "shrunk": 84,
+   "points": 0,
+   "resultCoef": 0.071
+  },
+  "suicide-bomber": {
+   "n": 128,
+   "adv": 9,
+   "se": 27,
+   "shrunk": 8,
+   "points": 0,
+   "resultCoef": -0.018
+  },
+  "injury": {
+   "n": 89,
+   "adv": 45,
+   "se": 37,
+   "shrunk": 41,
+   "points": 0,
+   "resultCoef": 0.084
+  },
+  "reaper": {
+   "n": 105,
+   "adv": -22,
+   "se": 27,
+   "shrunk": -21,
+   "points": 0,
+   "resultCoef": -0.049
+  },
+  "promotion-rush": {
+   "n": 119,
+   "adv": 3,
+   "se": 43,
+   "shrunk": 3,
+   "points": 0,
+   "resultCoef": -0.07
+  },
+  "thief": {
+   "n": 56,
+   "adv": -478,
+   "se": 60,
+   "shrunk": -418,
+   "points": -3,
+   "resultCoef": -0.071
+  },
+  "racing-king": {
+   "n": 84,
+   "adv": 38,
+   "se": 57,
+   "shrunk": 35,
+   "points": 0,
+   "resultCoef": 0.015
+  },
+  "slime": {
+   "n": 134,
+   "adv": 18,
+   "se": 29,
+   "shrunk": 17,
+   "points": 0,
+   "resultCoef": 0.012
+  },
+  "submerge": {
+   "n": 98,
+   "adv": -10,
+   "se": 23,
+   "shrunk": -9,
+   "points": 0,
+   "resultCoef": 0
+  },
+  "color-bound": {
+   "n": 96,
+   "adv": -17,
+   "se": 43,
+   "shrunk": -16,
+   "points": 0,
+   "resultCoef": -0.027
+  },
+  "dice": {
+   "n": 108,
+   "adv": -62,
+   "se": 40,
+   "shrunk": -57,
+   "points": 0,
+   "resultCoef": -0.008
+  },
+  "solidarity": {
+   "n": 99,
+   "adv": 62,
+   "se": 41,
+   "shrunk": 57,
+   "points": 0,
+   "resultCoef": 0
+  },
+  "cleanup-sacrifice": {
+   "n": 58,
+   "adv": 107,
+   "se": 82,
+   "shrunk": 94,
+   "points": 0,
+   "resultCoef": 0.021
+  },
+  "horse-riding": {
+   "n": 107,
+   "adv": -39,
+   "se": 36,
+   "shrunk": -36,
+   "points": 0,
+   "resultCoef": -0.021
+  },
+  "majesty": {
+   "n": 127,
+   "adv": 60,
+   "se": 37,
+   "shrunk": 56,
+   "points": 0,
+   "resultCoef": 0
+  },
+  "antichess": {
+   "n": 134,
+   "adv": -20,
+   "se": 27,
+   "shrunk": -19,
+   "points": 0,
+   "resultCoef": 0.064
+  },
+  "don-quixote": {
+   "n": 114,
+   "adv": 61,
+   "se": 37,
+   "shrunk": 57,
+   "points": 0,
+   "resultCoef": -0.063
+  },
+  "gomoku": {
+   "n": 75,
+   "adv": 40,
+   "se": 58,
+   "shrunk": 36,
+   "points": 0,
+   "resultCoef": -0.014
+  },
+  "apprentice-knights": {
+   "n": 57,
+   "adv": 20,
+   "se": 18,
+   "shrunk": 18,
+   "points": 0,
+   "resultCoef": 0.013
+  },
+  "assassin": {
+   "n": 119,
+   "adv": 2,
+   "se": 30,
+   "shrunk": 2,
+   "points": 0,
+   "resultCoef": -0.038
+  },
+  "ice-king": {
+   "n": 109,
+   "adv": 27,
+   "se": 38,
+   "shrunk": 25,
+   "points": 0,
+   "resultCoef": -0.019
+  },
+  "greek-gift": {
+   "n": 123,
+   "adv": -33,
+   "se": 26,
+   "shrunk": -31,
+   "points": 0,
+   "resultCoef": -0.001
+  },
+  "homecoming": {
+   "n": 84,
+   "adv": -21,
+   "se": 57,
+   "shrunk": -19,
+   "points": 0,
+   "resultCoef": 0.013
+  },
+  "log": {
+   "n": 86,
+   "adv": -29,
+   "se": 19,
+   "shrunk": -26,
+   "points": 0,
+   "resultCoef": 0.011
+  },
+  "cleanup": {
+   "n": 99,
+   "adv": 55,
+   "se": 33,
+   "shrunk": 51,
+   "points": 0,
+   "resultCoef": 0.007
+  },
+  "death-squad": {
+   "n": 68,
+   "adv": -6,
+   "se": 49,
+   "shrunk": -6,
+   "points": 0,
+   "resultCoef": 0.006
+  },
+  "feudal-contract": {
+   "n": 138,
+   "adv": 7,
+   "se": 30,
+   "shrunk": 7,
+   "points": 0,
+   "resultCoef": 0.065
+  },
+  "chimera": {
+   "n": 109,
+   "adv": -25,
+   "se": 29,
+   "shrunk": -23,
+   "points": 0,
+   "resultCoef": -0.014
+  },
+  "killer-king": {
+   "n": 140,
+   "adv": 15,
+   "se": 40,
+   "shrunk": 14,
+   "points": 0,
+   "resultCoef": 0.185
+  },
+  "symmetry": {
+   "n": 130,
+   "adv": 9,
+   "se": 31,
+   "shrunk": 9,
+   "points": 0,
+   "resultCoef": -0.039
+  },
+  "royal-command": {
+   "n": 121,
+   "adv": 16,
+   "se": 32,
+   "shrunk": 15,
+   "points": 0,
+   "resultCoef": -0.032
+  },
+  "siren": {
+   "n": 86,
+   "adv": -134,
+   "se": 41,
+   "shrunk": -123,
+   "points": -1.23,
+   "resultCoef": 0.014
+  },
+  "wizard": {
+   "n": 58,
+   "adv": -111,
+   "se": 54,
+   "shrunk": -98,
+   "points": -0.98,
+   "resultCoef": -0.056
+  },
+  "encouragement": {
+   "n": 129,
+   "adv": 15,
+   "se": 32,
+   "shrunk": 14,
+   "points": 0,
+   "resultCoef": 0.005
+  },
+  "locust-swarm": {
+   "n": 74,
+   "adv": -21,
+   "se": 18,
+   "shrunk": -19,
+   "points": 0,
+   "resultCoef": 0.03
+  },
+  "armistice": {
+   "n": 135,
+   "adv": -25,
+   "se": 23,
+   "shrunk": -24,
+   "points": 0,
+   "resultCoef": -0.027
+  },
+  "exhaustion": {
+   "n": 104,
+   "adv": 24,
+   "se": 32,
+   "shrunk": 22,
+   "points": 0,
+   "resultCoef": 0.084
+  },
+  "otherworld": {
+   "n": 57,
+   "adv": -73,
+   "se": 21,
+   "shrunk": -64,
+   "points": -0.64,
+   "resultCoef": -0.047
+  },
+  "clockwork": {
+   "n": 122,
+   "adv": 18,
+   "se": 29,
+   "shrunk": 17,
+   "points": 0,
+   "resultCoef": -0.049
+  },
+  "disarm": {
+   "n": 138,
+   "adv": 31,
+   "se": 28,
+   "shrunk": 29,
+   "points": 0,
+   "resultCoef": -0.083
+  },
+  "suspicious-potion": {
+   "n": 104,
+   "adv": 34,
+   "se": 35,
+   "shrunk": 32,
+   "points": 0,
+   "resultCoef": 0.025
+  },
+  "constitutional-monarchy": {
+   "n": 74,
+   "adv": -40,
+   "se": 40,
+   "shrunk": -37,
+   "points": 0,
+   "resultCoef": -0.001
+  },
+  "final-weapon": {
+   "n": 56,
+   "adv": 56,
+   "se": 46,
+   "shrunk": 49,
+   "points": 0,
+   "resultCoef": 0.008
+  },
+  "othello": {
+   "n": 101,
+   "adv": -14,
+   "se": 41,
+   "shrunk": -13,
+   "points": 0,
+   "resultCoef": -0.029
+  },
+  "parry": {
+   "n": 134,
+   "adv": -13,
+   "se": 33,
+   "shrunk": -12,
+   "points": 0,
+   "resultCoef": -0.05
+  },
+  "false-start": {
+   "n": 65,
+   "adv": 82,
+   "se": 37,
+   "shrunk": 73,
+   "points": 0.73,
+   "resultCoef": 0.055
+  },
+  "queen-cavalry": {
+   "n": 53,
+   "adv": 147,
+   "se": 18,
+   "shrunk": 128,
+   "points": 1.28,
+   "resultCoef": 0.007
+  },
+  "uplift": {
+   "n": 122,
+   "adv": 42,
+   "se": 29,
+   "shrunk": 39,
+   "points": 0,
+   "resultCoef": -0.043
+  },
+  "grasshopper": {
+   "n": 101,
+   "adv": -7,
+   "se": 20,
+   "shrunk": -6,
+   "points": 0,
+   "resultCoef": -0.036
+  },
+  "grappler": {
+   "n": 101,
+   "adv": -38,
+   "se": 33,
+   "shrunk": -36,
+   "points": 0,
+   "resultCoef": -0.048
+  },
+  "judgment": {
+   "n": 87,
+   "adv": 23,
+   "se": 35,
+   "shrunk": 21,
+   "points": 0,
+   "resultCoef": 0
+  },
+  "relay": {
+   "n": 99,
+   "adv": 40,
+   "se": 37,
+   "shrunk": 37,
+   "points": 0,
+   "resultCoef": -0.025
+  },
+  "bombardment": {
+   "n": 39,
+   "adv": -87,
+   "se": 45,
+   "shrunk": -72,
+   "points": 0,
+   "resultCoef": -0.026
+  },
+  "killer": {
+   "n": 130,
+   "adv": 1,
+   "se": 20,
+   "shrunk": 1,
+   "points": 0,
+   "resultCoef": -0.048
+  },
+  "ultimatum": {
+   "n": 46,
+   "adv": 85,
+   "se": 92,
+   "shrunk": 73,
+   "points": 0,
+   "resultCoef": -0.008
+  },
+  "random-roulette": {
+   "n": 138,
+   "adv": 10,
+   "se": 43,
+   "shrunk": 9,
+   "points": 0,
+   "resultCoef": -0.015
+  },
+  "reformation": {
+   "n": 109,
+   "adv": -12,
+   "se": 30,
+   "shrunk": -11,
+   "points": 0,
+   "resultCoef": 0
+  },
+  "basic-training": {
+   "n": 126,
+   "adv": -13,
+   "se": 29,
+   "shrunk": -12,
+   "points": 0,
+   "resultCoef": -0.012
+  },
+  "guard": {
+   "n": 70,
+   "adv": 163,
+   "se": 22,
+   "shrunk": 146,
+   "points": 1.46,
+   "resultCoef": 0.013
+  },
+  "scarecrow": {
+   "n": 96,
+   "adv": -46,
+   "se": 35,
+   "shrunk": -43,
+   "points": 0,
+   "resultCoef": -0.064
+  },
+  "ordination": {
+   "n": 60,
+   "adv": 65,
+   "se": 40,
+   "shrunk": 58,
+   "points": 0,
+   "resultCoef": -0.001
+  },
+  "socialism": {
+   "n": 151,
+   "adv": 17,
+   "se": 24,
+   "shrunk": 16,
+   "points": 0,
+   "resultCoef": -0.068
+  },
+  "chain": {
+   "n": 96,
+   "adv": -35,
+   "se": 23,
+   "shrunk": -32,
+   "points": 0,
+   "resultCoef": 0.033
+  },
+  "lobster": {
+   "n": 56,
+   "adv": 93,
+   "se": 46,
+   "shrunk": 81,
+   "points": 0.81,
+   "resultCoef": -0.021
+  },
+  "eastern-policy": {
+   "n": 113,
+   "adv": -31,
+   "se": 26,
+   "shrunk": -29,
+   "points": 0,
+   "resultCoef": -0.076
+  },
+  "insight": {
+   "n": 154,
+   "adv": 35,
+   "se": 24,
+   "shrunk": 34,
+   "points": 0,
+   "resultCoef": -0.053
+  },
+  "severance": {
+   "n": 150,
+   "adv": -21,
+   "se": 32,
+   "shrunk": -20,
+   "points": 0,
+   "resultCoef": 0.054
+  },
+  "barrier": {
+   "n": 129,
+   "adv": -108,
+   "se": 48,
+   "shrunk": -102,
+   "points": -1.02,
+   "resultCoef": -0.206
+  },
+  "mad-horse": {
+   "n": 134,
+   "adv": 89,
+   "se": 37,
+   "shrunk": 84,
+   "points": 0.84,
+   "resultCoef": 0.049
+  },
+  "field-promotion": {
+   "n": 56,
+   "adv": -19,
+   "se": 22,
+   "shrunk": -17,
+   "points": 0,
+   "resultCoef": 0.019
+  },
+  "grudge": {
+   "n": 67,
+   "adv": -8,
+   "se": 23,
+   "shrunk": -7,
+   "points": 0,
+   "resultCoef": -0.006
+  },
+  "geneva-convention": {
+   "n": 61,
+   "adv": 25,
+   "se": 19,
+   "shrunk": 22,
+   "points": 0,
+   "resultCoef": -0.037
+  },
+  "conscription": {
+   "n": 68,
+   "adv": -38,
+   "se": 46,
+   "shrunk": -34,
+   "points": 0,
+   "resultCoef": -0.055
+  },
+  "hedgehog": {
+   "n": 102,
+   "adv": -291,
+   "se": 39,
+   "shrunk": -270,
+   "points": -2.7,
+   "resultCoef": 0.052
+  },
+  "vip": {
+   "n": 71,
+   "adv": -15,
+   "se": 53,
+   "shrunk": -13,
+   "points": 0,
+   "resultCoef": -0.027
+  },
+  "bina-mate": {
+   "n": 86,
+   "adv": 29,
+   "se": 48,
+   "shrunk": 26,
+   "points": 0,
+   "resultCoef": 0.008
+  },
+  "emergency-evacuation": {
+   "n": 91,
+   "adv": -22,
+   "se": 28,
+   "shrunk": -21,
+   "points": 0,
+   "resultCoef": -0.006
+  },
+  "transmission-tower": {
+   "n": 137,
+   "adv": 25,
+   "se": 39,
+   "shrunk": 23,
+   "points": 0,
+   "resultCoef": 0.027
+  },
+  "trickster": {
+   "n": 143,
+   "adv": 7,
+   "se": 35,
+   "shrunk": 7,
+   "points": 0,
+   "resultCoef": -0.156
+  },
+  "leap": {
+   "n": 102,
+   "adv": 51,
+   "se": 50,
+   "shrunk": 47,
+   "points": 0,
+   "resultCoef": 0.154
+  },
+  "religious-victory": {
+   "n": 73,
+   "adv": -26,
+   "se": 15,
+   "shrunk": -23,
+   "points": 0,
+   "resultCoef": 0.012
+  },
+  "zugzwang": {
+   "n": 58,
+   "adv": 39,
+   "se": 36,
+   "shrunk": 34,
+   "points": 0,
+   "resultCoef": -0.007
+  },
+  "overwhelm": {
+   "n": 85,
+   "adv": -3,
+   "se": 14,
+   "shrunk": -3,
+   "points": 0,
+   "resultCoef": -0.069
+  },
+  "princess": {
+   "n": 60,
+   "adv": -179,
+   "se": 20,
+   "shrunk": -158,
+   "points": -1.58,
+   "resultCoef": 0.006
+  },
+  "horde": {
+   "n": 33,
+   "adv": -430,
+   "se": 30,
+   "shrunk": -346,
+   "points": -3,
+   "resultCoef": -0.054
+  },
+  "magic-girl": {
+   "n": 113,
+   "adv": 16,
+   "se": 54,
+   "shrunk": 15,
+   "points": 0,
+   "resultCoef": -0.01
+  },
+  "roller": {
+   "n": 94,
+   "adv": 16,
+   "se": 30,
+   "shrunk": 15,
+   "points": 0,
+   "resultCoef": -0.071
+  },
+  "hook": {
+   "n": 102,
+   "adv": -177,
+   "se": 39,
+   "shrunk": -164,
+   "points": -1.64,
+   "resultCoef": 0.012
+  },
+  "vanish": {
+   "n": 45,
+   "adv": -9,
+   "se": 68,
+   "shrunk": -7,
+   "points": 0,
+   "resultCoef": 0.019
+  },
+  "black-box": {
+   "n": 107,
+   "adv": -18,
+   "se": 30,
+   "shrunk": -17,
+   "points": 0,
+   "resultCoef": 0.052
+  },
+  "emperor": {
+   "n": 94,
+   "adv": 1,
+   "se": 32,
+   "shrunk": 1,
+   "points": 0,
+   "resultCoef": -0.055
+  },
+  "offering": {
+   "n": 135,
+   "adv": -113,
+   "se": 48,
+   "shrunk": -107,
+   "points": -1.07,
+   "resultCoef": 0.007
+  },
+  "frenzy": {
+   "n": 98,
+   "adv": -29,
+   "se": 56,
+   "shrunk": -27,
+   "points": 0,
+   "resultCoef": -0.042
+  },
+  "last-resistance": {
+   "n": 87,
+   "adv": 15,
+   "se": 48,
+   "shrunk": 14,
+   "points": 0,
+   "resultCoef": -0.006
+  },
+  "backward-knight": {
+   "n": 90,
+   "adv": -6,
+   "se": 47,
+   "shrunk": -5,
+   "points": 0,
+   "resultCoef": 0.022
+  },
+  "joker": {
+   "n": 47,
+   "adv": 75,
+   "se": 69,
+   "shrunk": 64,
+   "points": 0,
+   "resultCoef": -0.014
+  },
+  "pope": {
+   "n": 119,
+   "adv": -2,
+   "se": 30,
+   "shrunk": -2,
+   "points": 0,
+   "resultCoef": 0.043
+  },
+  "early-promotion": {
+   "n": 62,
+   "adv": 20,
+   "se": 12,
+   "shrunk": 17,
+   "points": 0,
+   "resultCoef": 0.03
+  },
+  "pawn-mutation": {
+   "n": 53,
+   "adv": 134,
+   "se": 17,
+   "shrunk": 116,
+   "points": 1.16,
+   "resultCoef": 0.039
+  },
+  "windmill": {
+   "n": 81,
+   "adv": -31,
+   "se": 36,
+   "shrunk": -28,
+   "points": 0,
+   "resultCoef": 0.006
+  },
+  "barricade": {
+   "n": 75,
+   "adv": -72,
+   "se": 51,
+   "shrunk": -65,
+   "points": 0,
+   "resultCoef": -0.008
+  },
+  "alekhine-machine-gun": {
+   "n": 83,
+   "adv": 56,
+   "se": 33,
+   "shrunk": 51,
+   "points": 0,
+   "resultCoef": -0.021
+  },
+  "outpost": {
+   "n": 63,
+   "adv": 36,
+   "se": 42,
+   "shrunk": 32,
+   "points": 0,
+   "resultCoef": 0.018
+  },
+  "stealth": {
+   "n": 120,
+   "adv": 9,
+   "se": 29,
+   "shrunk": 8,
+   "points": 0,
+   "resultCoef": 0.009
+  },
+  "fleeting-dream": {
+   "n": 81,
+   "adv": 56,
+   "se": 64,
+   "shrunk": 51,
+   "points": 0,
+   "resultCoef": -0.006
+  },
+  "hope": {
+   "n": 110,
+   "adv": 16,
+   "se": 30,
+   "shrunk": 15,
+   "points": 0,
+   "resultCoef": 0.057
+  },
+  "breakthrough-order": {
+   "n": 136,
+   "adv": 46,
+   "se": 33,
+   "shrunk": 44,
+   "points": 0,
+   "resultCoef": -0.065
+  },
+  "necromancy": {
+   "n": 95,
+   "adv": 22,
+   "se": 49,
+   "shrunk": 20,
+   "points": 0,
+   "resultCoef": -0.007
+  },
+  "chancellor": {
+   "n": 108,
+   "adv": 62,
+   "se": 38,
+   "shrunk": 57,
+   "points": 0,
+   "resultCoef": 0.007
+  },
+  "pawn-conversion": {
+   "n": 55,
+   "adv": 8,
+   "se": 18,
+   "shrunk": 7,
+   "points": 0,
+   "resultCoef": -0.06
+  },
+  "counterattack": {
+   "n": 135,
+   "adv": 6,
+   "se": 23,
+   "shrunk": 6,
+   "points": 0,
+   "resultCoef": -0.03
+  },
+  "fanatical-ritual": {
+   "n": 94,
+   "adv": -6,
+   "se": 28,
+   "shrunk": -5,
+   "points": 0,
+   "resultCoef": 0.001
+  },
+  "pawn-storm": {
+   "n": 97,
+   "adv": -17,
+   "se": 39,
+   "shrunk": -15,
+   "points": 0,
+   "resultCoef": 0.033
+  },
+  "seal": {
+   "n": 149,
+   "adv": 28,
+   "se": 33,
+   "shrunk": 27,
+   "points": 0,
+   "resultCoef": -0.056
+  },
+  "white-box": {
+   "n": 101,
+   "adv": 47,
+   "se": 47,
+   "shrunk": 44,
+   "points": 0,
+   "resultCoef": 0.012
+  },
+  "castling": {
+   "n": 94,
+   "adv": 30,
+   "se": 29,
+   "shrunk": 28,
+   "points": 0,
+   "resultCoef": -0.028
+  },
+  "vigilance": {
+   "n": 108,
+   "adv": -11,
+   "se": 37,
+   "shrunk": -11,
+   "points": 0,
+   "resultCoef": 0.033
+  },
+  "brainwash": {
+   "n": 75,
+   "adv": -12,
+   "se": 54,
+   "shrunk": -11,
+   "points": 0,
+   "resultCoef": 0.059
+  },
+  "octopus": {
+   "n": 115,
+   "adv": -14,
+   "se": 35,
+   "shrunk": -14,
+   "points": 0,
+   "resultCoef": 0.023
+  },
+  "overtake": {
+   "n": 158,
+   "adv": -24,
+   "se": 23,
+   "shrunk": -23,
+   "points": 0,
+   "resultCoef": -0.029
+  },
+  "undead": {
+   "n": 100,
+   "adv": -392,
+   "se": 27,
+   "shrunk": -363,
+   "points": -3,
+   "resultCoef": -0.107
+  },
+  "inertia": {
+   "n": 138,
+   "adv": -26,
+   "se": 43,
+   "shrunk": -25,
+   "points": 0,
+   "resultCoef": -0.028
+  },
+  "idol": {
+   "n": 90,
+   "adv": 20,
+   "se": 32,
+   "shrunk": 19,
+   "points": 0,
+   "resultCoef": -0.016
+  },
+  "local-conscription": {
+   "n": 104,
+   "adv": -19,
+   "se": 34,
+   "shrunk": -17,
+   "points": 0,
+   "resultCoef": 0.047
+  },
+  "moving": {
+   "n": 89,
+   "adv": 30,
+   "se": 53,
+   "shrunk": 27,
+   "points": 0,
+   "resultCoef": 0.13
+  },
+  "wanderer": {
+   "n": 132,
+   "adv": -226,
+   "se": 30,
+   "shrunk": -213,
+   "points": -2.13,
+   "resultCoef": -0.02
+  },
+  "sprint": {
+   "n": 56,
+   "adv": -14,
+   "se": 23,
+   "shrunk": -12,
+   "points": 0,
+   "resultCoef": 0.05
+  },
+  "chameleon-mutation": {
+   "n": 56,
+   "adv": 23,
+   "se": 24,
+   "shrunk": 20,
+   "points": 0,
+   "resultCoef": 0.007
+  },
+  "iqp": {
+   "n": 77,
+   "adv": 101,
+   "se": 17,
+   "shrunk": 92,
+   "points": 0.92,
+   "resultCoef": 0.021
+  },
+  "prophecy": {
+   "n": 51,
+   "adv": 54,
+   "se": 46,
+   "shrunk": 47,
+   "points": 0,
+   "resultCoef": 0.09
+  },
+  "underpromotion": {
+   "n": 53,
+   "adv": 56,
+   "se": 54,
+   "shrunk": 49,
+   "points": 0,
+   "resultCoef": 0.052
+  },
+  "poisoned-pawn": {
+   "n": 106,
+   "adv": 76,
+   "se": 38,
+   "shrunk": 71,
+   "points": 0.71,
+   "resultCoef": 0.024
+  },
+  "recurrence": {
+   "n": 98,
+   "adv": -8,
+   "se": 38,
+   "shrunk": -7,
+   "points": 0,
+   "resultCoef": 0.033
+  },
+  "herald": {
+   "n": 80,
+   "adv": -138,
+   "se": 31,
+   "shrunk": -126,
+   "points": -1.26,
+   "resultCoef": -0.071
+  },
+  "metal": {
+   "n": 118,
+   "adv": 15,
+   "se": 35,
+   "shrunk": 14,
+   "points": 0,
+   "resultCoef": -0.025
+  },
+  "pegasus": {
+   "n": 95,
+   "adv": 58,
+   "se": 43,
+   "shrunk": 54,
+   "points": 0,
+   "resultCoef": 0.005
+  },
+  "taunt": {
+   "n": 123,
+   "adv": 7,
+   "se": 35,
+   "shrunk": 6,
+   "points": 0,
+   "resultCoef": 0.027
+  },
+  "medium": {
+   "n": 86,
+   "adv": -28,
+   "se": 34,
+   "shrunk": -26,
+   "points": 0,
+   "resultCoef": 0.019
+  },
+  "radical-charge": {
+   "n": 94,
+   "adv": 25,
+   "se": 19,
+   "shrunk": 23,
+   "points": 0,
+   "resultCoef": 0.052
+  },
+  "reversal": {
+   "n": 66,
+   "adv": 56,
+   "se": 48,
+   "shrunk": 50,
+   "points": 0,
+   "resultCoef": -0.013
+  },
+  "schrodinger-pawns": {
+   "n": 78,
+   "adv": 18,
+   "se": 43,
+   "shrunk": 17,
+   "points": 0,
+   "resultCoef": -0.037
+  },
+  "bishop-infiltration": {
+   "n": 98,
+   "adv": 29,
+   "se": 28,
+   "shrunk": 27,
+   "points": 0,
+   "resultCoef": -0.006
+  },
+  "trolley": {
+   "n": 63,
+   "adv": 99,
+   "se": 48,
+   "shrunk": 88,
+   "points": 0.88,
+   "resultCoef": 0.013
+  },
+  "freeze": {
+   "n": 114,
+   "adv": -24,
+   "se": 40,
+   "shrunk": -22,
+   "points": 0,
+   "resultCoef": -0.011
+  },
+  "quantum-mechanics": {
+   "n": 101,
+   "adv": 18,
+   "se": 31,
+   "shrunk": 17,
+   "points": 0,
+   "resultCoef": -0.007
+  },
+  "hypocrisy": {
+   "n": 97,
+   "adv": -85,
+   "se": 46,
+   "shrunk": -78,
+   "points": 0,
+   "resultCoef": -0.016
+  },
+  "synchronization": {
+   "n": 102,
+   "adv": -39,
+   "se": 39,
+   "shrunk": -36,
+   "points": 0,
+   "resultCoef": -0.044
+  },
+  "parrot": {
+   "n": 119,
+   "adv": 7,
+   "se": 45,
+   "shrunk": 6,
+   "points": 0,
+   "resultCoef": -0.026
+  },
+  "revolving-door": {
+   "n": 116,
+   "adv": 31,
+   "se": 32,
+   "shrunk": 29,
+   "points": 0,
+   "resultCoef": 0.038
+  },
+  "portal-gun": {
+   "n": 86,
+   "adv": -36,
+   "se": 51,
+   "shrunk": -33,
+   "points": 0,
+   "resultCoef": -0.054
+  },
+  "sleepwalking": {
+   "n": 146,
+   "adv": 10,
+   "se": 21,
+   "shrunk": 9,
+   "points": 0,
+   "resultCoef": -0.044
+  },
+  "paladin": {
+   "n": 73,
+   "adv": 62,
+   "se": 33,
+   "shrunk": 56,
+   "points": 0,
+   "resultCoef": 0
+  },
+  "traitor": {
+   "n": 88,
+   "adv": 94,
+   "se": 60,
+   "shrunk": 86,
+   "points": 0,
+   "resultCoef": 0.006
+  },
+  "wanted": {
+   "n": 48,
+   "adv": 39,
+   "se": 36,
+   "shrunk": 34,
+   "points": 0,
+   "resultCoef": 0.059
+  },
+  "replay": {
+   "n": 120,
+   "adv": 92,
+   "se": 45,
+   "shrunk": 86,
+   "points": 0.86,
+   "resultCoef": -0.07
+  },
+  "twins": {
+   "n": 157,
+   "adv": 19,
+   "se": 33,
+   "shrunk": 18,
+   "points": 0,
+   "resultCoef": 0.008
+  },
+  "coronation": {
+   "n": 51,
+   "adv": 51,
+   "se": 61,
+   "shrunk": 44,
+   "points": 0,
+   "resultCoef": -0.02
+  },
+  "witch-trial": {
+   "n": 57,
+   "adv": 40,
+   "se": 50,
+   "shrunk": 35,
+   "points": 0,
+   "resultCoef": 0.012
+  },
+  "canceling": {
+   "n": 46,
+   "adv": -34,
+   "se": 73,
+   "shrunk": -29,
+   "points": 0,
+   "resultCoef": -0.076
+  },
+  "palace": {
+   "n": 81,
+   "adv": 8,
+   "se": 43,
+   "shrunk": 7,
+   "points": 0,
+   "resultCoef": -0.002
+  },
+  "miracle": {
+   "n": 144,
+   "adv": 84,
+   "se": 28,
+   "shrunk": 80,
+   "points": 0.8,
+   "resultCoef": -0.009
+  },
+  "penta-check": {
+   "n": 39,
+   "adv": -13,
+   "se": 47,
+   "shrunk": -11,
+   "points": 0,
+   "resultCoef": 0.046
+  },
+  "missionary": {
+   "n": 99,
+   "adv": -26,
+   "se": 30,
+   "shrunk": -24,
+   "points": 0,
+   "resultCoef": 0.014
+  },
+  "file-conveyor": {
+   "n": 100,
+   "adv": -11,
+   "se": 33,
+   "shrunk": -10,
+   "points": 0,
+   "resultCoef": 0.025
+  },
+  "nullification": {
+   "n": 122,
+   "adv": -10,
+   "se": 31,
+   "shrunk": -10,
+   "points": 0,
+   "resultCoef": 0.013
+  },
+  "initiative": {
+   "n": 67,
+   "adv": 113,
+   "se": 23,
+   "shrunk": 101,
+   "points": 1.01,
+   "resultCoef": -0.007
+  },
+  "knightmaster": {
+   "n": 70,
+   "adv": 18,
+   "se": 35,
+   "shrunk": 16,
+   "points": 0,
+   "resultCoef": -0.001
+  },
+  "man": {
+   "n": 121,
+   "adv": -2,
+   "se": 26,
+   "shrunk": -2,
+   "points": 0,
+   "resultCoef": -0.074
+  },
+  "clone": {
+   "n": 41,
+   "adv": 56,
+   "se": 93,
+   "shrunk": 47,
+   "points": 0,
+   "resultCoef": 0.072
+  },
+  "imperial-studies": {
+   "n": 129,
+   "adv": 77,
+   "se": 39,
+   "shrunk": 72,
+   "points": 0,
+   "resultCoef": 0.126
+  },
+  "eagle": {
+   "n": 115,
+   "adv": 31,
+   "se": 28,
+   "shrunk": 29,
+   "points": 0,
+   "resultCoef": 0.024
+  },
+  "campfire": {
+   "n": 120,
+   "adv": 17,
+   "se": 38,
+   "shrunk": 16,
+   "points": 0,
+   "resultCoef": 0.001
+  },
+  "standard-bearer": {
+   "n": 108,
+   "adv": -24,
+   "se": 28,
+   "shrunk": -22,
+   "points": 0,
+   "resultCoef": -0.02
+  },
+  "spy": {
+   "n": 73,
+   "adv": -2,
+   "se": 34,
+   "shrunk": -2,
+   "points": 0,
+   "resultCoef": -0.013
+  },
+  "calling-card": {
+   "n": 51,
+   "adv": -47,
+   "se": 31,
+   "shrunk": -41,
+   "points": 0,
+   "resultCoef": 0.034
+  },
+  "holdout": {
+   "n": 62,
+   "adv": -7,
+   "se": 20,
+   "shrunk": -6,
+   "points": 0,
+   "resultCoef": 0.033
+  },
+  "trojan-horse": {
+   "n": 97,
+   "adv": 112,
+   "se": 43,
+   "shrunk": 103,
+   "points": 1.03,
+   "resultCoef": 0.018
+  },
+  "king-of-the-hill": {
+   "n": 47,
+   "adv": 25,
+   "se": 29,
+   "shrunk": 21,
+   "points": 0,
+   "resultCoef": 0.032
+  },
+  "switcheroo": {
+   "n": 95,
+   "adv": 0,
+   "se": 39,
+   "shrunk": 0,
+   "points": 0,
+   "resultCoef": -0.014
+  },
+  "evasion": {
+   "n": 89,
+   "adv": -17,
+   "se": 50,
+   "shrunk": -15,
+   "points": 0,
+   "resultCoef": -0.019
+  },
+  "taboo": {
+   "n": 67,
+   "adv": 74,
+   "se": 50,
+   "shrunk": 66,
+   "points": 0,
+   "resultCoef": -0.02
+  },
+  "brutus": {
+   "n": 83,
+   "adv": -338,
+   "se": 148,
+   "shrunk": -308,
+   "points": -3,
+   "resultCoef": -0.109
+  },
+  "collapse": {
+   "n": 82,
+   "adv": 10,
+   "se": 53,
+   "shrunk": 9,
+   "points": 0,
+   "resultCoef": 0.03
+  },
+  "proficiency": {
+   "n": 91,
+   "adv": 13,
+   "se": 35,
+   "shrunk": 12,
+   "points": 0,
+   "resultCoef": -0.007
+  },
+  "rook-lift": {
+   "n": 121,
+   "adv": -7,
+   "se": 38,
+   "shrunk": -6,
+   "points": 0,
+   "resultCoef": -0.03
+  },
+  "snipe": {
+   "n": 123,
+   "adv": 4,
+   "se": 32,
+   "shrunk": 4,
+   "points": 0,
+   "resultCoef": -0.037
+  },
+  "archbishop": {
+   "n": 101,
+   "adv": -8,
+   "se": 26,
+   "shrunk": -8,
+   "points": 0,
+   "resultCoef": -0.017
+  },
+  "pawn-chain": {
+   "n": 33,
+   "adv": 81,
+   "se": 27,
+   "shrunk": 65,
+   "points": 0.65,
+   "resultCoef": 0.034
+  },
+  "empty-lunchbox": {
+   "n": 101,
+   "adv": -54,
+   "se": 35,
+   "shrunk": -50,
+   "points": 0,
+   "resultCoef": -0.005
+  },
+  "ghost": {
+   "n": 152,
+   "adv": 176,
+   "se": 50,
+   "shrunk": 168,
+   "points": 1.68,
+   "resultCoef": 0.329
+  },
+  "exile": {
+   "n": 105,
+   "adv": -25,
+   "se": 40,
+   "shrunk": -23,
+   "points": 0,
+   "resultCoef": 0.014
+  },
+  "iron-monarch": {
+   "n": 77,
+   "adv": -8,
+   "se": 23,
+   "shrunk": -7,
+   "points": 0,
+   "resultCoef": 0.009
+  },
+  "corner-kick": {
+   "n": 117,
+   "adv": -3,
+   "se": 27,
+   "shrunk": -3,
+   "points": 0,
+   "resultCoef": -0.008
+  },
+  "panic": {
+   "n": 100,
+   "adv": 6,
+   "se": 23,
+   "shrunk": 6,
+   "points": 0,
+   "resultCoef": -0.019
+  },
+  "citadel": {
+   "n": 49,
+   "adv": 52,
+   "se": 41,
+   "shrunk": 45,
+   "points": 0,
+   "resultCoef": 0.001
+  },
+  "checker": {
+   "n": 58,
+   "adv": 557,
+   "se": 80,
+   "shrunk": 490,
+   "points": 3,
+   "resultCoef": 0.049
+  },
+  "vanguard": {
+   "n": 48,
+   "adv": -21,
+   "se": 24,
+   "shrunk": -18,
+   "points": 0,
+   "resultCoef": 0.048
+  },
+  "highlander": {
+   "n": 39,
+   "adv": 19,
+   "se": 83,
+   "shrunk": 16,
+   "points": 0,
+   "resultCoef": 0.038
+  },
+  "reverse-pawns": {
+   "n": 42,
+   "adv": -30,
+   "se": 38,
+   "shrunk": -25,
+   "points": 0,
+   "resultCoef": -0.006
+  },
+  "extinction": {
+   "n": 79,
+   "adv": -81,
+   "se": 63,
+   "shrunk": -73,
+   "points": 0,
+   "resultCoef": -0.007
+  },
+  "baby-bear": {
+   "n": 60,
+   "adv": 12,
+   "se": 42,
+   "shrunk": 11,
+   "points": 0,
+   "resultCoef": 0.004
+  },
+  "berserker": {
+   "n": 88,
+   "adv": -50,
+   "se": 29,
+   "shrunk": -46,
+   "points": 0,
+   "resultCoef": 0.08
+  },
+  "elephant-escape": {
+   "n": 43,
+   "adv": 292,
+   "se": 26,
+   "shrunk": 246,
+   "points": 2.46,
+   "resultCoef": 0.014
+  },
+  "last-stand": {
+   "n": 44,
+   "adv": 106,
+   "se": 23,
+   "shrunk": 90,
+   "points": 0.9,
+   "resultCoef": -0.007
+  },
+  "charge": {
+   "n": 87,
+   "adv": -101,
+   "se": 60,
+   "shrunk": -92,
+   "points": 0,
+   "resultCoef": 0.009
+  },
+  "bribe": {
+   "n": 48,
+   "adv": -22,
+   "se": 43,
+   "shrunk": -19,
+   "points": 0,
+   "resultCoef": 0
+  },
+  "loyalist": {
+   "n": 125,
+   "adv": -14,
+   "se": 37,
+   "shrunk": -13,
+   "points": 0,
+   "resultCoef": -0.037
+  },
+  "jester": {
+   "n": 89,
+   "adv": 33,
+   "se": 54,
+   "shrunk": 30,
+   "points": 0,
+   "resultCoef": 0.019
+  },
+  "reposition": {
+   "n": 96,
+   "adv": 40,
+   "se": 25,
+   "shrunk": 37,
+   "points": 0,
+   "resultCoef": -0.014
+  },
+  "siege-ram": {
+   "n": 80,
+   "adv": 6,
+   "se": 29,
+   "shrunk": 6,
+   "points": 0,
+   "resultCoef": 0.018
+  },
+  "desperado": {
+   "n": 92,
+   "adv": 39,
+   "se": 52,
+   "shrunk": 36,
+   "points": 0,
+   "resultCoef": -0.049
+  },
+  "amazon": {
+   "n": 76,
+   "adv": 43,
+   "se": 71,
+   "shrunk": 39,
+   "points": 0,
+   "resultCoef": -0.023
+  },
+  "assembly": {
+   "n": 97,
+   "adv": 16,
+   "se": 42,
+   "shrunk": 15,
+   "points": 0,
+   "resultCoef": 0.086
+  },
+  "gale": {
+   "n": 57,
+   "adv": 25,
+   "se": 41,
+   "shrunk": 22,
+   "points": 0,
+   "resultCoef": -0.012
+  },
+  "omega-chesstron": {
+   "n": 49,
+   "adv": -1479,
+   "se": 149,
+   "shrunk": -1271,
+   "points": -3,
+   "resultCoef": -0.084
+  },
+  "fast-growth": {
+   "n": 69,
+   "adv": 54,
+   "se": 16,
+   "shrunk": 48,
+   "points": 0.48,
+   "resultCoef": 0.023
+  },
+  "merchant-guild": {
+   "n": 39,
+   "adv": 16,
+   "se": 22,
+   "shrunk": 13,
+   "points": 0,
+   "resultCoef": -0.137
+  },
+  "queens-gambit": {
+   "n": 54,
+   "adv": -546,
+   "se": 19,
+   "shrunk": -476,
+   "points": -3,
+   "resultCoef": -0.031
+  },
+  "conversion": {
+   "n": 85,
+   "adv": -7,
+   "se": 42,
+   "shrunk": -6,
+   "points": 0,
+   "resultCoef": 0.026
+  },
+  "black-magic": {
+   "n": 91,
+   "adv": -4,
+   "se": 50,
+   "shrunk": -3,
+   "points": 0,
+   "resultCoef": -0.01
+  },
+  "d4": {
+   "n": 54,
+   "adv": -3,
+   "se": 30,
+   "shrunk": -3,
+   "points": 0,
+   "resultCoef": 0
+  },
+  "sacrifice": {
+   "n": 134,
+   "adv": -3,
+   "se": 32,
+   "shrunk": -3,
+   "points": 0,
+   "resultCoef": -0.024
+  },
+  "ascension": {
+   "n": 66,
+   "adv": 67,
+   "se": 49,
+   "shrunk": 60,
+   "points": 0,
+   "resultCoef": 0.013
+  },
+  "bongcloud": {
+   "n": 108,
+   "adv": 18,
+   "se": 43,
+   "shrunk": 16,
+   "points": 0,
+   "resultCoef": 0.04
+  },
+  "substitution": {
+   "n": 69,
+   "adv": 4,
+   "se": 52,
+   "shrunk": 3,
+   "points": 0,
+   "resultCoef": 0.007
+  },
+  "hallucination": {
+   "n": 60,
+   "adv": -5,
+   "se": 60,
+   "shrunk": -5,
+   "points": 0,
+   "resultCoef": -0.035
+  },
+  "knightmate": {
+   "n": 50,
+   "adv": -34,
+   "se": 21,
+   "shrunk": -29,
+   "points": 0,
+   "resultCoef": -0.029
+  },
+  "queen-afterimage": {
+   "n": 96,
+   "adv": 62,
+   "se": 48,
+   "shrunk": 57,
+   "points": 0,
+   "resultCoef": 0.053
+  },
+  "rocket": {
+   "n": 55,
+   "adv": 18,
+   "se": 18,
+   "shrunk": 16,
+   "points": 0,
+   "resultCoef": 0.015
+  },
+  "mutation": {
+   "n": 51,
+   "adv": -55,
+   "se": 64,
+   "shrunk": -48,
+   "points": 0,
+   "resultCoef": -0.013
+  },
+  "deception": {
+   "n": 90,
+   "adv": -21,
+   "se": 32,
+   "shrunk": -19,
+   "points": 0,
+   "resultCoef": 0
+  },
+  "icbm": {
+   "n": 39,
+   "adv": -8,
+   "se": 66,
+   "shrunk": -7,
+   "points": 0,
+   "resultCoef": 0.007
+  },
+  "fianchetto": {
+   "n": 53,
+   "adv": 45,
+   "se": 32,
+   "shrunk": 39,
+   "points": 0,
+   "resultCoef": 0.033
+  },
+  "stake": {
+   "n": 59,
+   "adv": -61,
+   "se": 44,
+   "shrunk": -53,
+   "points": 0,
+   "resultCoef": 0.007
+  },
+  "mongolian-gambit": {
+   "n": 73,
+   "adv": 285,
+   "se": 59,
+   "shrunk": 257,
+   "points": 2.57,
+   "resultCoef": 0.172
+  }
+ }
+}
