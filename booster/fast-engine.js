@@ -1418,10 +1418,10 @@ function acbFastEngineModule() {
         // a clear best that stayed the same: stop early (easy move);
         // a falling score (a threat was found): think twice as long;
         // a changing best: 1.5x
-        if (completedDepth >= 5 && sameBest >= 2 && margin >= ROOT_BAND && t >= started + span * 0.4) { stopReason = "easy"; break; }
+        if (!input.noEasy && completedDepth >= 5 && sameBest >= 2 && margin >= ROOT_BAND && t >= started + span * 0.4) { stopReason = "easy"; break; }
         const softEff = Math.min(deadline, started + span * (scoreDrop ? 2 : bestChanges > 0 ? 1.5 : 1));
         if (t >= softEff) { stopReason = "soft"; break; }
-        if (t + lastIterMs * growth > deadline) { stopReason = "predicted"; break; }
+        if (!input.noPredict && t + lastIterMs * growth > deadline) { stopReason = "predicted"; break; }
       }
       const iterStart = now();
       let alpha = -INF, beta = INF, iterBest = null, iterScore = -INF;
