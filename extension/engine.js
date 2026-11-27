@@ -4972,11 +4972,37 @@
       const row = boardState.board[r] || [];
       for (let c = 0; c < cols; c++) {
         const p = row[c];
-        key += p ? (p.color === "white" ? "W" : p.color === "black" ? "B" : "N") + p.type : ".";
+        if (!p) { key += "."; continue; }
+        key += (p.color === "white" ? "W" : p.color === "black" ? "B" : "N") + p.type;
+        if (POSITION_KEY_FULL_STATE) {
+          // Per-piece state (hp, shielded, frozen, counters...): pieces that
+          // differ only here are different positions for the TT and repetition.
+          for (const f in p) {
+            if (f === "type" || f === "color") continue;
+            const v = p[f];
+            if (v === undefined || v === null || v === false || v === 0 || typeof v === "object" || typeof v === "function") continue;
+            key += "," + f + "=" + v;
+          }
+          key += ";";
+        }
+      }
+    }
+    if (POSITION_KEY_FULL_STATE) {
+      key += "|" + rows + "x" + cols + "|a" + (boardState.actionsRemaining ?? "") +
+        "|u" + JSON.stringify(boardState.cardsUsedThisTurn ?? null) +
+        "|e" + JSON.stringify(boardState.enPassant ?? null);
+      const slots = boardState.deckSlots || {};
+      for (const side of ["white", "black"]) {
+        key += "|" + side[0];
+        for (const s of slots[side] || []) key += (s && s.id || "-") + (s && s.used ? "u" : "") + (s && s.recovering ? "r" + s.recovering : "") + ",";
       }
     }
     return key;
   }
+  // 2026-11-22: opt-out with POSITION_KEY_FULL_STATE=0 (old key: type+color only).
+  // 2026-11-22: opt-out with TT_BEST_MOVE=0.
+  const TT_BEST_MOVE = !(typeof process !== "undefined" && process.env && process.env.TT_BEST_MOVE === "0");
+  const POSITION_KEY_FULL_STATE = !(typeof process !== "undefined" && process.env && process.env.POSITION_KEY_FULL_STATE === "0");
   // Grafted from engine.optimized.js (our-only enhancement, replacing the
   // real file's minimax wholesale): adds a transposition table (positionKey
   // + context.tt, grafted earlier as a standalone helper), null-move
@@ -5025,7 +5051,15 @@
           return alpha;
         }
       }
-      const actions = reorderWithKillers(boardState, orderActions(generateActions(boardState, color), boardState, color, context.orderScoreFn), context.killers?.[depth]);
+      let actions = reorderWithKillers(boardState, orderActions(generateActions(boardState, color), boardState, color, context.orderScoreFn), context.killers?.[depth]);
+      // 2026-11-22: best move from an earlier (shallower) search of this position goes first.
+      if (!context.ttMove) context.ttMove = new Map();
+      const hashMove = TT_BEST_MOVE ? context.ttMove.get(posKey) : null;
+      if (hashMove) {
+        const hi = actions.findIndex((a) => sameAction(a, hashMove));
+        if (hi > 0) actions = [actions[hi], ...actions.slice(0, hi), ...actions.slice(hi + 1)];
+      }
+      let bestMoveHere = null;
       if (!actions.length) return (context.evalFn || evaluateState)(boardState, context.aiColor) + (color === context.aiColor ? -2500 : 2500);
       if (isMaximizingPlayer) {
         let value2 = -INF;
@@ -5047,6 +5081,7 @@
           } else {
             score = applied.score + minimax(next, nextDepth, alpha, beta, nextMaximizing, context);
           }
+          if (score > value2) bestMoveHere = action;
           value2 = Math.max(value2, score);
           alpha = Math.max(alpha, value2);
           moveIndex += 1;
@@ -5059,6 +5094,7 @@
         if (!context.timedOut) {
           const flag = value2 <= alphaOrig ? "upper" : value2 >= betaOrig ? "lower" : "exact";
           context.tt.set(ttKey, { score: value2, flag });
+          if (bestMoveHere) context.ttMove.set(posKey, bestMoveHere);
         }
         return value2;
       }
@@ -5081,6 +5117,7 @@
         } else {
           score = applied.score + minimax(next, nextDepth, alpha, beta, nextMaximizing, context);
         }
+        if (score < value) bestMoveHere = action;
         value = Math.min(value, score);
         beta = Math.min(beta, value);
         moveIndex += 1;
@@ -5093,6 +5130,7 @@
       if (!context.timedOut) {
         const flag = value <= alphaOrig ? "upper" : value >= betaOrig ? "lower" : "exact";
         context.tt.set(ttKey, { score: value, flag });
+        if (bestMoveHere) context.ttMove.set(posKey, bestMoveHere);
       }
       return value;
     } finally {
