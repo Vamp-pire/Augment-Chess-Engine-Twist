@@ -91,11 +91,38 @@ async function playGame(game, useC, seedText, ms, rand, stats, pickers = null) {
     return (d.ratingHalfStars || 0) + (d.draftCategory === "PIECE" ? 0.8 : 0) + (EFFECT_BONUS[d.effect] || 0) + (d.activation === "PASSIVE" ? 0.7 : 0);
   };
   const drafts = [];
+  // replay frames for the viewer: the board after every action (piece types
+  // as indexes into `types`), what was done, and the engine's score
+  const types = [], typeIx = new Map(), frames = [];
+  const frame = (label, extra = {}) => {
+    try {
+      const g2 = session.snapshot().game, cs = g2.cardState || {}, ids = cs.board?.pieceIds, pcs = cs.pieces || {};
+      const flat = g2.position.board.flat(), b = new Array(64);
+      for (let i = 0; i < 64; i++) {
+        const id = ids?.[i >> 3]?.[i & 7], p = id ? pcs[id] : null;
+        let t = null, black = false;
+        if (p) { t = p.typeOverride || p.baseType; black = p.color === "black"; }
+        else if (flat[i]) { t = flat[i].slice(1); black = flat[i][0] === "b"; }
+        if (!t) { b[i] = 0; continue; }
+        if (!typeIx.has(t)) { typeIx.set(t, types.length); types.push(t); }
+        b[i] = (typeIx.get(t) + 1) * 2 + (black ? 1 : 0);
+      }
+      const inv = {};
+      // held: still usable; used: consumed or applied (passive cards apply at once)
+      for (const c of ["white", "black"]) {
+        const all = cs.inventories?.[c] || [];
+        inv[c] = { held: all.filter((x) => x.status === "AVAILABLE").map((x) => x.cardId), used: all.filter((x) => x.status !== "AVAILABLE").map((x) => x.cardId) };
+      }
+      frames.push({ ply: g2.moveCount, turn: g2.position.turn, label, b, inv, ...extra });
+    } catch { /* frames are optional */ }
+  };
+  const finish = (o) => ({ ...o, types, frames });
+  frame("start");
   for (let step = 0; step < 600; step++) {
     const g = session.snapshot().game;
     if (g.status === "FINISHED") {
       const w = g.position?.winner ?? g.winner ?? null;
-      return { result: w === "white" ? 1 : w === "black" ? 0 : 0.5, plies: g.moveCount, drafts, end: g.position?.termination ?? null };
+      return finish({ result: w === "white" ? 1 : w === "black" ? 0 : 0.5, plies: g.moveCount, drafts, end: g.position?.termination ?? null });
     }
     if (g.status === "DRAFTING") {
       const actor = g.cardState.draft.pickingColor ?? g.position.turn;
@@ -147,12 +174,14 @@ async function playGame(game, useC, seedText, ms, rand, stats, pickers = null) {
       const chosen = explored ? scored[Math.floor(rand() * scored.length)] : pickVariety(scored, rand);
       const r = await session.dispatch(actor, { schemaVersion: 1, kind: "draft_pick", payload: { offerId: q.offerId, choiceId: chosen.c.choiceId } });
       if (!r.ok) return { result: 0.5, error: `draft ${r.code}`, drafts };
+      frame(`${actor} drafts ${chosen.c.cardId}`, { draft: { actor, offer: q.choices.map((c) => c.cardId), pick: chosen.c.cardId } });
       drafts.push({ actor, ply: g.moveCount, offer: q.choices.map((c) => c.cardId), pick: chosen.c.cardId, c: Boolean(useC[actor]), explored, playout, playoutPlies, gains: probe?.ok ? Object.fromEntries(Object.entries(probe.gains).map(([k, v]) => [k, v.gain ?? (v.passive ? "P" : "x")])) : probe ? probe.reason : null });
       continue;
     }
     if (session.localAiAutomaticCardsDue?.()) {
       const r = await session.advanceLocalAiAutomaticCards();
       if (!r?.ok) return { result: 0.5, error: `automatic ${r?.code}`, drafts };
+      frame("automatic card effects");
       continue;
     }
     let applied = false;
@@ -160,6 +189,11 @@ async function playGame(game, useC, seedText, ms, rand, stats, pickers = null) {
       const snap = await game.prepareCanonicalAiSearchSnapshot(session.searchSnapshot());
       const r = await (pickers?.[g.position.turn] ?? game.adapter).pick(snap, { timeMs: ms, includeCards: true, maxCardProbes: 12 });
       if (r.ok && r.candidate) applied = (await game.applyCanonicalAiCandidate(session, r.candidate))?.ok;
+      if (applied) {
+        const pl = r.candidate.intent?.payload || {};
+        const what = r.choice === "card" ? `card ${r.chosenCard ?? pl.cardId ?? ""}` : `${pl.from ?? ""}${pl.to ?? ""}${pl.promotion ? "=" + pl.promotion : ""}`;
+        frame(`${g.position.turn} ${what}`, { from: pl.from ?? null, to: pl.to ?? null, score: Number.isFinite(r.score) ? Math.round(r.score) : null, depth: r.depth ?? null, card: r.choice === "card" ? (r.chosenCard ?? pl.cardId ?? "card") : null, cardsScored: r.cards?.length ?? 0, cardsHeld: r.cardsAvailable ?? 0 });
+      }
     } catch (e) { stats.pickErrors = (stats.pickErrors || 0) + 1; }
     if (!applied) {
       // fallback: the game's own first legal action
@@ -167,10 +201,11 @@ async function playGame(game, useC, seedText, ms, rand, stats, pickers = null) {
       const a = q.actions[0];
       if (!a || !(await game.applyCanonicalAiCandidate(session, a))?.ok) return { result: 0.5, error: "no action", drafts, plies: g.moveCount };
       stats.fallbacks = (stats.fallbacks || 0) + 1;
+      frame(`${g.position.turn} fallback (game's first legal action)`);
     }
-    if (g.moveCount >= 200) return { result: 0.5, plies: g.moveCount, drafts, end: "ply cap" };
+    if (g.moveCount >= 200) return finish({ result: 0.5, plies: g.moveCount, drafts, end: "ply cap" });
   }
-  return { result: 0.5, error: "step cap", drafts };
+  return finish({ result: 0.5, error: "step cap", drafts });
 }
 
 function worker() {

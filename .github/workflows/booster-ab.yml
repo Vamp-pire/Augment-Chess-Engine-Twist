@@ -1,0 +1,154 @@
+name: booster-ab
+
+# AI booster A/B: several variants against their baselines in one run. The
+# 20 runner slots are split between the variants, every game uses the game's
+# own rules (drafts by the game's AI on both sides), and the summary gives
+# Elo, a 95% interval and an SPRT verdict per variant, then (if the secrets
+# DISCORD_TOKEN and DISCORD_USER_ID exist) a Discord DM.
+# The game's AI worker is downloaded from augmentchess.org at run time (site
+# code, never committed).
+#
+# variants: JSON list, e.g.
+#   [{"name":"time-only","a_engine":"booster/baseline/0.16.1/fast-engine.js","b":"booster/baseline/0.16.1"},
+#    {"name":"all","b":"booster/baseline/0.16.1"}]
+# a_engine / a_adapter: side A files (default booster/fast-engine.js, booster/fast-adapter.js)
+# b: folder with side B's fast-engine.js and fast-adapter.js
+on:
+  workflow_dispatch:
+    inputs:
+      variants:
+        description: "JSON list of {name, a_engine?, a_adapter?, b}"
+        required: true
+      pairs:
+        description: "game pairs per shard"
+        default: "30"
+      ms:
+        description: "search ms per move"
+        default: "250"
+      mode:
+        description: "game mode"
+        default: "normal"
+      seed:
+        description: "seed base"
+        default: "1"
+      elo1:
+        description: "SPRT: the gain to detect (H1 elo >= this, H0 elo <= 0)"
+        default: "15"
+      timeout:
+        description: "minutes per shard"
+        default: "200"
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - id: m
+        env:
+          VARIANTS: ${{ inputs.variants }}
+        run: |
+          node -e '
+            const v = JSON.parse(process.env.VARIANTS);
+            if (!Array.isArray(v) || !v.length || v.length > 20) throw new Error("variants: 1..20 entries");
+            const per = Math.floor(20 / v.length), include = [];
+            v.forEach((x, i) => {
+              if (!/^[A-Za-z0-9._-]+$/.test(x.name || "")) throw new Error("variant name: letters, digits, . _ - only");
+              for (let s = 1; s <= per; s++) include.push({ name: x.name, idx: i, shard: s, a_engine: x.a_engine || "", a_adapter: x.a_adapter || "", b: x.b || "" });
+            });
+            require("fs").appendFileSync(process.env.GITHUB_OUTPUT, "matrix=" + JSON.stringify({ include }) + "\n");
+            console.log(v.length + " variants x " + per + " shards");
+          '
+
+  play:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ fromJSON(inputs.timeout) }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: download the game's AI worker
+        run: |
+          mkdir -p .cache
+          curl -fsSL https://augmentchess.org/assets/canonicalAiWorker.js -o .cache/cw.js
+          sha256sum .cache/cw.js
+      - name: play
+        env:
+          A_ENGINE: ${{ matrix.a_engine }}
+          A_ADAPTER: ${{ matrix.a_adapter }}
+          B_DIR: ${{ matrix.b }}
+        run: |
+          opts=""
+          for f in "$A_ENGINE" "$A_ADAPTER" "$B_DIR"; do case "$f" in *..*) echo "bad path $f"; exit 1;; esac; done
+          if [ -n "$A_ENGINE" ]; then opts="$opts --engine-a $A_ENGINE"; fi
+          if [ -n "$A_ADAPTER" ]; then opts="$opts --adapter-a $A_ADAPTER"; fi
+          if [ -n "$B_DIR" ]; then opts="$opts --adapter-b $B_DIR/fast-adapter.js --engine-b $B_DIR/fast-engine.js"; fi
+          mkdir -p out
+          node booster/tools/draft-match.cjs .cache/cw.js --pairs ${{ inputs.pairs }} --ms ${{ inputs.ms }} --workers 4 \
+            --mode ${{ inputs.mode }} --c none $opts \
+            --seed $(( ${{ inputs.seed }} * 1000 + ${{ matrix.idx }} * 50 + ${{ matrix.shard }} )) --log out/games-${{ matrix.shard }}.jsonl
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ab-${{ matrix.name }}-${{ matrix.shard }}
+          path: out/games-${{ matrix.shard }}.jsonl
+          retention-days: 30
+
+  summary:
+    needs: play
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: ab-*
+          path: raw
+      - name: group by variant
+        run: |
+          mkdir -p games
+          for d in raw/ab-*; do
+            n=$(basename "$d"); n=${n#ab-}; v=${n%-*}
+            mkdir -p "games/$v"; cp "$d"/*.jsonl "games/$v/" 2>/dev/null || true
+          done
+          ls -R games | head -50
+      - name: summary
+        run: |
+          node booster/tools/ab-summary.cjs games --elo0 0 --elo1 ${{ inputs.elo1 }} --md summary.md
+          cat summary.md >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "대국 재생: games/<실험>/ 파일을 재생기에 열면 됩니다 (artifact ab-games)." >> $GITHUB_STEP_SUMMARY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ab-games
+          path: |
+            summary.md
+            ab-plain.txt
+            games/
+          retention-days: 30
+      - name: Discord DM
+        env:
+          DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
+          DISCORD_USER_ID: ${{ secrets.DISCORD_USER_ID }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$DISCORD_TOKEN" ] || [ -z "$DISCORD_USER_ID" ]; then echo "no Discord secrets: skipped"; exit 0; fi
+          node -e '
+            const fs = require("fs");
+            const h = { Authorization: "Bot " + process.env.DISCORD_TOKEN, "Content-Type": "application/json" };
+            (async () => {
+              const ch = await (await fetch("https://discord.com/api/v10/users/@me/channels", { method: "POST", headers: h, body: JSON.stringify({ recipient_id: process.env.DISCORD_USER_ID }) })).json();
+              if (!ch.id) throw new Error("DM channel: " + JSON.stringify(ch).slice(0, 200));
+              const text = "부스터 A/B 결과\n```\n" + fs.readFileSync("ab-plain.txt", "utf8").slice(0, 1700) + "```\n" + process.env.RUN_URL;
+              const r = await fetch(`https://discord.com/api/v10/channels/${ch.id}/messages`, { method: "POST", headers: h, body: JSON.stringify({ content: text, allowed_mentions: { parse: [] } }) });
+              console.log("DM", r.status);
+            })().catch((e) => { console.log("DM failed:", e.message); });
+          '
