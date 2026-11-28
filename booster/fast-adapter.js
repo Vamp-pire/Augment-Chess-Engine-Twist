@@ -1211,7 +1211,9 @@ function acbFastAdapterModule(engine) {
     // When the opponent still holds cards, keep a larger share for following
     // their possible card turns against our best options.
     const oppCards = holdsCards(snapshot, other(actor));
-    const T = oppCards ? { base: haveCards ? 0.28 : 0.38, cards: 0.42, verify: 0.52 } : { base: haveCards ? 0.45 : 0.6, cards: 0.65, verify: 0.85 };
+    // (fractions of the time after preparation: (f - 0.2) / 0.8. Before 0.17
+    // the base search got only 10% / 22.5% of it when the opponent held cards.)
+    const T = oppCards ? { base: haveCards ? 0.48 : 0.56, cards: 0.60, verify: 0.72 } : { base: haveCards ? 0.55 : 0.68, cards: 0.70, verify: 0.88 };
 
     // 2. plain moves
     let base = null;
@@ -1310,9 +1312,13 @@ function acbFastAdapterModule(engine) {
     const cardEnd = end - safetyReserve;
     options.sort((a, b) => b.score - a.score);
     const counters = [];
+    // a reply can only lower an option's score, so an option already at or
+    // below the best checked one cannot win: skip it
+    let bestChecked = -Infinity;
     for (const opt of options) {
       if (now() > cardEnd - 30) break;
       if (!opt.branch) continue;
+      if (opt.score <= bestChecked) continue;
       try {
         const share = counters.length === 0 && opt === options[0] ? 2 / 3 : 1 / 2;
         const threat = await opponentCardThreat(opt.branch, actor, learned, Math.min(cardEnd, now() + Math.max(80, (cardEnd - now()) * share)), oppProbes);
@@ -1320,6 +1326,7 @@ function acbFastAdapterModule(engine) {
           counters.push({ option: opt.label ?? `${opt.action.intent.payload.from}${opt.action.intent.payload.to}`, before: opt.score, after: threat.score, by: threat.label });
           opt.score = threat.score;
         }
+        if (threat) bestChecked = Math.max(bestChecked, opt.score);
       } catch { /* skip */ }
     }
     options.sort((a, b) => b.score - a.score);

@@ -129,6 +129,10 @@ function acbFastEngineModule() {
   const TT_BITS = 20, TT_SIZE = 1 << TT_BITS, TT_MASK = TT_SIZE - 1;
   const ttKey = new Int32Array(TT_SIZE), ttMove = new Int32Array(TT_SIZE), ttScore = new Int32Array(TT_SIZE);
   const ttDepth = new Int8Array(TT_SIZE), ttFlag = new Int8Array(TT_SIZE);
+  // search generation per entry (two-way buckets: slot 0 keeps the deeper
+  // entry of the current search, slot 1 is always replaced)
+  const ttGen = new Uint8Array(TT_SIZE);
+  let ttAge = 0;
   const EXACT = 1, LOWER = 2, UPPER = 3;
 
   // Deterministic Zobrist keys (two 32-bit halves).
@@ -1220,7 +1224,18 @@ function acbFastEngineModule() {
 
     // Ordering state.
     const killers = new Int32Array(MAXPLY * 2);
-    const history = new Int32Array(64 * 64);
+    // 0.17 search options (each can be turned off for comparisons):
+    // kingSafety (off by default until measured): no stand-pat in quiescence
+    //   while our king is attacked;
+    //   (kingExt, off by default: too slow) one more ply near the horizon when it is;
+    // tt2: two-way TT buckets; aspiration: root window around the last score;
+    // histMalus: history per color with a bounded bonus and a malus for
+    //   quiet moves tried before the cutoff move
+    const KS = !!input.kingSafety, KX = !!input.kingExt, TT2 = input.tt2 !== false, ASP = input.aspiration !== false, HM = input.histMalus !== false;
+    const history = new Int32Array(2 * 64 * 64);
+    const extPly = new Uint8Array(MAXPLY + 8);
+    const quietTried = Array.from({ length: MAXPLY + 8 }, () => new Int32Array(256));
+    const histAdd = (idx, b) => { if (HM) history[idx] += b - Math.trunc(history[idx] * Math.abs(b) / 16384); else history[idx] += b; };
     const bufs = Array.from({ length: MAXPLY + 8 }, () => new Int32Array(1024));
     const scores = Array.from({ length: MAXPLY + 8 }, () => new Int32Array(1024));
 
@@ -1237,7 +1252,7 @@ function acbFastEngineModule() {
         else if (mPromo(m)) s = (1 << 27);
         else if (m === killers[ply * 2]) s = (1 << 26);
         else if (m === killers[ply * 2 + 1]) s = (1 << 26) - 1;
-        else s = history[(mFrom(m) << 6) | to];
+        else s = history[(HM ? side << 12 : 0) | (mFrom(m) << 6) | to];
         sc[i] = s;
       }
     }
@@ -1254,7 +1269,7 @@ function acbFastEngineModule() {
     // be the mover again (no negation).
     const sub = (mover, d, a, b, p, nul) => (side === mover ? negamax(d, a, b, p, nul) : -negamax(d, -b, -a, p, nul));
     const subQ = (mover, a, b, p) => (side === mover ? quiesce(a, b, p) : -quiesce(-b, -a, p));
-    function quiesce(alpha, beta, ply) {
+    function quiesce(alpha, beta, ply, chk) {
       if ((++nodes & 1023) === 0 && (now() > deadline || nodes >= nodeCap)) { stopped = true; throw new AbortSearch(); }
       const prevQ = sp > 0 ? moverAt[sp - 1] : side ^ 1;
       if (royalLost[side] || kingSq[side] < 0 || (prevQ !== side && executes(prevQ))) return -MATE + ply;
@@ -1262,16 +1277,22 @@ function acbFastEngineModule() {
       if (prevQ !== side && betrays(side)) return -MATE + ply;
       { const sr = specialResult(prevQ); if (sr === 2) return 0; if (sr) return (sr > 0) === (prevQ === side) ? MATE - ply : -MATE + ply; }
       const stand = evaluate();
-      if (stand >= beta) return stand;
-      if (alpha < stand) alpha = stand;
+      // our king attacked (first quiescence ply only): standing pat would let
+      // it be taken next turn, so every move is searched instead
+      const inChk = chk && stand > alpha && kingSq[side] >= 0 && attackers(side ^ 1, kingSq[side]) > 0;
+      if (!inChk) {
+        if (stand >= beta) return stand;
+        if (alpha < stand) alpha = stand;
+      }
       if (ply >= MAXPLY) return stand;
-      const n = gen(bufs[ply], true);
+      const n = gen(bufs[ply], !inChk);
+      if (inChk && n === 0) return forcedLeft > 0 ? stand : -MATE + ply;
       order(ply, n, 0);
       for (let i = 0; i < n; i++) {
         const m = pick(ply, n, i);
         if (isKingCapture(m)) return MATE - ply - 1;
         // Delta pruning: skip captures that cannot raise alpha.
-        if (!mPromo(m) && stand + valueAt(mTo(m)) + 200 < alpha) continue;
+        if (!inChk && !mPromo(m) && stand + valueAt(mTo(m)) + 200 < alpha) continue;
         const mq = side;
         make(m);
         const v = subQ(mq, alpha, beta, ply + 1);
@@ -1288,11 +1309,16 @@ function acbFastEngineModule() {
       if (ply > 0 && (royalLost[side ^ 1] || kingSq[side ^ 1] < 0)) return MATE - ply;
       if (ply > 0 && prevN !== side && betrays(side)) return -MATE + ply;
       if (ply > 0) { const sr = specialResult(prevN); if (sr === 2) return 0; if (sr) return (sr > 0) === (prevN === side) ? MATE - ply : -MATE + ply; }
-      if (depth <= 0) return quiesce(alpha, beta, ply);
+      // king attacked near the horizon: one more ply (at most 2 per line)
+      { const prevExt = ply > 0 ? extPly[ply - 1] : 0; let e = 0;
+        if (KX && depth <= 2 && prevExt < 2 && ply > 0 && kingSq[side] >= 0 && attackers(side ^ 1, kingSq[side]) > 0) { depth++; e = 1; }
+        extPly[ply] = prevExt + e; }
+      if (depth <= 0) return quiesce(alpha, beta, ply, KS);
       if ((++nodes & 1023) === 0 && (now() > deadline || nodes >= nodeCap)) { stopped = true; throw new AbortSearch(); }
       if (ply >= MAXPLY) return evaluate();
 
-      const slot = h1 & TT_MASK, alpha0 = alpha;
+      const s0 = TT2 ? (h1 & TT_MASK) & ~1 : h1 & TT_MASK, alpha0 = alpha;
+      const slot = TT2 && ttKey[s0] !== h2 && ttKey[s0 | 1] === h2 ? s0 | 1 : s0;
       let ttm = 0;
       if (ttKey[slot] === h2) {
         ttm = ttMove[slot];
@@ -1327,7 +1353,8 @@ function acbFastEngineModule() {
       }
 
       order(ply, n, ttm);
-      let best = -INF, bestMove = 0;
+      let best = -INF, bestMove = 0, nq = 0;
+      const qt = quietTried[ply];
       for (let i = 0; i < n; i++) {
         const m = pick(ply, n, i);
         const quiet = !pk[mTo(m)] && !mPromo(m);
@@ -1348,15 +1375,19 @@ function acbFastEngineModule() {
         if (alpha >= beta) {
           if (quiet) {
             if (killers[ply * 2] !== m) { killers[ply * 2 + 1] = killers[ply * 2]; killers[ply * 2] = m; }
-            history[(mFrom(m) << 6) | mTo(m)] += depth * depth;
+            const hs = HM ? side << 12 : 0, b = Math.min(depth * depth, 400);
+            histAdd(hs | (mFrom(m) << 6) | mTo(m), b);
+            if (HM) for (let k = 0; k < nq; k++) histAdd(hs | (mFrom(qt[k]) << 6) | mTo(qt[k]), -b);
           }
           break;
         }
+        if (quiet && nq < 256) qt[nq++] = m;
       }
       let stored = best;
       if (stored > MATE - 1000) stored += ply; else if (stored < -MATE + 1000) stored -= ply;
-      ttKey[slot] = h2; ttMove[slot] = bestMove; ttScore[slot] = stored; ttDepth[slot] = depth;
-      ttFlag[slot] = best <= alpha0 ? UPPER : best >= beta ? LOWER : EXACT;
+      const ss = !TT2 ? s0 : ttKey[s0] === h2 || ttGen[s0] !== ttAge || depth >= ttDepth[s0] ? s0 : s0 | 1;
+      ttKey[ss] = h2; ttMove[ss] = bestMove; ttScore[ss] = stored; ttDepth[ss] = depth; ttGen[ss] = ttAge;
+      ttFlag[ss] = best <= alpha0 ? UPPER : best >= beta ? LOWER : EXACT;
       return best;
     }
 
@@ -1402,6 +1433,7 @@ function acbFastEngineModule() {
     nodeCap = input.maxNodes > 0 ? input.maxNodes : Infinity;
     // freshTT: forget earlier searches, so the same input gives the same result
     if (input.freshTT) ttKey.fill(0);
+    ttAge = (ttAge + 1) & 255;
     // Time management (optional): a soft limit after which no new depth is
     // started (x1.5 while the best move is still changing), and no depth is
     // started that is predicted not to finish before the hard deadline
@@ -1442,8 +1474,15 @@ function acbFastEngineModule() {
             // Window reaches ROOT_BAND below the best, so moves close to the
             // best get true scores (callers rank and verify them); clearly
             // worse moves only get an upper bound.
-            if (i === 0) v = sub(mr, depth - 1, alpha, beta, 1, true);
-            else {
+            if (i === 0) {
+              // aspiration: a narrow window around the last score first,
+              // the full window only when the score falls outside it
+              if (ASP && depth >= 4 && prevScore !== null && Math.abs(prevScore) < MATE - 1000) {
+                const lo = prevScore - 50, hi = prevScore + 50;
+                v = sub(mr, depth - 1, lo, hi, 1, true);
+                if (v <= lo || v >= hi) v = sub(mr, depth - 1, alpha, beta, 1, true);
+              } else v = sub(mr, depth - 1, alpha, beta, 1, true);
+            } else {
               const low = alpha === -INF ? -INF : alpha - ROOT_BAND;
               v = sub(mr, depth - 1, low, alpha + 1, 1, true);
               if (v > alpha) v = sub(mr, depth - 1, alpha, beta, 1, true);
@@ -1462,6 +1501,9 @@ function acbFastEngineModule() {
         // another move already beat it at this depth, take that move.
         if (iterBest && completedDepth > 0 && iterBest !== bestRoot) {
           bestRoot = iterBest; bestScore = iterScore;
+          // also in the ranked list the callers verify (it beat the old best
+          // at a deeper level; its score came from a full-window search)
+          if (input.partialRank !== false) rootScores.set(iterBest.ref, { score: iterScore, exact: true });
         }
         break;
       }

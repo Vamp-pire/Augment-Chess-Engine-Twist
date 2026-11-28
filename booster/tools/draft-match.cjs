@@ -174,11 +174,11 @@ async function playGame(game, useC, seedText, ms, rand, stats, pickers = null) {
 }
 
 function worker() {
-  process.on("message", async ({ workerPath, seeds, ms, mode, seed, adapterA, adapterB, engineB, cSide, explore, playout, playoutMs, valuesPath, draftMs, reps, draftScale, draftThreshold }) => {
+  process.on("message", async ({ workerPath, seeds, ms, mode, seed, adapterA, engineA, adapterB, engineB, cSide, explore, playout, playoutMs, valuesPath, draftMs, reps, draftScale, draftThreshold }) => {
     let msPerPlyEst = 1500; // Node, per worker; updated from playouts
     const values = valuesPath ? JSON.parse(fs.readFileSync(valuesPath, "utf8")).points : null;
     const { loadGame } = require(path.join(__dirname, "harness.cjs"));
-    const { game } = loadGame(workerPath, { adapterPath: adapterA });
+    const { game } = loadGame(workerPath, { adapterPath: adapterA, enginePath: engineA });
     const workerHash = require("crypto").createHash("sha256").update(fs.readFileSync(workerPath)).digest("hex").slice(0, 16);
     // side B's adapter (another fast-adapter.js), else the same as A
     const gameB = adapterB || engineB ? loadGame(workerPath, { adapterPath: adapterB, enginePath: engineB }).game : game;
@@ -228,8 +228,8 @@ async function main() {
   const workerPath = args[0];
   const pairs = Number(opt("pairs", 10)), ms = Number(opt("ms", 400)), workers = Number(opt("workers", 2)), seed = Number(opt("seed", 1));
   const mode = opt("mode", "normal"), logPath = opt("log", null);
-  // --adapter-a/--adapter-b: fast-adapter.js files per side; --c a|none: which side drafts with C
-  const adapterA = opt("adapter-a", null), adapterB = opt("adapter-b", null), engineB = opt("engine-b", null), cSide = opt("c", "a");
+  // --adapter-a/--engine-a/--adapter-b/--engine-b: fast-adapter.js / fast-engine.js files per side; --c a|none: which side drafts with C
+  const adapterA = opt("adapter-a", null), engineA = opt("engine-a", null), adapterB = opt("adapter-b", null), engineB = opt("engine-b", null), cSide = opt("c", "a");
   // data generation: --explore p, --playout K [--playout-ms 150]; --values table.json (side A adds its points)
   const reps = opt("reps", null), draftScale = opt("draft-scale", null), draftThreshold = opt("draft-threshold", null);
   const draftMs = Number(opt("draft-ms", 0)), explore = Number(opt("explore", 0)), playout = opt("playout", null), playoutMs = Number(opt("playout-ms", 150)), valuesPath = opt("values", null);
@@ -249,7 +249,7 @@ async function main() {
     });
     child.on("error", rej);
     child.on("exit", (code) => { if (code) res(); });
-    child.send({ workerPath, seeds: seeds.filter((_, i) => i % workers === w), ms, mode, seed: seed + w, adapterA, adapterB, engineB, cSide, explore, playout, playoutMs, valuesPath, draftMs, reps, draftScale, draftThreshold });
+    child.send({ workerPath, seeds: seeds.filter((_, i) => i % workers === w), ms, mode, seed: seed + w, adapterA, engineA, adapterB, engineB, cSide, explore, playout, playoutMs, valuesPath, draftMs, reps, draftScale, draftThreshold });
   })));
   console.log(`${mode}, ${ms} ms/move, ${((Date.now() - t0) / 60000).toFixed(1)} min`);
   console.log(summarize(all));
