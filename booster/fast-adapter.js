@@ -1270,8 +1270,10 @@ function acbFastAdapterModule(engine) {
     cards.sort((a, b) => b.score - a.score);
 
     // 4. top plain moves played for real
+    // no completed depth (rootScores empty): rank at least the engine's move
+    const ranked = base ? (base.rootScores?.length ? base.rootScores : base.move ? [{ key: base.move.key, score: base.score, exact: false }] : []) : [];
     const options = base
-      ? await verifyRanked(session, base.rootScores.map((r) => ({ action: byKey.get(r.key), score: r.score, exact: r.exact })), actor, learned, at(T.verify))
+      ? await verifyRanked(session, ranked.map((r) => ({ action: byKey.get(r.key), score: r.score, exact: r.exact })), actor, learned, at(T.verify))
       : [];
     const bestMoveScore = options.length ? options[0].score : -Infinity;
 

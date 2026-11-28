@@ -1428,7 +1428,11 @@ function acbFastEngineModule() {
     }
 
     const started = now();
-    deadline = started + Math.max(10, input.timeMs || 1000);
+    const normalDeadline = started + Math.max(10, input.timeMs || 1000);
+    // depth 1 always finishes (up to 4x the time, at least +500 ms): without
+    // it there is no ranked list and the caller falls back to an arbitrary move
+    const firstDeadline = input.finishDepth1 === false ? normalDeadline : started + Math.max(4 * (input.timeMs || 1000), (input.timeMs || 1000) + 500);
+    deadline = firstDeadline;
     // optional node budget: the same search on any machine (time stays a safety limit)
     nodeCap = input.maxNodes > 0 ? input.maxNodes : Infinity;
     // freshTT: forget earlier searches, so the same input gives the same result
@@ -1460,6 +1464,7 @@ function acbFastEngineModule() {
         if (!input.noPredict && t + lastIterMs * growth > deadline) { stopReason = "predicted"; break; }
       }
       const iterStart = now();
+      if (depth === 2) deadline = normalDeadline;
       let alpha = -INF, beta = INF, iterBest = null, iterScore = -INF;
       try {
         // Root move ordering: previous scores, then captures.

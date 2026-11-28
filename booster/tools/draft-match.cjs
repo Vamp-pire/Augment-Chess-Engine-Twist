@@ -184,24 +184,27 @@ async function playGame(game, useC, seedText, ms, rand, stats, pickers = null) {
       frame("automatic card effects");
       continue;
     }
-    let applied = false;
+    let applied = false, why = null;
     try {
       const snap = await game.prepareCanonicalAiSearchSnapshot(session.searchSnapshot());
       const r = await (pickers?.[g.position.turn] ?? game.adapter).pick(snap, { timeMs: ms, includeCards: true, maxCardProbes: 12 });
-      if (r.ok && r.candidate) applied = (await game.applyCanonicalAiCandidate(session, r.candidate))?.ok;
+      if (r.ok && r.candidate) { const ap = await game.applyCanonicalAiCandidate(session, r.candidate); applied = ap?.ok; if (!applied) why = `apply failed ${ap?.code ?? ""} (${r.choice})`; }
+      else why = `pick: ${r.reason ?? "no candidate"}`;
+      if (!applied && process.env.DUMP_FB) fs.appendFileSync(process.env.DUMP_FB, JSON.stringify({ why, turn: g.position.turn, snap: session.searchSnapshot() }) + "\n");
       if (applied) {
         const pl = r.candidate.intent?.payload || {};
         const what = r.choice === "card" ? `card ${r.chosenCard ?? pl.cardId ?? ""}` : `${pl.from ?? ""}${pl.to ?? ""}${pl.promotion ? "=" + pl.promotion : ""}`;
         frame(`${g.position.turn} ${what}`, { from: pl.from ?? null, to: pl.to ?? null, score: Number.isFinite(r.score) ? Math.round(r.score) : null, depth: r.depth ?? null, card: r.choice === "card" ? (r.chosenCard ?? pl.cardId ?? "card") : null, cardsScored: r.cards?.length ?? 0, cardsHeld: r.cardsAvailable ?? 0 });
       }
-    } catch (e) { stats.pickErrors = (stats.pickErrors || 0) + 1; }
+    } catch (e) { stats.pickErrors = (stats.pickErrors || 0) + 1; why = `error ${String(e?.message || e).slice(0, 120)}`; }
     if (!applied) {
       // fallback: the game's own first legal action
       const q = await game.canonicalAiActionCandidates(session, { includeCards: false, maxCardProbes: 0, canContinue: () => true, moveCanContinue: () => true });
       const a = q.actions[0];
       if (!a || !(await game.applyCanonicalAiCandidate(session, a))?.ok) return { result: 0.5, error: "no action", drafts, plies: g.moveCount };
       stats.fallbacks = (stats.fallbacks || 0) + 1;
-      frame(`${g.position.turn} fallback (game's first legal action)`);
+      frame(`${g.position.turn} fallback (game's first legal action)`, { why, act: a.intent?.kind ?? null });
+      (stats.fallbackWhy ??= []).push(`${g.position.turn === (pickers ? Object.keys(pickers).find((k) => pickers[k] === game.adapter) : "white") ? "A" : "B"}:${why}:${a.intent?.kind ?? "?"}`);
     }
     if (g.moveCount >= 200) return finish({ result: 0.5, plies: g.moveCount, drafts, end: "ply cap" });
   }
@@ -230,7 +233,7 @@ function worker() {
         try { g = await playGame(game, useC, `pair-${s}`, ms, rand, stats, pickers); } catch (e) { g = { result: 0.5, error: String(e?.stack || e).slice(0, 300) }; }
         const scoreA = aWhite ? g.result : 1 - g.result;
         msPerPlyEst = stats.msPerPly;
-        out.push({ pair: s, aWhite, scoreA, ms: Date.now() - t0, worker: workerHash, ...g, stats: { mode: stats.mode, explore, playout, draftMs, msPerPly: stats.msPerPly, values: stats.values ? "table" : null, pickErrors: stats.pickErrors, fallbacks: stats.fallbacks } });
+        out.push({ pair: s, aWhite, scoreA, ms: Date.now() - t0, worker: workerHash, ...g, stats: { mode: stats.mode, explore, playout, draftMs, msPerPly: stats.msPerPly, values: stats.values ? "table" : null, pickErrors: stats.pickErrors, fallbacks: stats.fallbacks, fallbackWhy: stats.fallbackWhy?.slice(0, 20) } });
         process.send({ progress: out[out.length - 1] });
       }
     }
