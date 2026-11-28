@@ -78,7 +78,7 @@ async function playoutValues(game, session, actor, q, plies, ms, deadline) {
   return out;
 }
 
-async function playGame(game, useC, seedText, ms, rand, stats, pickers = null) {
+async function playGame(game, useC, seedText, ms, rand, stats, pickers = null, helpersA = 0) {
   const configuration = await game.createGameConfiguration({ mode: stats.mode });
   const session = await game.CanonicalEditorSession.create({
     gameId: crypto.randomUUID(), configuration,
@@ -187,7 +187,8 @@ async function playGame(game, useC, seedText, ms, rand, stats, pickers = null) {
     let applied = false, why = null;
     try {
       const snap = await game.prepareCanonicalAiSearchSnapshot(session.searchSnapshot());
-      const r = await (pickers?.[g.position.turn] ?? game.adapter).pick(snap, { timeMs: ms, includeCards: true, maxCardProbes: 12 });
+      const picker = pickers?.[g.position.turn] ?? game.adapter;
+      const r = await picker.pick(snap, { timeMs: ms, includeCards: true, maxCardProbes: 12, ...(helpersA > 0 && picker === game.adapter ? { helpers: helpersA, rawSnapshot: session.searchSnapshot() } : {}) });
       if (r.ok && r.candidate) { const ap = await game.applyCanonicalAiCandidate(session, r.candidate); applied = ap?.ok; if (!applied) why = `apply failed ${ap?.code ?? ""} (${r.choice})`; }
       else why = `pick: ${r.reason ?? "no candidate"}`;
       if (!applied && process.env.DUMP_FB) fs.appendFileSync(process.env.DUMP_FB, JSON.stringify({ why, turn: g.position.turn, snap: session.searchSnapshot() }) + "\n");
@@ -212,11 +213,12 @@ async function playGame(game, useC, seedText, ms, rand, stats, pickers = null) {
 }
 
 function worker() {
-  process.on("message", async ({ workerPath, seeds, ms, mode, seed, adapterA, engineA, adapterB, engineB, cSide, explore, playout, playoutMs, valuesPath, draftMs, reps, draftScale, draftThreshold }) => {
+  process.on("message", async ({ workerPath, seeds, ms, mode, seed, adapterA, engineA, adapterB, engineB, cSide, explore, playout, playoutMs, valuesPath, draftMs, reps, draftScale, draftThreshold, helpersA = 0 }) => {
     let msPerPlyEst = 1500; // Node, per worker; updated from playouts
     const values = valuesPath ? JSON.parse(fs.readFileSync(valuesPath, "utf8")).points : null;
     const { loadGame } = require(path.join(__dirname, "harness.cjs"));
     const { game } = loadGame(workerPath, { adapterPath: adapterA, enginePath: engineA });
+    if (helpersA > 0) require(path.join(__dirname, "node-helpers.cjs")).installHelpers({ workerPath, adapterPath: adapterA, enginePath: engineA });
     const workerHash = require("crypto").createHash("sha256").update(fs.readFileSync(workerPath)).digest("hex").slice(0, 16);
     // side B's adapter (another fast-adapter.js), else the same as A
     const gameB = adapterB || engineB ? loadGame(workerPath, { adapterPath: adapterB, enginePath: engineB }).game : game;
@@ -230,7 +232,7 @@ function worker() {
         const useC = cSide === "none" ? { white: false, black: false } : { white: aWhite, black: !aWhite };
         const pickers = { white: aWhite ? game.adapter : gameB.adapter, black: aWhite ? gameB.adapter : game.adapter };
         let g;
-        try { g = await playGame(game, useC, `pair-${s}`, ms, rand, stats, pickers); } catch (e) { g = { result: 0.5, error: String(e?.stack || e).slice(0, 300) }; }
+        try { g = await playGame(game, useC, `pair-${s}`, ms, rand, stats, pickers, helpersA); } catch (e) { g = { result: 0.5, error: String(e?.stack || e).slice(0, 300) }; }
         const scoreA = aWhite ? g.result : 1 - g.result;
         msPerPlyEst = stats.msPerPly;
         out.push({ pair: s, aWhite, scoreA, ms: Date.now() - t0, worker: workerHash, ...g, stats: { mode: stats.mode, explore, playout, draftMs, msPerPly: stats.msPerPly, values: stats.values ? "table" : null, pickErrors: stats.pickErrors, fallbacks: stats.fallbacks, fallbackWhy: stats.fallbackWhy?.slice(0, 20) } });
@@ -270,6 +272,7 @@ async function main() {
   const adapterA = opt("adapter-a", null), engineA = opt("engine-a", null), adapterB = opt("adapter-b", null), engineB = opt("engine-b", null), cSide = opt("c", "a");
   // data generation: --explore p, --playout K [--playout-ms 150]; --values table.json (side A adds its points)
   const reps = opt("reps", null), draftScale = opt("draft-scale", null), draftThreshold = opt("draft-threshold", null);
+  const helpersA = Number(opt("helpers-a", 0)); // --helpers-a N: side A judges cards/move checks with N helper threads
   const draftMs = Number(opt("draft-ms", 0)), explore = Number(opt("explore", 0)), playout = opt("playout", null), playoutMs = Number(opt("playout-ms", 150)), valuesPath = opt("values", null);
   const seeds = Array.from({ length: pairs }, (_, i) => seed * 100000 + i);
   const t0 = Date.now();
@@ -287,7 +290,7 @@ async function main() {
     });
     child.on("error", rej);
     child.on("exit", (code) => { if (code) res(); });
-    child.send({ workerPath, seeds: seeds.filter((_, i) => i % workers === w), ms, mode, seed: seed + w, adapterA, engineA, adapterB, engineB, cSide, explore, playout, playoutMs, valuesPath, draftMs, reps, draftScale, draftThreshold });
+    child.send({ workerPath, seeds: seeds.filter((_, i) => i % workers === w), ms, mode, seed: seed + w, adapterA, engineA, adapterB, engineB, cSide, explore, playout, playoutMs, valuesPath, draftMs, reps, draftScale, draftThreshold, helpersA });
   })));
   console.log(`${mode}, ${ms} ms/move, ${((Date.now() - t0) / 60000).toFixed(1)} min`);
   console.log(summarize(all));

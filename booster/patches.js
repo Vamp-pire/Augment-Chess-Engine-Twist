@@ -21,16 +21,16 @@
   // simply gets no time and its safety check keeps whatever is left.
   const LEVELS = Object.freeze({
     boost: { timeMul: 1, nodeMul: 4, minNodes: 2048, cardMul: 1.5, minDepth: 3, maxDepth: 8, qNodes: 48, partial: true, fast: true, fastMs: 4500, fastShare: 1.3, cardProbes: 24 },
-    max: { timeMul: 1, nodeMul: 8, minNodes: 6000, cardMul: 2, minDepth: 3, maxDepth: 8, qNodes: 64, partial: true, fast: true, fastMs: 7500, fastShare: 2.2, cardProbes: 40 },
+    max: { timeMul: 1, nodeMul: 8, minNodes: 6000, cardMul: 2, minDepth: 3, maxDepth: 8, qNodes: 64, partial: true, fast: true, fastMs: 7500, fastShare: 2.2, cardProbes: 40, helpers: 2 },
     // deep: like max, plus extraMs for the new engine. The page script
     // (inject.js) lengthens the game's worker timer by the same amount and
     // marks the request with acbExtraMs; without that mark nothing changes.
-    deep: { timeMul: 1, nodeMul: 8, minNodes: 6000, cardMul: 2, minDepth: 3, maxDepth: 8, qNodes: 64, partial: true, fast: true, fastMs: 7500, fastShare: 2.2, cardProbes: 64, extraMs: 5000, ponder: true },
+    deep: { timeMul: 1, nodeMul: 8, minNodes: 6000, cardMul: 2, minDepth: 3, maxDepth: 8, qNodes: 64, partial: true, fast: true, fastMs: 7500, fastShare: 2.2, cardProbes: 64, extraMs: 5000, ponder: true, helpers: 2 },
     // auto: like deep, but the page sets each move's time from the clock
     // (acbExtraMs up to 25 s on top of 7.5 s) and a soft limit (acbSoft):
     // the search stops early when the next depth would not finish or the
     // best move is settled, so easy moves save clock for hard ones.
-    auto: { timeMul: 1, nodeMul: 8, minNodes: 6000, cardMul: 2, minDepth: 3, maxDepth: 8, qNodes: 64, partial: true, fast: true, fastMs: 7500, fastShare: 2.2, cardProbes: 64, extraMs: 25000, auto: true, ponder: true }
+    auto: { timeMul: 1, nodeMul: 8, minNodes: 6000, cardMul: 2, minDepth: 3, maxDepth: 8, qNodes: 64, partial: true, fast: true, fastMs: 7500, fastShare: 2.2, cardProbes: 64, extraMs: 25000, auto: true, ponder: true, helpers: 2 }
   });
 
   const PATCHES = [
@@ -108,6 +108,13 @@
       self.postMessage({ type: "acb-opp-list-result", id: d.id, result });
       return;
     }
+    if (d?.type === "acb-task") {
+      // helper copy: one card or one move judged for the main AI worker
+      let result = null;
+      try { result = await __acbFastAdapter.helperTask(d.task); } catch { result = null; }
+      self.postMessage({ type: "acb-task-result", id: d.id, result });
+      return;
+    }
     if (d?.type === "acb-draft-playout") {
       let result;
       try { result = await __acbFastAdapter.draftPlayoutOne(await prepareCanonicalAiSearchSnapshot(d.snapshot), d.actor, d.choiceId, { plies: d.plies, perMs: d.perMs, nodes: d.nodes, deadline: performance.now() + d.budgetMs }); }
@@ -146,7 +153,7 @@
         await __acbFastAdapter.stopPonder();
         const __acbWaited = performance.now() - __acbWait0;
         __acbLastSnap = data.snapshot;
-        __acbFast = await __acbFastAdapter.pick(data.snapshot, { timeMs: Math.max(150, __acbMs - __acbWaited), includeCards: true, maxCardProbes: __ACB.cardProbes, softFrac: __ACB.auto && Number(data.acbSoft) > 0 ? Number(data.acbSoft) : null });
+        __acbFast = await __acbFastAdapter.pick(data.snapshot, { timeMs: Math.max(150, __acbMs - __acbWaited), includeCards: true, maxCardProbes: __ACB.cardProbes, helpers: Math.min(__ACB.helpers || 0, Math.max(0, (self.navigator?.hardwareConcurrency || 4) - 2)), softFrac: __ACB.auto && Number(data.acbSoft) > 0 ? Number(data.acbSoft) : null });
       } catch (error) {
         __acbFast = { ok: false, reason: String(error?.message || error) };
       }

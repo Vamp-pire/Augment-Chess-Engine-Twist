@@ -13,6 +13,8 @@ name: booster-ab
 #    {"name":"all","b":"booster/baseline/0.16.1"}]
 # a_engine / a_adapter: side A files (default booster/fast-engine.js, booster/fast-adapter.js)
 # b: folder with side B's fast-engine.js and fast-adapter.js
+# helpers_a: side A judges cards and move checks with this many helper threads
+# workers: games played at once per runner (default 4; use 1 with helpers)
 on:
   workflow_dispatch:
     inputs:
@@ -54,7 +56,7 @@ jobs:
             const per = Math.floor(20 / v.length), include = [];
             v.forEach((x, i) => {
               if (!/^[A-Za-z0-9._-]+$/.test(x.name || "")) throw new Error("variant name: letters, digits, . _ - only");
-              for (let s = 1; s <= per; s++) include.push({ name: x.name, idx: i, shard: s, a_engine: x.a_engine || "", a_adapter: x.a_adapter || "", b: x.b || "" });
+              for (let s = 1; s <= per; s++) include.push({ name: x.name, idx: i, shard: s, a_engine: x.a_engine || "", a_adapter: x.a_adapter || "", b: x.b || "", workers: Number(x.workers) || 4, helpers_a: Number(x.helpers_a) || 0 });
             });
             require("fs").appendFileSync(process.env.GITHUB_OUTPUT, "matrix=" + JSON.stringify({ include }) + "\n");
             console.log(v.length + " variants x " + per + " shards");
@@ -89,7 +91,7 @@ jobs:
           if [ -n "$A_ADAPTER" ]; then opts="$opts --adapter-a $A_ADAPTER"; fi
           if [ -n "$B_DIR" ]; then opts="$opts --adapter-b $B_DIR/fast-adapter.js --engine-b $B_DIR/fast-engine.js"; fi
           mkdir -p out
-          node booster/tools/draft-match.cjs .cache/cw.js --pairs ${{ inputs.pairs }} --ms ${{ inputs.ms }} --workers 4 \
+          node booster/tools/draft-match.cjs .cache/cw.js --pairs ${{ inputs.pairs }} --ms ${{ inputs.ms }} --workers ${{ matrix.workers }} --helpers-a ${{ matrix.helpers_a }} \
             --mode ${{ inputs.mode }} --c none $opts \
             --seed $(( ${{ inputs.seed }} * 1000 + ${{ matrix.idx }} * 50 + ${{ matrix.shard }} )) --log out/games-${{ matrix.shard }}.jsonl
       - uses: actions/upload-artifact@v4

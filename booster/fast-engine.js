@@ -125,6 +125,44 @@ function acbFastEngineModule() {
   };
   const resolveKind = (type) => (BUILTIN[type] ? type : ALIASES[type] ?? null);
 
+  // Destination tables per movement definition and square, built once and
+  // shared by all searches (same order as walking the offsets on the board).
+  // leaps: targets on the board; slides: rays, each as [length, squares...].
+  const tableCache = new Map();
+  function leapTable(leaps) {
+    const key = "L" + JSON.stringify(leaps);
+    let t = tableCache.get(key);
+    if (!t) {
+      t = [];
+      for (let sq = 0; sq < 64; sq++) {
+        const r = sq >> 3, c = sq & 7, l = [];
+        for (const [dr, dc] of leaps) { const rr = r + dr, cc = c + dc; if (rr >= 0 && rr <= 7 && cc >= 0 && cc <= 7) l.push(rr * 8 + cc); }
+        t.push(Int8Array.from(l));
+      }
+      tableCache.set(key, t);
+    }
+    return t;
+  }
+  function slideTable(slides) {
+    const key = "S" + JSON.stringify(slides);
+    let t = tableCache.get(key);
+    if (!t) {
+      t = [];
+      for (let sq = 0; sq < 64; sq++) {
+        const r = sq >> 3, c = sq & 7, l = [];
+        for (const [dr, dc] of slides) {
+          const ray = [];
+          let rr = r + dr, cc = c + dc;
+          while (rr >= 0 && rr <= 7 && cc >= 0 && cc <= 7) { ray.push(rr * 8 + cc); rr += dr; cc += dc; }
+          if (ray.length) l.push(ray.length, ...ray);
+        }
+        t.push(Int8Array.from(l));
+      }
+      tableCache.set(key, t);
+    }
+    return t;
+  }
+
   // Transposition table, reused across searches.
   const TT_BITS = 20, TT_SIZE = 1 << TT_BITS, TT_MASK = TT_SIZE - 1;
   const ttKey = new Int32Array(TT_SIZE), ttMove = new Int32Array(TT_SIZE), ttScore = new Int32Array(TT_SIZE);
@@ -187,6 +225,7 @@ function acbFastEngineModule() {
     // Collapsed squares become walls.
     if (Number.isFinite(input.collapse?.ply)) addKind("neutral-block", { leaps: [], value: 0, pst: "none", block: true });
     for (const kd of kinds) if (kd.becomesName) kd.becomes = kindIndex.get(kd.becomesName) || 0;
+    for (const kd of kinds) { kd.leapTab = kd.leaps.length ? leapTable(kd.leaps) : null; kd.slideTab = kd.slides.length ? slideTable(kd.slides) : null; }
     const queenKind = kindIndex.get("queen"), knightKind = kindIndex.get("knight");
     // Capture bans found by probing the game: { by, a, t } = pieces of kind a
     // of side "by" cannot capture pieces of kind t (e.g. a card that stops
@@ -214,6 +253,10 @@ function acbFastEngineModule() {
     // TRANS_FOE: pieces of the other side slide through it.
     const TRANS_OWN = 16, TRANS_FOE = 32;
     const pk = new Uint8Array(64), pc = new Uint8Array(64), pm = new Uint8Array(64), fl = new Uint8Array(64);
+    // Squares that may hold a piece of each color (2 x 32 bits per color),
+    // so move generation visits pieces instead of all 64 squares. Kept by
+    // put/lift; may hold extra squares (gen still checks pk/pc).
+    const occ = new Int32Array(4);
     const lk = new Int16Array(64).fill(-1), fu = new Int16Array(64);
     //   lb: "empty lunchbox" moves left (0 = none): after each of its owner's
     //       moves the piece is safe if next to its own king, otherwise lb-1;
@@ -342,6 +385,7 @@ function acbFastEngineModule() {
     function put(sq, k, color, moved) {
       if (nn) nnTrack(k, color, sq, 1);
       pk[sq] = k; pc[sq] = color; pm[sq] = moved;
+      occ[color * 2 + (sq >> 5)] |= 1 << (sq & 31);
       const i = zi(k, color, sq); h1 ^= Z1[i]; h2 ^= Z2[i];
       const kd = kinds[k - 1];
       const v = kd.value + pstOf(k, color, sq);
@@ -367,6 +411,7 @@ function acbFastEngineModule() {
       if (kd.betrays) betrayCnt[color]--;
       if (kd.proximityWin) proxCnt[color]--;
       pk[sq] = 0;
+      occ[color * 2 + (sq >> 5)] &= ~(1 << (sq & 31));
     }
     for (let sq = 0; sq < 64; sq++) {
       const p = input.board[sq];
@@ -739,6 +784,13 @@ function acbFastEngineModule() {
     const passable = (sq, me) => (pc[sq] === me ? fl[sq] & TRANS_OWN : fl[sq] & TRANS_FOE) !== 0 || (pc[sq] !== me && wandering(sq, rootPly + tp));
     const enemyAt = (to, me) => pk[to] && pc[to] !== me && !kinds[pk[to] - 1].block && !(fl[to] & IMMUNE) && !(px[to] && rootPly + tp < slotTuI[px[to]]);
 
+    // Capture test for the piece gen is looking at (set per piece; one
+    // function instead of a new closure for every piece).
+    let gMe = 0, gFrom = 0, gCanCap = false, gEats = false, gNoKing = false;
+    function cap(to) {
+      return (gCanCap && enemyAt(to, gMe) && !banned(gMe, gFrom, to) && !(gNoKing && kinds[pk[to] - 1].royal && !kinds[pk[to] - 1].secondary))
+        || (gEats && pk[to] && pc[to] === gMe && to !== gFrom && !kinds[pk[to] - 1].royal && !kinds[pk[to] - 1].block);
+    }
     // Move generation into a buffer; returns count. capturesOnly for quiescence.
     function gen(buf, capturesOnly) {
       let n = 0;
@@ -748,7 +800,9 @@ function acbFastEngineModule() {
         if ((to >> 3) === promoRow) { buf[n++] = enc(from, to, queenKind); if (!capturesOnly) buf[n++] = enc(from, to, knightKind); }
         else buf[n++] = enc(from, to, 0);
       };
-      for (let from = 0; from < 64; from++) {
+      for (let half = 0; half < 2; half++) for (let bits = occ[me * 2 + half]; bits !== 0;) {
+        const low = bits & -bits; bits ^= low;
+        const from = (half << 5) + 31 - Math.clz32(low);
         if (!pk[from] || pc[from] !== me) continue;
         const kd = kinds[pk[from] - 1], r = from >> 3, c = from & 7;
         if (kd.block) continue;
@@ -760,10 +814,9 @@ function acbFastEngineModule() {
         if (s1 && ply < slotTuF[s1]) continue;
         const canCap = !(fl[from] & NO_CAPTURE) && !(fu[from] > ply) && !(s1 && ply < slotTuN[s1]) && !(s1 && wandering(from, ply));
         if (!canCap && capturesOnly && !kd.pawn) continue;
-        const noKing = forcedNoKing && forcedLeft > 0 && me === forcedSide;
-        const eats = (fl[from] & EAT_OWN) !== 0;
-        const cap = (to) => (canCap && enemyAt(to, me) && !banned(me, from, to) && !(noKing && kinds[pk[to] - 1].royal && !kinds[pk[to] - 1].secondary))
-          || (eats && pk[to] && pc[to] === me && to !== from && !kinds[pk[to] - 1].royal && !kinds[pk[to] - 1].block);
+        gMe = me; gFrom = from; gCanCap = canCap;
+        gNoKing = forcedNoKing && forcedLeft > 0 && me === forcedSide;
+        gEats = (fl[from] & EAT_OWN) !== 0;
         if (kd.external && extGen) {
           // The game's own movement function decides the geometry; capture
           // permission (immune, blockers, capture bans) is still ours.
@@ -808,23 +861,27 @@ function acbFastEngineModule() {
           }
           continue;
         }
-        for (const [dr, dc] of kd.leaps) {
-          const rr = r + dr, cc = c + dc;
-          if (rr < 0 || rr > 7 || cc < 0 || cc > 7) continue;
-          const to = rr * 8 + cc;
-          if (pk[to] ? cap(to) : !capturesOnly) buf[n++] = enc(from, to, 0);
+        if (kd.leapTab) {
+          const lt = kd.leapTab[from];
+          for (let i = 0; i < lt.length; i++) {
+            const to = lt[i];
+            if (pk[to] ? cap(to) : !capturesOnly) buf[n++] = enc(from, to, 0);
+          }
         }
-        for (const [dr, dc] of kd.slides) {
-          let rr = r + dr, cc = c + dc;
-          while (rr >= 0 && rr <= 7 && cc >= 0 && cc <= 7) {
-            const to = rr * 8 + cc;
-            if (pk[to]) {
-              if (passable(to, me)) { rr += dr; cc += dc; continue; }
-              if (cap(to)) buf[n++] = enc(from, to, 0);
-              break;
+        if (kd.slideTab) {
+          const st = kd.slideTab[from];
+          for (let i = 0; i < st.length;) {
+            const e = i + 1 + st[i];
+            for (i++; i < e; i++) {
+              const to = st[i];
+              if (pk[to]) {
+                if (passable(to, me)) continue;
+                if (cap(to)) buf[n++] = enc(from, to, 0);
+                break;
+              }
+              if (!capturesOnly) buf[n++] = enc(from, to, 0);
             }
-            if (!capturesOnly) buf[n++] = enc(from, to, 0);
-            rr += dr; cc += dc;
+            i = e;
           }
         }
         if (kd.specs.length) {

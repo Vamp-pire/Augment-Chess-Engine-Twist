@@ -17,6 +17,9 @@ function acbFastAdapterModule(engine) {
   const sqOf = (name) => (8 - Number(name[1])) * 8 + (name.charCodeAt(0) - 97);
   const other = (color) => (color === "white" ? "black" : "white");
   const now = () => performance.now();
+  // time spent inside the fast engine (the rest of a pick is the game's rule code)
+  let engineMs = 0;
+  { const raw = engine.search; engine = { ...engine, search: (i) => { const t = now(); try { return raw.call(engine, i); } finally { engineMs += now() - t; } } }; }
   // Rule limits learned at the root of the current pick, by piece id
   // ({ noCapture, frozen }). Applied to every position read during the pick.
   let activeRestrict = new Map();
@@ -778,6 +781,70 @@ function acbFastAdapterModule(engine) {
     try { w.postMessage({ type: "acb-opp-list", id, snapshot, color }); } catch { oppHelperReplies.delete(id); return null; }
     return { id, p };
   }
+  // ---- helper pool: cards and move checks judged in parallel ----------
+  // Each helper is another copy of this worker (or, in Node tools, whatever
+  // globalThis.__acbMakeHelper returns). Tasks carry the snapshot, the action
+  // and what this pick has learned; results are plain numbers.
+  const pool = [];
+  const poolReplies = new Map();
+  let poolSerial = 0;
+  function makeHelper() {
+    if (typeof globalThis.__acbMakeHelper === "function") return globalThis.__acbMakeHelper();
+    const href = typeof self !== "undefined" ? self.location?.href : null;
+    if (typeof Worker === "function" && typeof href === "string" && href.startsWith("blob:")) return new Worker(href, { type: "module" });
+    return null;
+  }
+  function helperLanes(n) {
+    while (pool.length < n) {
+      let w = null;
+      try { w = makeHelper(); } catch { w = null; }
+      if (!w) break;
+      const h = { w, dead: false };
+      w.addEventListener("message", (event) => {
+        const d = event.data;
+        if (d?.type !== "acb-task-result") return;
+        const resolve = poolReplies.get(d.id);
+        if (resolve) { poolReplies.delete(d.id); resolve(d.result); }
+      });
+      w.addEventListener("error", () => { h.dead = true; });
+      pool.push(h);
+    }
+    return pool.slice(0, Math.max(0, n)).filter((h) => !h.dead);
+  }
+  function runOnHelper(h, task, deadline) {
+    const id = ++poolSerial;
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => { poolReplies.delete(id); resolve(null); }, Math.max(50, deadline - now()));
+      poolReplies.set(id, (r) => { clearTimeout(timer); resolve(r); });
+      try { h.w.postMessage({ type: "acb-task", id, task }); } catch { clearTimeout(timer); poolReplies.delete(id); resolve(null); }
+    });
+  }
+  const plainAction = (a) => ({ actor: a.actor, intent: a.intent, gameId: a.gameId, revision: a.revision });
+  function contextOut(learned) {
+    return { learned: [...learned], restrict: [...activeRestrict], eatKinds: activeEat.kinds.map((k) => [...k]), eatExtra: [...activeEat.extra], capBans: activeCapBans };
+  }
+  function contextIn(ctx) {
+    activeRestrict = new Map(ctx.restrict);
+    activeEat = { kinds: ctx.eatKinds.map((k) => new Set(k)), extra: [...ctx.eatExtra] };
+    activeCapBans = ctx.capBans;
+    return new Map(ctx.learned);
+  }
+  // Runs in a helper.
+  async function helperTask(task) {
+    const learned = contextIn(task.ctx);
+    const snap = await prepareCanonicalAiSearchSnapshot(task.snapshot);
+    const session = await CanonicalEditorSession.restoreForAi(snap);
+    const branch = session.forkForAi();
+    if (!(await applyCanonicalAiCandidate(branch, task.action)).ok) return null;
+    if (task.kind === "exact") {
+      const s = await scoreAfterCard(branch, task.actor, learned, task.per, { exact: true });
+      return s ? { score: s.score, depth: s.depth } : null;
+    }
+    const r = await evalCard(snap, branch, task.action, task.actor, learned, task.per, task.rootSignature, new Set(task.rootMoveKeys));
+    if (r?.card) { const { action: _a, ...card } = r.card; return { card }; }
+    return r;
+  }
+
   // Runs in the helper: the opponent's moves (no deadline) and its friendly
   // captures; returns plain data.
   async function oppHelperTask(snapshot, color) {
@@ -972,10 +1039,35 @@ function acbFastAdapterModule(engine) {
   // move DOWN (a surprise the engine could not see, e.g. an on-capture
   // effect). A final score never exceeds the engine score, so once the best
   // verified score reaches the next engine score nothing unverified can win.
-  async function verifyRanked(sess, ranked, actor, learned, deadline) {
+  async function verifyRanked(sess, ranked, actor, learned, deadline, helpers = 0, rawSnapshot = null) {
     ranked = ranked.filter((r) => r.action).sort((a, b) => b.score - a.score || (b.exact ? 1 : 0) - (a.exact ? 1 : 0));
     const out = [];
     let bestFinal = -Infinity;
+    const hs = rawSnapshot ? helperLanes(helpers) : [];
+    if (hs.length) {
+      // Batches of (1 + helpers) moves played for real at once, same stop
+      // rule between batches. A helper's move has no branch here; it is
+      // rebuilt on demand for the later checks.
+      const ctx = contextOut(learned);
+      for (let i = 0; i < ranked.length;) {
+        if (out.length >= 2 && bestFinal >= ranked[i].score) break;
+        const left = deadline - now();
+        if (left < 40 && out.length) break;
+        const batch = ranked.slice(i, i + 1 + hs.length);
+        const share = Math.max(40, left / Math.min(4, Math.ceil((ranked.length - i) / batch.length)));
+        const results = await Promise.all(batch.map((r, j) => left <= 40 ? null : j === 0
+          ? exactAfterMove(sess, r.action, actor, learned, share).catch(() => null)
+          : runOnHelper(hs[j - 1], { kind: "exact", snapshot: rawSnapshot, action: plainAction(r.action), actor, ctx, per: share }, deadline + 800)));
+        batch.forEach((r, j) => {
+          const exact = results[j] && Number.isFinite(results[j].score) ? results[j] : null;
+          const final = exact ? Math.min(r.score, exact.score + 30) : r.score;
+          out.push({ kind: "move", action: r.action, score: final, realScore: exact?.score ?? null, branch: exact?.branch ?? null, engineScore: r.score, exact: !!exact });
+          if (final > bestFinal) bestFinal = final;
+        });
+        i += batch.length;
+      }
+      return out.sort((a, b) => b.score - a.score);
+    }
     for (let i = 0; i < ranked.length; i++) {
       if (out.length >= 2 && bestFinal >= ranked[i].score) break;
       const left = deadline - now();
@@ -1188,8 +1280,37 @@ function acbFastAdapterModule(engine) {
   //   4. top plain moves are played for real (on-capture effects, passives)
   //      and re-scored
   //   5. the opponent's cards are tried against our best options
-  async function pick(snapshot, { timeMs = 3000, includeCards = true, maxCardProbes = 24, cardShare = 0.2, noHelper = false, softFrac = null, nodes = 0 } = {}) {
+  // One card (or spell) judged on its branch: { card } | { hidden: label } | null.
+  async function evalCard(snapshot, branch, action, actor, learned, per, rootSignature, rootMoveKeys) {
+    const label = isSpell(action) ? `${SPELL_NAMES[action.intent.payload.promotion] ?? action.intent.payload.promotion} ${action.intent.payload.to}` : cardLabel(snapshot, actor, action.intent);
+    try {
+      const s = await scoreAfterCard(branch, actor, learned, per, { rootSignature });
+      if (!s) return null;
+      if (!s.invisible) return { card: { action, ...s, label } };
+      // Hidden effect: what can we do now that we could not before?
+      const enabled = canonicalAiMoveCandidates(branch, { canContinue: () => true }).actions
+        .filter(isMove)
+        .filter((a) => !rootMoveKeys.has(`${sqOf(a.intent.payload.from)}-${sqOf(a.intent.payload.to)}`));
+      if (!enabled.length) return { hidden: label };
+      // Captures first; at most three are played for real.
+      const board = branch.snapshot({ includeHistory: false }).game.position.board;
+      const target = (a) => board[8 - Number(a.intent.payload.to[1])]?.[a.intent.payload.to.charCodeAt(0) - 97];
+      enabled.sort((a, b) => (target(b) ? 1 : 0) - (target(a) ? 1 : 0));
+      let best = null;
+      for (const move of enabled.slice(0, 3)) {
+        const r = await exactAfterMove(branch, move, actor, learned, Math.max(40, per / 3));
+        if (r && (!best || r.score > best.score)) best = { ...r, follow: move.intent.payload };
+      }
+      if (best) return { card: { action, score: best.score, depth: best.depth, exact: true, label: `${label} → ${best.follow.from}${best.follow.to}` } };
+      return { hidden: label };
+    } catch { return null; /* a card the engine cannot read */ }
+  }
+
+  async function pick(snapshot, { timeMs = 3000, includeCards = true, maxCardProbes = 24, cardShare = 0.2, noHelper = false, softFrac = null, nodes = 0, helpers = 0, rawSnapshot = snapshot } = {}) {
     const start = now();
+    if (helpers > 0) helperLanes(helpers); // start them early (each loads the game code once)
+    const stageTiming = {}, engine0 = engineMs; let stageMark = start;
+    const stage = (k) => { const t = now(); stageTiming[k] = Math.round(t - stageMark); stageMark = t; };
     let end = start + timeMs;
     let at = (f) => start + timeMs * f;
     // the opponent's move list may use up to half the budget (see opponentMoves)
@@ -1200,6 +1321,7 @@ function acbFastAdapterModule(engine) {
     // minimum), instead of fixed points counted from the start that may
     // already be over. Stage fractions below are of the whole budget with
     // 0.2 meant for preparation; they are mapped onto the time left.
+    stage("prep");
     const prepEnd = now();
     end = Math.max(end, prepEnd + Math.min(400, timeMs * 0.3));
     { const span = end - prepEnd; at = (f) => prepEnd + span * Math.max(0, (f - 0.2) / 0.8); }
@@ -1228,54 +1350,55 @@ function acbFastAdapterModule(engine) {
       const r = engine.search(input);
       if (r.ok && r.move) base = r;
     }
+    stage("base");
 
-    // 3. cards
+    // 3. cards (shared by this worker and its helpers, if any)
     const cards = [], hidden = [];
-    for (let i = 0; i < cardActions.length; i++) {
-      const stop = at(T.cards), left = stop - now();
-      if (left < 40) break;
-      const per = Math.max(40, left / (cardActions.length - i));
-      const action = cardActions[i];
-      let branch = query.successors.get(action);
-      if (!branch && isSpell(action)) {
-        try {
-          const b = session.forkForAi();
-          if ((await applyCanonicalAiCandidate(b, action)).ok) { branch = b; query.successors.set(action, b); }
-        } catch { branch = null; }
-      }
-      if (!branch) continue;
-      const label = isSpell(action) ? `${SPELL_NAMES[action.intent.payload.promotion] ?? action.intent.payload.promotion} ${action.intent.payload.to}` : cardLabel(snapshot, actor, action.intent);
-      try {
-        const s = await scoreAfterCard(branch, actor, learned, per, { rootSignature });
-        if (!s) continue;
-        if (!s.invisible) { cards.push({ action, ...s, label }); continue; }
-        // Hidden effect: what can we do now that we could not before?
-        const enabled = canonicalAiMoveCandidates(branch, { canContinue: () => true }).actions
-          .filter(isMove)
-          .filter((a) => !rootMoveKeys.has(`${sqOf(a.intent.payload.from)}-${sqOf(a.intent.payload.to)}`));
-        if (!enabled.length) { hidden.push(label); continue; }
-        // Captures first; at most three are played for real.
-        const board = branch.snapshot({ includeHistory: false }).game.position.board;
-        const target = (a) => board[8 - Number(a.intent.payload.to[1])]?.[a.intent.payload.to.charCodeAt(0) - 97];
-        enabled.sort((a, b) => (target(b) ? 1 : 0) - (target(a) ? 1 : 0));
-        let best = null;
-        for (const move of enabled.slice(0, 3)) {
-          const r = await exactAfterMove(branch, move, actor, learned, Math.max(40, per / 3));
-          if (r && (!best || r.score > best.score)) best = { ...r, follow: move.intent.payload };
+    {
+      const stop = at(T.cards);
+      const lanes = [null, ...helperLanes(helpers)];
+      const ctx = lanes.length > 1 ? contextOut(learned) : null;
+      let next = 0;
+      const lane = async (h) => {
+        for (;;) {
+          const i = next++;
+          if (i >= cardActions.length) return;
+          const left = stop - now();
+          if (left < 40) return;
+          const per = Math.max(40, left / Math.ceil((cardActions.length - i) / lanes.length));
+          const action = cardActions[i];
+          let res = null;
+          if (h) {
+            res = await runOnHelper(h, { kind: "card", snapshot: rawSnapshot, action: plainAction(action), actor, ctx, per, rootSignature, rootMoveKeys: [...rootMoveKeys] }, stop + 800);
+            if (res?.card) res.card.action = action;
+          } else {
+            let branch = query.successors.get(action);
+            if (!branch && isSpell(action)) {
+              try {
+                const b = session.forkForAi();
+                if ((await applyCanonicalAiCandidate(b, action)).ok) { branch = b; query.successors.set(action, b); }
+              } catch { branch = null; }
+            }
+            if (!branch) continue;
+            res = await evalCard(snapshot, branch, action, actor, learned, per, rootSignature, rootMoveKeys);
+          }
+          if (res?.card) cards.push(res.card);
+          else if (res?.hidden) hidden.push(res.hidden);
         }
-        if (best) cards.push({ action, score: best.score, depth: best.depth, exact: true, label: `${label} → ${best.follow.from}${best.follow.to}` });
-        else hidden.push(label);
-      } catch { /* skip a card the engine cannot read */ }
+      };
+      await Promise.all(lanes.map(lane));
     }
     cards.sort((a, b) => b.score - a.score);
+    stage("cards");
 
     // 4. top plain moves played for real
     // no completed depth (rootScores empty): rank at least the engine's move
     const ranked = base ? (base.rootScores?.length ? base.rootScores : base.move ? [{ key: base.move.key, score: base.score, exact: false }] : []) : [];
     const options = base
-      ? await verifyRanked(session, ranked.map((r) => ({ action: byKey.get(r.key), score: r.score, exact: r.exact })), actor, learned, at(T.verify))
+      ? await verifyRanked(session, ranked.map((r) => ({ action: byKey.get(r.key), score: r.score, exact: r.exact })), actor, learned, at(T.verify), helpers, rawSnapshot)
       : [];
     const bestMoveScore = options.length ? options[0].score : -Infinity;
+    stage("verify");
 
     // Best card, if it clearly beats the best plain move (cards are one-shot).
     // Its score must be measured the same way as the moves': a card that
@@ -1283,7 +1406,11 @@ function acbFastAdapterModule(engine) {
     for (const card of cards.slice(0, 2)) {
       if (Number.isFinite(bestMoveScore) && card.score <= bestMoveScore + CARD_MARGIN) break;
       let check = card;
-      const b = query.successors.get(card.action);
+      let b = query.successors.get(card.action);
+      if (!b) {
+        try { const fb = session.forkForAi(); if ((await applyCanonicalAiCandidate(fb, card.action)).ok) { b = fb; query.successors.set(card.action, fb); } } catch { b = null; }
+        if (!b) continue;
+      }
       const shallow = (card.depth ?? 0) < Math.min(5, (base?.depth ?? 0) - 2);
       if ((!card.exact || shallow) && now() < end) {
         try {
@@ -1305,6 +1432,7 @@ function acbFastAdapterModule(engine) {
       }
     }
 
+    stage("cardCheck");
     // 5. opponent card replies against our options (best first)
     // (time is kept back for the final safety check below)
     const safetyReserve = Math.min(1200, timeMs * 0.2);
@@ -1319,6 +1447,9 @@ function acbFastAdapterModule(engine) {
     let bestChecked = -Infinity;
     for (const opt of options) {
       if (now() > cardEnd - 30) break;
+      if (!opt.branch && opt.kind === "move" && opt.exact) {
+        try { const b = session.forkForAi(); if ((await applyCanonicalAiCandidate(b, opt.action)).ok) opt.branch = b; } catch { /* leave unchecked */ }
+      }
       if (!opt.branch) continue;
       if (opt.score <= bestChecked) continue;
       try {
@@ -1332,6 +1463,7 @@ function acbFastAdapterModule(engine) {
       } catch { /* skip */ }
     }
     options.sort((a, b) => b.score - a.score);
+    stage("threat");
 
     // 6. Last safety net, answered by the game itself: does this action let
     // the opponent win on their very next move, by any rule (king capture or
@@ -1356,6 +1488,7 @@ function acbFastAdapterModule(engine) {
       opt.score = -MATE + 2;
     }
     options.sort((a, b) => b.score - a.score);
+    stage("safety");
     const choiceOpt = options[0] ?? null;
 
     let candidate = choiceOpt?.action ?? null, score = choiceOpt?.score ?? -Infinity, choice = choiceOpt?.kind ?? "move", chosenCard = choiceOpt?.kind === "card" ? choiceOpt.label : null;
@@ -1386,6 +1519,7 @@ function acbFastAdapterModule(engine) {
       immediateLosses,
       limitsLearned: root.limits,
       prepTiming: root.timing,
+      stageTiming, engineMs: Math.round(engineMs - engine0),
       oppCutOff,
       friendlyCaptures: [0, 1].map((c) => ({ kinds: [...activeEat.kinds[c]], extraMove: activeEat.extra[c] })),
       captureBans: activeCapBans.map((b) => `${b.by ? "black" : "white"} ${b.a} x ${b.t}`),
@@ -1581,7 +1715,7 @@ function acbFastAdapterModule(engine) {
   }
 
   // opponentCardThreat is exposed for tools/ (diagnostics).
-  return { pick, buildInput, opponentCardThreat, prepareRoot, draftProbe, oppHelperTask, draftPlayoutOne, startPonder, stopPonder };
+  return { pick, buildInput, opponentCardThreat, prepareRoot, draftProbe, oppHelperTask, helperTask, draftPlayoutOne, startPonder, stopPonder };
 }
 
 if (typeof module !== "undefined" && module.exports) module.exports = acbFastAdapterModule;
